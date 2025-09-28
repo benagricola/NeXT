@@ -64,8 +64,8 @@ if { state.currentTool == global.nxtProbeToolID }
         ; Probe the toolsetter
         G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
         
-        ; For datum tool, we establish the base reference but don't set an offset
-        ; The measurement is cached for other tools to reference
+        ; Cache the measurement for this session only  
+        ; Note: This cache will be cleared when the tool is removed
         set global.nxtToolCache[state.currentTool] = global.nxtLastProbeResult
         
         ; Set datum tool offset to 0 (it's our reference)
@@ -89,7 +89,8 @@ else
         ; Probe the cutting tool on toolsetter
         G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
         
-        ; Cache the measurement
+        ; Cache the measurement for this session only
+        ; Note: This cache will be cleared when the tool is removed
         set global.nxtToolCache[state.currentTool] = global.nxtLastProbeResult
         
         ; Calculate relative offset based on previous tool or reference

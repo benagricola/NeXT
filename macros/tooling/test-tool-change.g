@@ -66,7 +66,7 @@ if { var.testMode == 2 }
         M99
     
     ; Prompt for calibration test
-    M291 P"Run static datum calibration test? This will require a datum tool." R"Test Calibration" S4
+    M291.9 P"Run static datum calibration test? This will require a datum tool." R"Test Calibration" S4
     
     if { input == 1 }
         echo "Calibration test cancelled"
@@ -94,7 +94,7 @@ if { global.nxtFeatureTouchProbe && global.nxtDeltaMachine == null }
     M99
 
 ; Prompt for full test
-M291 P"Run full tool change test? This will involve tool changes and measurements." R"Full Test" S4
+M291.9 P"Run full tool change test? This will involve tool changes and measurements." R"Full Test" S4
 
 if { input == 1 }
     echo "Full test cancelled"
@@ -164,4 +164,4 @@ echo "3. Test actual tool changes: T0, T1, etc."
 echo "4. Verify offset calculations are accurate"
 echo "5. Test probe->cutter and cutter->cutter workflows"
 
-M291 P"Tool change system test completed. Check console output for results." R"Test Complete" S1 T0
+M291.9 P"Tool change system test completed. Check console output for results." R"Test Complete" S1 T0

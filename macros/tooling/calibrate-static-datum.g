@@ -38,9 +38,9 @@ G27 Z1
 ; Step 1: Install datum tool
 echo "Static Datum Calibration: Step 1 - Install Datum Tool"
 if { global.nxtUiReady }
-    M291 P"Install datum tool (rigid reference tool) and press OK when ready" R"Static Datum Calibration" S3 T0
+    M291.9 P"Install datum tool (rigid reference tool) and press OK when ready" R"Static Datum Calibration" S3 T0
 else
-    M291 P"Install datum tool (rigid reference tool) and press OK when ready" R"Static Datum Calibration" S3 T0
+    M291.9 P"Install datum tool (rigid reference tool) and press OK when ready" R"Static Datum Calibration" S3 T0
 
 ; Step 2: Measure toolsetter with datum tool
 echo "Static Datum Calibration: Step 2 - Measuring toolsetter activation point"
@@ -60,9 +60,9 @@ echo "Static Datum Calibration: Step 3 - Measuring reference surface"
 
 ; Guide operator to move to reference surface
 if { global.nxtUiReady }
-    M291 P"Move datum tool to reference surface position and press OK to continue" R"Static Datum Calibration" S3 T0
+    M291.9 P"Move datum tool to reference surface position and press OK to continue" R"Static Datum Calibration" S3 T0
 else
-    M291 P"Move datum tool to reference surface position and press OK to continue" R"Static Datum Calibration" S3 T0
+    M291.9 P"Move datum tool to reference surface position and press OK to continue" R"Static Datum Calibration" S3 T0
 
 ; Move to reference surface position
 G53 G0 X{global.nxtReferencePos[0]} Y{global.nxtReferencePos[1]}
@@ -74,7 +74,7 @@ if { global.nxtFeatureTouchProbe }
     G6512 Z{global.nxtReferencePos[2] - 5} I{global.nxtTouchProbeID}
 else
     ; Manual probing on reference surface
-    M291 P"Manually jog datum tool to touch reference surface, then press OK" R"Static Datum Calibration" S3 T0
+    M291.9 P"Manually jog datum tool to touch reference surface, then press OK" R"Static Datum Calibration" S3 T0
     ; Get current position as the reference
     M5000
     set global.nxtLastProbeResult = global.nxtAbsPos[2]
@@ -102,6 +102,6 @@ echo "Static Datum Calibration: Calibration completed successfully"
 echo "Static Datum Calibration: nxtDeltaMachine = " ^ global.nxtDeltaMachine ^ "mm"
 
 if { global.nxtUiReady }
-    M291 P{"Static datum calibrated: " ^ global.nxtDeltaMachine ^ "mm. Remove datum tool when ready."} R"Calibration Complete" S1 T0
+    M291.9 P{"Static datum calibrated: " ^ global.nxtDeltaMachine ^ "mm. Remove datum tool when ready."} R"Calibration Complete" S1 T0
 else
-    M291 P{"Static datum calibrated: " ^ global.nxtDeltaMachine ^ "mm. Remove datum tool when ready."} R"Calibration Complete" S1 T0
+    M291.9 P{"Static datum calibrated: " ^ global.nxtDeltaMachine ^ "mm. Remove datum tool when ready."} R"Calibration Complete" S1 T0

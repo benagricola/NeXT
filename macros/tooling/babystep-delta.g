@@ -34,6 +34,6 @@ echo "Babystep Delta: New value: " ^ global.nxtDeltaMachine ^ "mm"
 
 ; Confirmation dialog
 if { global.nxtUiReady }
-    M291 P{"Delta adjusted by " ^ param.S ^ "mm. New value: " ^ global.nxtDeltaMachine ^ "mm"} R"Babystep Delta" S1 T0
+    M291.9 P{"Delta adjusted by " ^ param.S ^ "mm. New value: " ^ global.nxtDeltaMachine ^ "mm"} R"Babystep Delta" S1 T0
 else
-    M291 P{"Delta adjusted by " ^ param.S ^ "mm. New value: " ^ global.nxtDeltaMachine ^ "mm"} R"Babystep Delta" S1 T0
+    M291.9 P{"Delta adjusted by " ^ param.S ^ "mm. New value: " ^ global.nxtDeltaMachine ^ "mm"} R"Babystep Delta" S1 T0

@@ -31,9 +31,9 @@ echo "G37.1: Manual tool length measurement for T" ^ state.currentTool
 var currentWCS = { (move.workplaceNumber > 0) ? move.workplaceNumber : 1 }
 
 if { global.nxtUiReady }
-    M291 P{"Jog tool T" ^ state.currentTool ^ " to desired Z origin position"} R"Manual Tool Measurement" S3 T0 K{"jogging"}
+    M291.9 P{"Jog tool T" ^ state.currentTool ^ " to desired Z origin position"} R"Manual Tool Measurement" S3 T0 K{"jogging"}
 else
-    M291 P{"Use DWC controls to jog tool T" ^ state.currentTool ^ " to desired Z origin position, then press OK"} R"Manual Tool Measurement" S3 T0
+    M291.9 P{"Use DWC controls to jog tool T" ^ state.currentTool ^ " to desired Z origin position, then press OK"} R"Manual Tool Measurement" S3 T0
 
 ; Get current position after jogging
 M5000
@@ -53,8 +53,8 @@ set global.nxtToolCache[state.currentTool] = null
 
 ; Inform operator
 if { global.nxtUiReady }
-    M291 P{"Z origin set for tool T" ^ state.currentTool ^ " in WCS G" ^ (53 + var.currentWCS)} R"Manual Measurement Complete" S1 T0
+    M291.9 P{"Z origin set for tool T" ^ state.currentTool ^ " in WCS G" ^ (53 + var.currentWCS)} R"Manual Measurement Complete" S1 T0
 else
-    M291 P{"Z origin set for tool T" ^ state.currentTool ^ " in WCS G" ^ (53 + var.currentWCS)} R"Manual Measurement Complete" S1 T0
+    M291.9 P{"Z origin set for tool T" ^ state.currentTool ^ " in WCS G" ^ (53 + var.currentWCS)} R"Manual Measurement Complete" S1 T0
 
 echo "G37.1: Manual tool length measurement completed"

@@ -23,9 +23,9 @@ if { state.currentTool == global.nxtProbeToolID }
     var toolName = { global.nxtFeatureTouchProbe ? "Touch Probe" : "Datum Tool" }
     if { global.nxtUiReady }
         ; TODO: Use UI confirmation when available
-        M291 P{"Remove " ^ var.toolName ^ " and confirm when safely stowed"} R"Tool Change" S3 T0
+        M291.9 P{"Remove " ^ var.toolName ^ " and confirm when safely stowed"} R"Tool Change" S3 T0
     else
-        M291 P{"Remove " ^ var.toolName ^ " and confirm when safely stowed"} R"Tool Change" S3 T0
+        M291.9 P{"Remove " ^ var.toolName ^ " and confirm when safely stowed"} R"Tool Change" S3 T0
 else
     ; Standard cutting tool removal - measure on toolsetter if feature is enabled
     if { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
@@ -40,7 +40,8 @@ else
             ; Probe the tool on toolsetter
             G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
             
-            ; Cache the measurement result
+            ; Cache the measurement result for this session only
+            ; Note: Tool length will change if the tool is physically removed and reinstalled
             set global.nxtToolCache[state.currentTool] = global.nxtLastProbeResult
             
             echo "tfree.g: Tool T" ^ state.currentTool ^ " measured at Z=" ^ global.nxtLastProbeResult
@@ -50,6 +51,10 @@ else
 
 ; Store the previous tool's offset for relative calculations
 set global.nxtPreviousToolOffset = { tools[state.currentTool].offsets[2] }
+
+; Clear the tool cache since the tool is being physically removed
+; Tool length will be different when reinstalled
+set global.nxtToolCache[state.currentTool] = null
 
 ; Set tool change state to indicate tfree.g completion
 set global.nxtToolChangeState = 1
