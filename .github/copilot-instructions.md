@@ -12,12 +12,13 @@ NeXT (Next-Gen Extended Tooling) is a complete rewrite of MillenniumOS that exte
   - `macros/tooling/`: Tool changing and length measurement
   - `macros/utilities/`: Parking, power control, general utilities
 - **UI** (`ui/`): JavaScript plugin for Duet Web Control integration
-- **Post-Processors** (`post-processors/`): Fusion360/FreeCAD scripts for extended G-codes
+- **Post-Processors** (`post-processors/`): Fusion360/FreeCAD scripts that may output extended G-codes when standard NIST codes are insufficient
 - **Documentation** (`docs/`): Comprehensive guides for development, testing, and features
 
 ### Data Flow & Design Philosophy
 - Global variables with `nxt*` prefix for state management (e.g., `nxtProbeResults`)
-- Macro calls for machine information (e.g., `M5000` for positions)
+- **Object Model**: RRF's object model is the source of truth for machine information (https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation)
+- **DRY Macros**: Common information (e.g., compensated positions) abstracted into reusable macros, balanced against memory usage
 - **Simplicity First**: Wrapper macros add safety to RRF commands without complexity
 - **Numerical Stability**: Algorithms prioritize accuracy, especially in probing operations
 - **Single-Axis Probing**: Core principle - one axis movement per probing command
@@ -108,13 +109,6 @@ NeXT (Next-Gen Extended Tooling) is a complete rewrite of MillenniumOS that exte
 - **Version Checking**: Post-processors validate NeXT version compatibility
 
 ## Development Phases & Feature Implementation
-
-### Current Phase Focus
-Follow `docs/ROADMAP.md` for implementation priority:
-1. **Phase 0**: Foundation & cleanup ✅
-2. **Phase 1**: Core system & probing engine (in progress)
-3. **Phase 2**: Advanced features & UI integration
-4. **Phase 3**: Final polish & optimization
 
 ### Feature Tracking
 - Use `docs/FEATURES.md` for feature requirements and status
