@@ -77,7 +77,7 @@ while { iterations < var.retries }
     M5000
 
     var triggeredPos = global.nxtAbsPos[var.probeAxisIndex]
-    var direction = { var.targetCoord > var.startPos ? 1 : -1 }
+    var direction = { var.targetVector[var.probeAxisIndex] > var.startPos ? 1 : -1 }
     var compensated = { var.triggeredPos * 1000 - var.probeDeflectionUm }
 
     if { var.probeAxisIndex != 2 }
