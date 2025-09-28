@@ -58,8 +58,8 @@ var sum = 0.0
 var count = 0
 var speed = var.roughSpeed
 
-var probeDeflectionUm { global.nxtProbeDeflection * 1000 }
-var probeTipRadiusUm { global.nxtProbeTipRadius * 1000 }
+var probeDeflectionUm = { global.nxtProbeDeflection * 1000 }
+var probeTipRadiusUm = { global.nxtProbeTipRadius * 1000 }
 
 while { iterations < var.retries }
     ; Refresh current machine position before each probe move
