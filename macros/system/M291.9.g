@@ -60,23 +60,6 @@ else
     ; Fall back to standard M291 for all other cases
     echo "M291.9: Using standard M291 dialog"
     
-    ; Build M291 command with all parameters
-    var m291cmd = "M291 P{" ^ var.message ^ "}"
-    
-    if { exists(param.R) }
-        set m291cmd = { var.m291cmd ^ " R{" ^ var.title ^ "}" }
-    
-    if { exists(param.S) }
-        set m291cmd = { var.m291cmd ^ " S" ^ var.dialogType }
-    
-    if { exists(param.K) }
-        set m291cmd = { var.m291cmd ^ " K" ^ var.choices }
-    
-    if { exists(param.F) }
-        set m291cmd = { var.m291cmd ^ " F" ^ var.defaultChoice }
-    
-    if { exists(param.T) }
-        set m291cmd = { var.m291cmd ^ " T" ^ var.timeout }
-    
-    ; Execute the M291 command
-    {var.m291cmd}
+    ; Execute M291 command directly with parameters
+    ; Use null values for unset parameters
+    M291 P{var.message} R{var.title} S{var.dialogType} K{var.choices} F{var.defaultChoice} T{var.timeout}

@@ -13,6 +13,10 @@ if { !inputs[state.thisInput].active }
 ; Determine park mode
 var parkMode = { exists(param.P) ? param.P : 0 }
 
+; Check that all axes are homed before proceeding
+if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
+    abort "G27: All axes must be homed before parking"
+
 ; Use absolute positions in mm
 G90
 G21
@@ -22,8 +26,7 @@ G94
 M9
 
 ; Move spindle to top of Z travel (always for safety)
-if { move.axes[2].homed }
-    G53 G0 Z{move.axes[2].max}
+G53 G0 Z{move.axes[2].max}
 
 ; Wait for movement to stop
 M400
@@ -32,7 +35,7 @@ M400
 M5.9
 
 ; If park is called with Z parameter, then the table itself will not be moved.
-if { !exists(param.Z) && move.axes[0].homed && move.axes[1].homed }
+if { !exists(param.Z) }
     ; Choose park position based on mode
     if { var.parkMode == 1 || !exists(global.nxtParkPosition) }
         ; Tool change mode or no user park position - use machine limits
