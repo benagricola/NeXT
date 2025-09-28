@@ -20,13 +20,38 @@ This document outlines the coding conventions and style guidelines to be followe
 
 ---
 
-## 3. Expression Handling in Conditionals
+## 3. Expression Handling - ALL Expressions Must Use Curly Braces
 
-- **Wrapping Required:** All expressions in the conditional part of `if` statements must be wrapped in curly braces `{}` to ensure proper parsing of complex expressions.
-- **Examples:**
-  - Correct: `if { exists(param.S) && param.S > 0 }`
-  - Incorrect: `if exists(param.S) && param.S > 0`
-- **Reason:** This prevents parsing ambiguities, especially with logical operators like `&&` and `||`.
+- **Universal Requirement:** ALL expressions in RepRapFirmware meta G-code must be wrapped in curly braces `{}` to ensure proper parsing and prevent ambiguities.
+- **This applies to:**
+  - Conditional expressions in `if` statements
+  - Variable assignments and operations
+  - Command parameters with expressions
+  - `echo` and `abort` statement arguments
+  - Coordinate calculations
+
+### Examples:
+
+#### ✅ CORRECT - All expressions wrapped in curly braces:
+```gcode
+echo { "Current position: " ^ var.blah }
+abort { "Error in macro: Invalid parameter" }
+G0 X{var.x} Y{var.y}
+var x = { 0 }
+var y = { var.x + 1 }
+set var.y = { var.x }
+if { exists(param.S) && param.S > 0 }
+```
+
+#### ❌ INCORRECT - Missing curly braces:
+```gcode
+echo "Current position: " ^ var.blah
+abort "Error in macro"
+G0 X var.x Y var.y  
+var x = 0
+var y = var.x + 1
+if exists(param.S) && param.S > 0
+```
 
 ---
 

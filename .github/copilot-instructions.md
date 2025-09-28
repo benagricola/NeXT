@@ -57,9 +57,13 @@ NeXT (Next-Gen Extended Tooling) is a complete rewrite of the legacy MillenniumO
 - **Variables**: 
   - Global: `nxt*` prefix, camelCase (e.g., `nxtProbeDeflection`)
   - Descriptive names over abbreviations
-- **Expressions**: ALWAYS wrap in `{}`:
+- **Expressions**: ALWAYS wrap ALL expressions in `{}`:
   - `if { exists(param.X) && param.X > 0 }`
   - `var myVar = { 5 }`
+  - `echo { "Message: " ^ var.value }`
+  - `abort { "Error message" }`
+  - `G0 X{var.x} Y{var.y}`
+  - `set var.y = { var.x }`
 - **Macro Structure**:
   - Header comments with purpose, usage, and parameters
   - Early parameter validation
