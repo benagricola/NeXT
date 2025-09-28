@@ -14,8 +14,8 @@ if { !inputs[state.thisInput].active }
 if { global.nxtToolSetterPos == null }
     abort "G37: Toolsetter position not configured"
 
-; Assume toolsetter probe ID is 0 or something; adjust as needed
-var probeID = {0}  ; TODO: make configurable
+; Use configured toolsetter probe ID from global.nxtToolSetterID
+var probeID = {global.nxtToolSetterID}
 
 ; Move to toolsetter XY position
 G53 G0 X{global.nxtToolSetterPos[0]} Y{global.nxtToolSetterPos[1]}
