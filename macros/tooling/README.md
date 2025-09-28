@@ -2,6 +2,16 @@
 
 This directory contains the core tool change macros implementing the new relative-offset calculation system described in `TOOLSETTING.md`.
 
+## RRF Tool Change Integration
+
+These macros follow the RepRapFirmware tool change system as documented at:
+https://docs.duet3d.com/User_manual/Tuning/Tool_changing
+
+RRF automatically calls these macros during tool changes in this specific order:
+1. `tfree.g` - Before freeing the current tool
+2. `tpre.g` - Before selecting the new tool  
+3. `tpost.g` - After selecting the new tool
+
 ## Core Tool Change Macros
 
 ### `tfree.g` - Tool Removal
@@ -29,7 +39,7 @@ This directory contains the core tool change macros implementing the new relativ
 - Measures tools on toolsetter and calculates appropriate offsets
 - Integrates with the tool cache and delta machine system
 
-### `G37.1.g` - Manual Tool Length Measurement
+### `manual-tool-measurement.g` - Manual Tool Length Measurement
 - Fallback for systems without toolsetter
 - Guides operator through manual Z-origin setting
 - Clears tool offsets and sets WCS origins directly
@@ -81,4 +91,4 @@ This directory contains the core tool change macros implementing the new relativ
 - Works with existing probing system (`G6512.g`)
 - Compatible with both toolsetter and manual workflows
 - Supports UI-based confirmations when `nxtUiReady = true` 
-- Falls back to M291 dialogs when UI unavailable
+- Falls back to M291.9 dialogs when UI unavailable
