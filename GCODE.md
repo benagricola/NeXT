@@ -18,14 +18,14 @@ When there is no toolsetter available, it is necessary to re-zero the Z origin a
 
 Takes both `R` (title) and `S` (message) string parameters, and will display an RRF dialog box. If the machine is currently processing a file and not paused, the dialog box will contain Continue, Pause and Cancel options. If M3000 is called while the machine is not processing a file, only Continue and Cancel options will be shown. This can be used by post-processors to display messages to the operator.
 
-### `M4005` - CHECK MILLENNIUMOS VERSION
+### `M4005` - CHECK NEXT VERSION
 
 ```gcode
-; Abort if loaded MillenniumOS version is not v0.3.0
+; Abort if loaded NeXT version is not v0.3.0
 M4005 V"v0.3.0"
 ```
 
-The MillenniumOS post-processor and macros are tightly coupled across versions. This command aborts an active job if the version of MillenniumOS that is running in RRF does not match the version of the post-processor that generated the job.
+The NeXT post-processor and macros are tightly coupled across versions. This command aborts an active job if the version of NeXT that is running in RRF does not match the version of the post-processor that generated the job.
 
 ### `M5010` - RESET STORED WCS DETAILS
 
@@ -68,11 +68,11 @@ Outputs any stored probing details either for the current workplace, or the work
 
 ### `G8000` - RUN CONFIGURATION WIZARD
 
-Triggered when installing MillenniumOS for the first time, and can be called later to reconfigure MillenniumOS. Runs through a modal-driven configuration wizard prompting the user for all of the settings required to run MillenniumOS properly.
+Triggered when installing NeXT for the first time, and can be called later to reconfigure NeXT. Runs through a modal-driven configuration wizard prompting the user for all of the settings required to run NeXT properly.
 
 ### `M8001` - DETECT PROBE BY STATUS CHANGE
 
-Iterates through all configured probes every &lt;n&gt;ms, checking to see if their values have changed. This can be used to identify the right probe via user input when configuring MillenniumOS.
+Iterates through all configured probes every &lt;n&gt;ms, checking to see if their values have changed. This can be used to identify the right probe via user input when configuring NeXT.
 
 ### `M8002` - WAIT FOR PROBE STATUS CHANGE BY ID
 
@@ -108,9 +108,9 @@ M8004 K0
 Waits for a general purpose input pin to change state. The state that is changed to is unimportant, just that the state changes. This code is used by `M3.9` and `M5.9` when spindle feedback is enabled to wait until the VFD reports that it has reached the target speed.
 
 
-### `M9999` - RELOAD MILLENNIUMOS
+### `M9999` - RELOAD NEXT
 
-Triggers a reload of MillenniumOS using `daemon.g`. This can be used when developing or updating values from `mos-user-vars.g` but is _not_ suitable for use when a new version of MillenniumOS has been installed - you _MUST_ restart!
+Triggers a reload of NeXT using `daemon.g`. This can be used when developing or updating values from `nxt-user-vars.g` but is _not_ suitable for use when a new version of NeXT has been installed - you _MUST_ restart!
 
 ---
 
@@ -358,4 +358,4 @@ Disable Variable Spindle Speed Control.
 
 ### `M7600` - OUTPUT ALL KNOWN VARIABLES
 
-Sometimes it is necessary to debug MillenniumOS or RRF, and this macro allows outputting the macro variables that MillenniumOS uses in a manner that can be attached to tickets or discord messages to aid debugging. Call it with the `D1` parameter to enable additional RRF object model output that can help to debug the odder issues.
+Sometimes it is necessary to debug NeXT or RRF, and this macro allows outputting the macro variables that NeXT uses in a manner that can be attached to tickets or discord messages to aid debugging. Call it with the `D1` parameter to enable additional RRF object model output that can help to debug the odder issues.
