@@ -12,26 +12,30 @@ This document outlines the development process, branching strategy, and code rev
 
 ---
 
-## 2. Branching Strategy
+## 2. Repository & Branching Strategy
 
-1.  **Main Integration Branch (`next`):**
-    *   The `next` branch is the primary target for all new development. It should always represent the current state of the rewrite.
+1.  **NeXT Repository:**
+    *   Development has moved to a dedicated repository: `benagricola/NeXT` (https://github.com/benagricola/NeXT)
+    *   This provides full control over the development process without affecting the main MillenniumOS codebase.
 
-2.  **Direct Commits to `next`:**
-    *   Only initial project scaffolding, core loading/variable scripts, and documentation changes (like this one) may be committed directly to the `next` branch.
+2.  **Main Integration Branch (`main`):**
+    *   The `main` branch is the primary target for all new development. It should always represent the current state of the rewrite.
 
-3.  **Feature Branches:**
-    *   All other feature development, bug fixes, or refactoring must be done in a separate feature branch, created from the latest `next` branch.
+3.  **Direct Commits to `main`:**
+    *   Only initial project scaffolding, core loading/variable scripts, and documentation changes (like this one) may be committed directly to the `main` branch.
+
+4.  **Feature Branches:**
+    *   All other feature development, bug fixes, or refactoring must be done in a separate feature branch, created from the latest `main` branch.
     *   Branch names should be descriptive, for example: `feature/probing-engine` or `fix/tool-change-logic`.
 
 ---
 
 ## 3. Pull Request (PR) and Code Review Process
 
-All feature branches must be merged into `next` via a Pull Request (PR). This ensures that every change is reviewed.
+All feature branches must be merged into `main` via a Pull Request (PR). This ensures that every change is reviewed.
 
 1.  **PR Creation:**
-    *   Once a feature is complete and tested on its branch, a PR will be created targeting the `next` branch using the `gh pr create` command.
+    *   Once a feature is complete and tested on its branch, a PR will be created targeting the `main` branch using the `gh pr create` command.
     *   The PR title and description will be clear, referencing the feature(s) from `FEATURES.md` that it implements.
 
 2.  **Mandatory Self-Review:**
@@ -64,7 +68,7 @@ All feature branches must be merged into `next` via a Pull Request (PR). This en
     *   After a feature's PR has been successfully merged into the `next` branch by you, I will ask for your confirmation that the feature is considered complete and meets the requirements.
 
 2.  **Updating `FEATURES.md`:**
-    *   Once you grant confirmation, I will create a new commit directly on the `next` branch.
+    *   Once you grant confirmation, I will create a new commit directly on the `main` branch.
     *   This commit will edit the `FEATURES.md` file to mark the completed feature with a checkmark (e.g., changing `- [ ]` to `- [x]`). This will serve as our living progress tracker for the project.
 
 ---
