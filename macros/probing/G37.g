@@ -38,11 +38,7 @@ echo {"G37: Measuring tool T" ^ state.currentTool}
 ; Reset tool offset to 0 before probing
 G10 P{state.currentTool} Z0
 
-; Move to toolsetter position
-G53 G0 X{global.nxtToolSetterPos[0]} Y{global.nxtToolSetterPos[1]}
-G53 G0 Z{global.nxtToolSetterPos[2] + 10}  ; 10mm above toolsetter
-
-; Probe the tool on toolsetter towards axis minimum
+; Probe the tool on toolsetter towards axis minimum from park position
 G6512 Z{move.axes[2].min} I{global.nxtToolSetterID}
 
 var currentMeasurement = global.nxtLastProbeResult

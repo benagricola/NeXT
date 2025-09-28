@@ -23,6 +23,10 @@ global nxtProbeDeflection = 0.0   ; Probe deflection compensation value (mm)
 global nxtToolSetterPos = null     ; Toolsetter position vector [X, Y, Z]
 global nxtReferencePos = null      ; Reference surface position for touch probe calibration
 
+; --- Tool Information Arrays ---
+global nxtToolNames = vector(limits.tools, "")  ; Tool names/descriptions
+global nxtToolRadii = vector(limits.tools, 0.0) ; Tool radii in mm
+
 ; --- Tool Change State Management ---
 global nxtToolChangeState = null   ; Current state of tool change process (0-4)
 global nxtPreviousToolOffset = null ; Z offset of the previous tool for relative calculations

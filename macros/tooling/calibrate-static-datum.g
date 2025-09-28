@@ -29,28 +29,22 @@ if { !global.nxtFeatureToolSetter }
     abort "Static Datum Calibration: Toolsetter feature must be enabled"
 
 ; Ensure all axes are homed
-if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
-    abort "Static Datum Calibration: All axes must be homed"
+while { iterations < #move.axes }
+    if { !move.axes[iterations].homed }
+        abort {"Static Datum Calibration: Axis " ^ move.axes[iterations].letter ^ " must be homed"}
 
 ; Stop spindle and park
 G27 Z1
 
 ; Step 1: Install datum tool
 echo "Static Datum Calibration: Step 1 - Install Datum Tool"
-if { global.nxtUiReady }
-    M291.9 P"Install datum tool (rigid reference tool) and press OK when ready" R"Static Datum Calibration" S3 T0
-else
-    M291.9 P"Install datum tool (rigid reference tool) and press OK when ready" R"Static Datum Calibration" S3 T0
+M291.9 P"Install datum tool (rigid reference tool) and press OK when ready" R"Static Datum Calibration" S3 T0
 
 ; Step 2: Measure toolsetter with datum tool
 echo "Static Datum Calibration: Step 2 - Measuring toolsetter activation point"
 
-; Move to toolsetter position
-G53 G0 X{global.nxtToolSetterPos[0]} Y{global.nxtToolSetterPos[1]}
-G53 G0 Z{global.nxtToolSetterPos[2] + 10}  ; 10mm above toolsetter
-
-; Probe the toolsetter
-G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
+; Probe the toolsetter from park position
+G6512 Z{move.axes[2].min} I{global.nxtToolSetterID}
 
 var datumOnToolsetter = global.nxtLastProbeResult
 echo "Static Datum Calibration: Datum tool on toolsetter: Z=" ^ var.datumOnToolsetter
@@ -59,19 +53,12 @@ echo "Static Datum Calibration: Datum tool on toolsetter: Z=" ^ var.datumOnTools
 echo "Static Datum Calibration: Step 3 - Measuring reference surface"
 
 ; Guide operator to move to reference surface
-if { global.nxtUiReady }
-    M291.9 P"Move datum tool to reference surface position and press OK to continue" R"Static Datum Calibration" S3 T0
-else
-    M291.9 P"Move datum tool to reference surface position and press OK to continue" R"Static Datum Calibration" S3 T0
+M291.9 P"Move datum tool to reference surface position and press OK to continue" R"Static Datum Calibration" S3 T0
 
-; Move to reference surface position
-G53 G0 X{global.nxtReferencePos[0]} Y{global.nxtReferencePos[1]}
-G53 G0 Z{global.nxtReferencePos[2] + 10}  ; 10mm above reference surface
-
-; Probe the reference surface
+; Probe the reference surface from current position
 if { global.nxtFeatureTouchProbe }
     ; Use touch probe sensor for reference surface
-    G6512 Z{global.nxtReferencePos[2] - 5} I{global.nxtTouchProbeID}
+    G6512 Z{move.axes[2].min} I{global.nxtTouchProbeID}
 else
     ; Manual probing on reference surface
     M291.9 P"Manually jog datum tool to touch reference surface, then press OK" R"Static Datum Calibration" S3 T0
@@ -106,7 +93,4 @@ G27 Z1
 echo "Static Datum Calibration: Calibration completed successfully"
 echo "Static Datum Calibration: nxtDeltaMachine = " ^ global.nxtDeltaMachine ^ "mm"
 
-if { global.nxtUiReady }
-    M291.9 P{"Static datum calibrated: " ^ global.nxtDeltaMachine ^ "mm. Remove datum tool when ready."} R"Calibration Complete" S1 T0
-else
-    M291.9 P{"Static datum calibrated: " ^ global.nxtDeltaMachine ^ "mm. Remove datum tool when ready."} R"Calibration Complete" S1 T0
+M291.9 P{"Static datum calibrated: " ^ global.nxtDeltaMachine ^ "mm. Remove datum tool when ready."} R"Calibration Complete" S1 T0

@@ -47,14 +47,10 @@ if { state.currentTool == global.nxtProbeToolID }
         
     elif { global.nxtFeatureToolSetter }
         ; Toolsetter enabled but no touch probe - measure datum tool on toolsetter
-        echo "tpost.g: Measuring datum tool on toolsetter"
+        echo {"tpost.g: Measuring datum tool on toolsetter"}
         
-        ; Move to toolsetter position
-        G53 G0 X{global.nxtToolSetterPos[0]} Y{global.nxtToolSetterPos[1]}
-        G53 G0 Z{global.nxtToolSetterPos[2] + 10}  ; 10mm above toolsetter
-        
-        ; Probe the toolsetter
-        G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
+        ; Probe the toolsetter from park position
+        G6512 Z{move.axes[2].min} I{global.nxtToolSetterID}
         
         ; For datum tool, we establish the base reference but don't set an offset
         ; The measurement becomes the tool's reference offset
@@ -70,14 +66,10 @@ if { state.currentTool == global.nxtProbeToolID }
 else
     ; Standard cutting tool installation
     if { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
-        echo "tpost.g: Measuring cutting tool T" ^ state.currentTool
+        echo {"tpost.g: Measuring cutting tool T" ^ state.currentTool}
         
-        ; Move to toolsetter position
-        G53 G0 X{global.nxtToolSetterPos[0]} Y{global.nxtToolSetterPos[1]}
-        G53 G0 Z{global.nxtToolSetterPos[2] + 10}  ; 10mm above toolsetter
-        
-        ; Probe the cutting tool on toolsetter
-        G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
+        ; Probe the cutting tool on toolsetter from park position
+        G6512 Z{move.axes[2].min} I{global.nxtToolSetterID}
         
         var currentMeasurement = global.nxtLastProbeResult
         
@@ -138,10 +130,10 @@ else
         G27 Z1
     else
         ; No toolsetter - manual tool length measurement required
-        echo "tpost.g: Manual tool measurement required (no toolsetter configured)"
+        echo {"tpost.g: Manual tool measurement required (no toolsetter configured)"}
         ; Operator will need to manually set Z origin with G37.1 or similar
 
 ; Clear tool change state to indicate completion
 set global.nxtToolChangeState = null
 
-echo "tpost.g: Tool change completed for T" ^ state.currentTool
+echo {"tpost.g: Tool change completed for T" ^ state.currentTool}

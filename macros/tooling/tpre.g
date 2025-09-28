@@ -25,11 +25,7 @@ G27 Z1
 if { state.nextTool == global.nxtProbeToolID }
     if { global.nxtFeatureTouchProbe }
         ; Touch probe installation
-        if { global.nxtUiReady }
-            ; TODO: Use UI confirmation when available
-            M291.9 P"Install Touch Probe and press OK when ready" R"Tool Change" S3 T0
-        else
-            M291.9 P"Install Touch Probe and press OK when ready" R"Tool Change" S3 T0
+        M291.9 P"Install Touch Probe and press OK when ready" R"Tool Change" S3 T0
         
         ; Wait for probe activation to confirm installation
         M8002 K{global.nxtTouchProbeID} W30
@@ -38,10 +34,7 @@ if { state.nextTool == global.nxtProbeToolID }
             abort "tpre.g: Touch probe not detected after installation"
     else
         ; Datum tool installation
-        if { global.nxtUiReady }
-            M291.9 P"Install Datum Tool and press OK when ready" R"Tool Change" S3 T0
-        else
-            M291.9 P"Install Datum Tool and press OK when ready" R"Tool Change" S3 T0
+        M291.9 P"Install Datum Tool and press OK when ready" R"Tool Change" S3 T0
 else
     ; Standard cutting tool installation
     
@@ -50,12 +43,9 @@ else
         abort "tpre.g: Reference surface (nxtDeltaMachine) must be calibrated before using cutting tools with touch probe system. Run tool calibration first."
     
     ; Prompt operator to install the cutting tool
-    var toolName = { exists(tools[state.nextTool].name) ? tools[state.nextTool].name : ("Tool T" ^ state.nextTool) }
+    var toolName = { global.nxtToolNames[state.nextTool] != "" ? global.nxtToolNames[state.nextTool] : ("Tool T" ^ state.nextTool) }
     
-    if { global.nxtUiReady }
-        M291.9 P{"Install " ^ var.toolName ^ " and press OK when ready"} R"Tool Change" S3 T0
-    else
-        M291.9 P{"Install " ^ var.toolName ^ " and press OK when ready"} R"Tool Change" S3 T0
+    M291.9 P{"Install " ^ var.toolName ^ " and press OK when ready"} R"Tool Change" S3 T0
 
 ; Set tool change state to indicate tpre.g completion
 set global.nxtToolChangeState = 3
