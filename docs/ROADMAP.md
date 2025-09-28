@@ -1,6 +1,6 @@
 # NeXT Rewrite Roadmap
 
-This document outlines the development roadmap for the complete rewrite of MillenniumOS, codenamed "NeXT". The primary goal is to refactor the system for simplicity, accuracy, and maintainability, starting from a clean slate on the `next` branch.
+This document outlines the development roadmap for the complete rewrite of MillenniumOS, codenamed "NeXT" (Next-Gen Extended Tooling). The primary goal is to refactor the system for simplicity, accuracy, and maintainability, starting from a clean slate.
 
 ---
 
@@ -12,21 +12,21 @@ This document outlines the development roadmap for the complete rewrite of Mille
 
 ---
 
-## Phase 0: Foundation & Cleanup
+## Phase 0: Foundation & Cleanup ✅
 
-The goal of this phase is to establish a clean and organized repository structure for the new implementation.
+The goal of this phase is to establish a clean and organized repository structure for the new implementation. **COMPLETED**
 
-1.  **Branch Creation:**
+1.  **Branch Creation:** ✅
     *   The `next` branch has been created to house the new implementation.
 
-2.  **Repository Cleanup:**
+2.  **Repository Cleanup:** ✅
     *   All existing macro, system, and UI code will be removed from the `next` branch. The following directories will be cleared:
         *   `macro/`
         *   `sys/`
         *   `ui/`
     *   Only documentation (`docs/`, `README.md`, etc.), build scripts, and GitHub workflow files will be retained.
 
-3.  **New Directory Structure:**
+3.  **New Directory Structure:** ✅
     *   A new, more intuitive directory structure for macros will be created. Instead of `machine` and `movement`, macros will be grouped by high-level purpose.
         *   `macros/system/` (for core boot, daemon, and variable files)
         *   `macros/probing/` (for all probing cycles)
@@ -35,6 +35,10 @@ The goal of this phase is to establish a clean and organized repository structur
         *   `macros/coolant/` (for coolant control)
         *   `macros/utilities/` (for parking, reloading, power control etc.)
 
+4.  **New Repository:** ✅
+    *   The new directory structure has been committed to the dedicated NeXT repository: `benagricola/NeXT`
+    *   This provides full control over development and refactoring without affecting existing MillenniumOS code.
+    *   All future development will target this repository's `main` branch.
 ---
 
 ## Phase 1: Core System & Probing Engine

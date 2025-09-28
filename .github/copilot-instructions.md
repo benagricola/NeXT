@@ -9,8 +9,11 @@ NeXT (Next-Gen Extended Tooling) extends RepRapFirmware (RRF) v3.6+ with meta G-
 
 Data flows via global variables (e.g., `nxtProbeResults`) and macro calls (e.g., `M5000` for positions). Designed for simplicity: wrapper macros add safety to RRF commands.
 
+## Development Repository
+**Important**: NeXT development has moved to a dedicated repository at `benagricola/NeXT`. All PRs and development work should target the `main` branch of that repository, not this one.
+
 ## Development Workflow
-- **Branching**: Feature branches from `next`, merge via PRs. Squash commits for clean history.
+- **Branching**: Feature branches from `main`, merge via PRs. Squash commits for clean history.
 - **PR Process**: Self-review with `gh pr diff --json` and `gh pr review --comment`. Focus on logic errors, complexity, dead code. Pipe `gh` output to `tee` to avoid pagers.
 - **Testing**: Live on machines (see `docs/TESTING.md`). No automated tests; use `echo` for debugging.
 - **Build/Deploy**: No build step necessary pre-commit; Builds run on github once merged. For testing, run dist/release.sh and upload to RRF, following `docs/TESTING.md`.
