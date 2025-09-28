@@ -155,4 +155,13 @@ echo "=== Tool Change System Test Completed ==="
 echo "All basic functions tested successfully"
 echo "Manual verification recommended before production use"
 
+; Additional validation recommendations
+echo ""
+echo "NEXT STEPS FOR VALIDATION:"
+echo "1. Configure toolsetter and reference positions in nxt-vars.g"
+echo "2. Run static datum calibration: M98 P\"calibrate-static-datum.g\""
+echo "3. Test actual tool changes: T0, T1, etc."
+echo "4. Verify offset calculations are accurate"
+echo "5. Test probe->cutter and cutter->cutter workflows"
+
 M291 P"Tool change system test completed. Check console output for results." R"Test Complete" S1 T0
