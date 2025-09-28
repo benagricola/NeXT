@@ -35,6 +35,7 @@ This document outlines the coding conventions and style guidelines to be followe
 - **Industry Standards:** Adhere to NIST standards for G-code numbering where possible.
 - **Extensions:** For functionality not implemented by RepRapFirmware (RRF), use standard G-codes (e.g., `G37` for tool measurement).
 - **Wrapper Macros:** To add safety or features to existing RRF commands (e.g., `M3`, `M5`), create "wrapper" macros with a decimal extension (e.g., `M3.9`, `M5.9`). These wrappers contain custom logic and then call the base RRF command.
+- **NO Named Macros:** **DO NOT** create named macro files (e.g., `measure-tool-length.g`, `probe-workpiece.g`) that require M98 calls to execute. These are unwieldy, ugly, and inconsistent with CNC conventions. Instead, always create proper G-code or M-code macros that can be called directly.
 - **Post-Processor Configuration:** Ensure post-processors are configured to output these extended codes.
 
 ---
@@ -42,6 +43,8 @@ This document outlines the coding conventions and style guidelines to be followe
 ## 5. Macro Structure
 
 - **File Naming:** Core system files should use the `nxt` prefix where appropriate (e.g., `nxt.g`, `nxt-vars.g`).
+- **G-code/M-code Naming:** All user-callable macros must be named as G-codes or M-codes (e.g., `G37.g`, `M3000.g`, `M6515.g`) to be executed directly without M98 calls.
+- **Descriptive Named Files:** Only use descriptive names (e.g., `probe-workpiece.g`) for internal system files that are never called directly by users or post-processors. These should only be called from other macros using M98.
 - **Error Handling:** Use `abort` for fatal errors with descriptive messages.
 - **Validation:** Validate parameters early in macros to prevent runtime errors.
 
@@ -63,7 +66,27 @@ This document outlines the coding conventions and style guidelines to be followe
 
 ---
 
-## 8. Parameter Naming
+## 8. Macro Naming Examples
+
+### ✅ CORRECT - G-code/M-code Macros
+- `G37.g` - Tool length measurement (called as `G37`)
+- `M3000.g` - Operator dialog prompt (called as `M3000`)  
+- `M6515.g` - Coordinate limit checking (called as `M6515`)
+- `G6500.g` - Bore probing cycle (called as `G6500`)
+
+### ❌ INCORRECT - Named Macros Requiring M98
+- `measure-tool-length.g` - Requires `M98 P"measure-tool-length.g"`
+- `probe-workpiece.g` - Requires `M98 P"probe-workpiece.g"`
+- `check-limits.g` - Requires `M98 P"check-limits.g"`
+
+### 🔧 Internal System Files (Acceptable Named Files)
+- `nxt-boot.g` - System initialization, called once from config
+- `nxt-vars.g` - Variable definitions, called from system files
+- `display-startup-messages.g` - Internal helper, called only by other macros
+
+---
+
+## 9. Parameter Naming
 
 - **Avoid Axis Letters:** Do not use common axis letters (e.g., `X`, `Y`, `Z`, `A`, `B`, `C`, `U`, `V`, `W`) for parameters that do not represent a coordinate in that axis.
 - **Avoid Reserved Letters:** Do not use letters that correspond to G-code or M-code commands (e.g., `G`, `M`, `T`). The `P` parameter is also frequently used by RRF for various purposes and should be used with caution.

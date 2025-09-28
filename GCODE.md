@@ -1,5 +1,9 @@
 # Millennium Machines GCode Flavour
 
+This document outlines the custom G-codes and M-codes implemented in NeXT. All user-callable functionality is implemented as proper G-code or M-code macros that can be executed directly, following CNC industry conventions.
+
+**Important:** NeXT does NOT use named macro files (e.g., `measure-tool-length.g`) that require M98 calls. All functionality is accessible through standard G-code/M-code syntax for consistency and ease of use.
+
 ## Misc
 
 ### `G27` - PARK

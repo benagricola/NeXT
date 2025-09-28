@@ -68,11 +68,17 @@ NeXT (Next-Gen Extended Tooling) is a complete rewrite of MillenniumOS that exte
 - **G-Code Extensions**:
   - Follow NIST standards where possible
   - Wrapper macros use decimal extensions (e.g., `M3.9` wraps `M3`)
+  - **CRITICAL**: Never create named macros (e.g., `measure-tool-length.g`) that require M98 calls
+  - Always create G-code or M-code macros (e.g., `G37.g`, `M3000.g`) that can be called directly
   - Post-processors must output extended codes
 
 ### File Organization & Naming
 - **System Files**: Use `nxt` prefix (e.g., `nxt-boot.g`, `nxt-vars.g`)
 - **Macro Files**: Organized by function in appropriate subdirectories
+- **CRITICAL - Macro Naming Convention**: 
+  - **DO**: Create G-code/M-code macros (e.g., `G37.g`, `M3000.g`, `M6515.g`) that can be called directly
+  - **DO NOT**: Create named macros (e.g., `measure-tool-length.g`, `probe-workpiece.g`) requiring M98 calls
+  - Named files are only acceptable for internal system files never called by users
 - **Vector Usage**: Use vectors for multi-axis data handling
 - **Comments**: Header blocks for each file, inline for complex logic
 
