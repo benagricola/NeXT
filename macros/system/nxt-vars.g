@@ -34,3 +34,9 @@ global nxtSpindleID = null  ; Default Spindle ID
 global nxtSpindleAccelSec = null  ; Spindle Acceleration Time (seconds)
 global nxtSpindleDecelSec = null  ; Spindle Deceleration Time (seconds)
 
+; --- UI Integration ---
+global nxtPendingAction = null        ; Action requiring UI confirmation
+global nxtActionResponse = null       ; User response to pending action
+global nxtParkPosition = { 0.0, 0.0, 10.0 } ; Park position [X, Y, Z]
+global nxtSafeZ = 5.0                ; Safe Z height for operations
+

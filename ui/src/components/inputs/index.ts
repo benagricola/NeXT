@@ -1,4 +1,5 @@
 import Vue from 'vue';
+import AxisInput from './AxisInput.vue';
 
-// Import input components when we create them
-// Vue.component('nxt-axis-input', AxisInput);
+// Register input components
+Vue.component('nxt-axis-input', AxisInput);

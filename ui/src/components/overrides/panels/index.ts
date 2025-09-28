@@ -1,5 +1,6 @@
 import Vue from 'vue';
+import CNCMovementPanel from './CNCMovementPanel.vue';
 
-// Import panel override components when we create them
-// These will replace default DWC panels with NeXT versions
-// Vue.component('cnc-movement-panel', CNCMovementPanel);
+// Register panel override components
+// These replace default DWC panels with NeXT versions
+Vue.component('cnc-movement-panel', CNCMovementPanel);
