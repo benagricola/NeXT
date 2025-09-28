@@ -18,6 +18,10 @@ Data flows via global variables (e.g., `nxtProbeResults`) and macro calls (e.g.,
 - **Testing**: Live on machines (see `docs/TESTING.md`). No automated tests; use `echo` for debugging.
 - **Build/Deploy**: No build step necessary pre-commit; Builds run on github once merged. For testing, run dist/release.sh and upload to RRF, following `docs/TESTING.md`.
 
+## RRF Meta Gcode
+- **System G- and M-Codes**: Available system gcodes are documented at https://docs.duet3d.com/User_manual/Reference/Gcodes and should be referred to for the correct usage and parameters of each code.
+- **Meta G-Code**: RRF supports an extended G-Code language definition that includes variables, conditionals, loops, and functions. This is documented at https://docs.duet3d.com/User_manual/Reference/Gcode_meta_commands. NeXT macros are designed to leverage these features for clarity and maintainability.
+
 ## Coding Conventions
 - **Variables**: `nxt*` prefix for globals (e.g., `nxtProbeDeflection`). camelCase, descriptive names.
 - **Expressions**: Wrap ALL expressions in `{}` (e.g., `if { exists(param.X) && param.X > 0 }`, `var myVar = { 5 }).
