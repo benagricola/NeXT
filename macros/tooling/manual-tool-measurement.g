@@ -48,9 +48,6 @@ G10 L20 P{var.currentWCS} Z{var.currentZ}
 echo "G37.1: Z origin set to " ^ var.currentZ ^ " for WCS G" ^ (53 + var.currentWCS)
 echo "G37.1: Tool T" ^ state.currentTool ^ " offset cleared (set to 0)"
 
-; Clear any cached measurement since this is manual
-set global.nxtToolCache[state.currentTool] = null
-
 ; Inform operator
 if { global.nxtUiReady }
     M291.9 P{"Z origin set for tool T" ^ state.currentTool ^ " in WCS G" ^ (53 + var.currentWCS)} R"Manual Measurement Complete" S1 T0

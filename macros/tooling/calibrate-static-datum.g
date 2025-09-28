@@ -82,9 +82,14 @@ else
 var datumOnReference = global.nxtLastProbeResult
 echo "Static Datum Calibration: Datum tool on reference surface: Z=" ^ var.datumOnReference
 
-; Step 4: Calculate and store static datum
-var calculatedDelta = { var.datumOnReference - var.datumOnToolsetter }
+; Store the calculated delta machine
 set global.nxtDeltaMachine = var.calculatedDelta
+
+; Park and complete
+G27 Z1
+
+echo {"Static Datum Calibration: Calibration completed successfully"}
+echo {"Static Datum Calibration: nxtDeltaMachine = " ^ global.nxtDeltaMachine ^ "mm"}
 
 echo "Static Datum Calibration: Calculated nxtDeltaMachine = " ^ global.nxtDeltaMachine
 

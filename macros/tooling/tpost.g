@@ -40,14 +40,6 @@ if { state.currentTool == global.nxtProbeToolID }
         ; Probe the reference surface
         G6512 Z{global.nxtReferencePos[2] - 5} I{global.nxtTouchProbeID}
         
-        ; Store the probe measurement for offset calculations
-        var probeOnReference = global.nxtLastProbeResult
-        
-        ; Calculate the delta machine if not already set
-        if { global.nxtDeltaMachine == null }
-            ; We need a datum tool measurement on the toolsetter to establish the delta
-            abort "tpost.g: nxtDeltaMachine not calibrated. Please run static datum calibration first."
-        
         ; Set touch probe offset to 0 (it's our reference for the WCS)
         G10 P{state.currentTool} X0 Y0 Z0
         
@@ -64,10 +56,8 @@ if { state.currentTool == global.nxtProbeToolID }
         ; Probe the toolsetter
         G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
         
-        ; Cache the measurement for this session only  
-        ; Note: This cache will be cleared when the tool is removed
-        set global.nxtToolCache[state.currentTool] = global.nxtLastProbeResult
-        
+        ; For datum tool, we establish the base reference but don't set an offset
+        ; The measurement becomes the tool's reference offset
         ; Set datum tool offset to 0 (it's our reference)
         G10 P{state.currentTool} X0 Y0 Z0
         
@@ -89,9 +79,7 @@ else
         ; Probe the cutting tool on toolsetter
         G6512 Z{global.nxtToolSetterPos[2] - 5} I{global.nxtToolSetterID}
         
-        ; Cache the measurement for this session only
-        ; Note: This cache will be cleared when the tool is removed
-        set global.nxtToolCache[state.currentTool] = global.nxtLastProbeResult
+        var currentMeasurement = global.nxtLastProbeResult
         
         ; Calculate relative offset based on previous tool or reference
         var newOffset = 0.0
@@ -104,22 +92,22 @@ else
             var previousMeasurement = null
             var referenceTool = -1
             
-            ; Search through tool cache for a reference measurement
-            ; Priority: 1) Probe tool, 2) Any other cached tool
-            if { global.nxtToolCache[global.nxtProbeToolID] != null }
-                ; Use probe tool measurement with delta machine compensation
+            ; Search for a reference tool with non-zero offset
+            ; Priority: 1) Probe tool, 2) Any other tool with offset
+            if { tools[global.nxtProbeToolID].offsets[2] != 0 }
+                ; Use probe tool offset with delta machine compensation
                 set referenceTool = global.nxtProbeToolID
                 if { global.nxtDeltaMachine != null }
-                    ; Convert probe measurement from reference surface to toolsetter coordinates
-                    set previousMeasurement = { global.nxtToolCache[global.nxtProbeToolID] - global.nxtDeltaMachine }
+                    ; Convert probe offset from reference surface to toolsetter coordinates
+                    set previousMeasurement = { tools[global.nxtProbeToolID].offsets[2] - global.nxtDeltaMachine }
                 else
-                    abort "tpost.g: nxtDeltaMachine not calibrated for touch probe system"
+                    abort {"tpost.g: nxtDeltaMachine not calibrated for touch probe system"}
             else
-                ; Use any other tool's cached measurement directly
+                ; Use any other tool's offset directly
                 while { iterations < limits.tools && referenceTool == -1 }
-                    if { global.nxtToolCache[iterations] != null && iterations != state.currentTool }
+                    if { tools[iterations].offsets[2] != 0 && iterations != state.currentTool }
                         set referenceTool = iterations
-                        set previousMeasurement = global.nxtToolCache[iterations]
+                        set previousMeasurement = tools[iterations].offsets[2]
                         
                 if { previousMeasurement == null }
                     ; No reference measurement available - this is typically first tool after probe

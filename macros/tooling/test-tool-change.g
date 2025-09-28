@@ -37,11 +37,11 @@ echo "nxtToolSetterPos: " ^ global.nxtToolSetterPos
 echo "nxtReferencePos: " ^ global.nxtReferencePos
 echo "nxtDeltaMachine: " ^ global.nxtDeltaMachine
 
-; Check cache status
-echo "Tool cache contents:"
-while { iterations < #global.nxtToolCache }
-    if { global.nxtToolCache[iterations] != null }
-        echo "  T" ^ iterations ^ ": " ^ global.nxtToolCache[iterations]
+; Check tool offsets
+echo "Tool offsets:"
+while { iterations < limits.tools }
+    if { tools[iterations].offsets[2] != 0 }
+        echo "  T" ^ iterations ^ ": " ^ tools[iterations].offsets[2]
 
 echo "Tool change state: " ^ global.nxtToolChangeState
 
@@ -124,11 +124,11 @@ if { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
     set global.nxtLastProbeResult = { global.nxtToolSetterPos[2] - 25.0 }  ; Typical tool length
     echo "Simulated probe result: " ^ global.nxtLastProbeResult
 
-; Step 4: Test tool cache functionality  
-echo "Step 4: Testing tool cache"
+; Step 4: Test tool offset functionality  
+echo "Step 4: Testing tool offset functionality"
 var testTool = 1
-set global.nxtToolCache[var.testTool] = 100.5
-echo "Set tool cache T" ^ var.testTool ^ " to: " ^ global.nxtToolCache[var.testTool]
+G10 P{var.testTool} Z100.5
+echo "Set tool offset T" ^ var.testTool ^ " to: " ^ tools[var.testTool].offsets[2]
 
 ; Step 5: Test offset calculations
 echo "Step 5: Testing offset calculations"
@@ -148,7 +148,7 @@ echo "Reset tool change state for error condition test"
 ; Step 7: Cleanup
 echo "Step 7: Cleanup"
 set global.nxtToolChangeState = var.originalState
-set global.nxtToolCache[var.testTool] = null
+G10 P{var.testTool} Z0  ; Clear test tool offset
 echo "Test cleanup completed"
 
 echo "=== Tool Change System Test Completed ==="

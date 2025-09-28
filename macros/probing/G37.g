@@ -48,10 +48,6 @@ G6512 Z{move.axes[2].min} I{global.nxtToolSetterID}
 var currentMeasurement = global.nxtLastProbeResult
 echo {"G37: Tool T" ^ state.currentTool ^ " measured at Z=" ^ var.currentMeasurement}
 
-; Cache the measurement for this session
-; Note: Cached measurement is only valid until tool is physically removed
-set global.nxtToolCache[state.currentTool] = var.currentMeasurement
-
 ; Calculate and apply offset based on system configuration
 var newOffset = 0.0
 
@@ -63,25 +59,27 @@ else
     ; This is a cutting tool - calculate relative offset
     if { global.nxtFeatureTouchProbe && global.nxtDeltaMachine != null }
         ; Touch probe system - use delta machine for reference
-        if { global.nxtToolCache[global.nxtProbeToolID] != null }
+        if { tools[global.nxtProbeToolID].offsets[2] != 0 }
             ; Convert touch probe measurement to toolsetter coordinates
-            var referenceOnToolsetter = { global.nxtToolCache[global.nxtProbeToolID] - global.nxtDeltaMachine }
+            ; Use the touch probe's existing offset to determine its measurement position
+            var probeOffsetMeasurement = { tools[global.nxtProbeToolID].offsets[2] }
+            var referenceOnToolsetter = { probeOffsetMeasurement - global.nxtDeltaMachine }
             var lengthDiff = { var.currentMeasurement - var.referenceOnToolsetter }
             set newOffset = var.lengthDiff
             echo {"G37: Offset calculated relative to touch probe: " ^ var.newOffset}
         else
-            echo {"G37: Warning - No touch probe reference available, setting offset to 0"}
+            echo {"G37: Warning - Touch probe has no offset set, setting offset to 0"}
             set newOffset = 0.0
     else
         ; No touch probe or datum tool system - use existing offset logic or set to 0
-        if { global.nxtToolCache[global.nxtProbeToolID] != null }
+        if { tools[global.nxtProbeToolID].offsets[2] != 0 }
             ; Use datum tool as reference
-            var referenceOnToolsetter = global.nxtToolCache[global.nxtProbeToolID]
+            var referenceOnToolsetter = tools[global.nxtProbeToolID].offsets[2]
             var lengthDiff = { var.currentMeasurement - var.referenceOnToolsetter }
             set newOffset = var.lengthDiff
             echo {"G37: Offset calculated relative to datum tool: " ^ var.newOffset}
         else
-            echo {"G37: Warning - No reference tool available, setting offset to 0"}
+            echo {"G37: Warning - No reference tool offset available, setting offset to 0"}
             set newOffset = 0.0
 
 ; Apply the calculated offset (only Z, preserve X/Y offsets)

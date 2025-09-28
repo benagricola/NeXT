@@ -57,9 +57,10 @@ RRF automatically calls these macros during tool changes in this specific order:
 ## Key Variables
 
 - `nxtDeltaMachine`: Static Z distance between toolsetter and reference surface
-- `nxtToolCache`: Session cache of tool measurements
 - `nxtToolChangeState`: State tracking for tool change process (0-4)  
 - `nxtPreviousToolOffset`: Previous tool's offset for relative calculations
+
+Tool measurements are stored directly in RRF's tool offset system (`tools[toolNumber].offsets[2]`). If a tool's Z offset is 0, it indicates the tool needs measurement.
 
 ## Workflow Examples
 

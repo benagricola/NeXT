@@ -52,9 +52,5 @@ else
 ; Store the previous tool's offset for relative calculations
 set global.nxtPreviousToolOffset = { tools[state.currentTool].offsets[2] }
 
-; Clear the tool cache since the tool is being physically removed
-; Tool length will be different when reinstalled
-set global.nxtToolCache[state.currentTool] = null
-
 ; Set tool change state to indicate tfree.g completion
 set global.nxtToolChangeState = 1
