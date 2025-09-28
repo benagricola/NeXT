@@ -16,7 +16,7 @@ This document outlines the development process, branching strategy, and code rev
 
 1.  **NeXT Repository:**
     *   Development has moved to a dedicated repository: `benagricola/NeXT` (https://github.com/benagricola/NeXT)
-    *   This provides full control over the development process without affecting the main MillenniumOS codebase.
+    *   This provides full control over the development process without affecting the legacy MillenniumOS codebase.
 
 2.  **Main Integration Branch (`main`):**
     *   The `main` branch is the primary target for all new development. It should always represent the current state of the rewrite.

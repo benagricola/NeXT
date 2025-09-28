@@ -14,11 +14,11 @@ This document distills the requirements for the NeXT rewrite, categorizing featu
 
 ## 2. Critical Features
 
-These features form the core of the new MillenniumOS and must be implemented for the system to be considered functional.
+These features form the core of the new NeXT system and must be implemented for the system to be considered functional.
 
 #### **Core System & Structure**
-- [ ] **Simplified Loading Mechanism:** Retain the `mos.g` entrypoint and `mos-boot.g` sanity-check structure, but simplify the internal logic.
-- [ ] **Global Variable System:** Keep the concept of using global variables for state management, loaded from `mos-vars.g` and `mos-user-vars.g`.
+- [ ] **Simplified Loading Mechanism:** Retain the `nxt.g` entrypoint and `nxt-boot.g` sanity-check structure, but simplify the internal logic.
+- [ ] **Global Variable System:** Keep the concept of using global variables for state management, loaded from `nxt-vars.g` and `nxt-user-vars.g`.
 - [ ] **Reorganized Macro Folders:** The `macro/` directory will be restructured by purpose (e.g., `macros/probing`, `macros/tooling`, `macros/spindle`) to improve clarity and maintainability.
 
 #### **Probing Engine & Safety**
@@ -58,7 +58,7 @@ These features form the core of the new MillenniumOS and must be implemented for
 - [ ] **Touch Probe Handling:** The touch probe is the exception. It will be measured against a reference surface upon installation (`tpost.g`) to establish its length relative to the toolsetter, ensuring accurate offsets for all subsequent tools.
 
 #### **UI-Driven Workflow**
-- [ ] **Persistent UI Screen:** A new primary screen/view in DWC dedicated to MillenniumOS, containing always-visible widgets for core status and actions.
+- [ ] **Persistent UI Screen:** A new primary screen/view in DWC dedicated to NeXT, containing always-visible widgets for core status and actions.
     - [ ] **Status Widget:** A persistent widget displaying: selected tool name, tool offset, machine state, selected WCS, and spindle state (direction, RPM).
     - [ ] **Action Confirmation Widget:** A persistent widget that replaces blocking `M291` dialogs. It will pause the job queue and display a confirmation request (e.g., "Start Spindle?") that the operator must interact with to resume the job.
 - [ ] **UI-Based Configuration:** A new settings panel within the UI plugin will completely replace the `G8000` configuration wizard, allowing for non-serial, direct editing of all settings.

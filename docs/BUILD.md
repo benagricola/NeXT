@@ -1,4 +1,4 @@
-# Legacy MillenniumOS Build Process
+# Legacy MillenniumOS Build Process (Historical Reference)
 
 This document outlines the build and release process for the legacy version of MillenniumOS. This is for reference purposes only, as the NeXT rewrite will use an updated process.
 
