@@ -1,5 +1,5 @@
 /**
- * MillenniumOS v0.5.0-1-gca8a344-dirty Postprocessor for Fusion360.
+ * NeXT %%NXT_VERSION%% Postprocessor for Fusion360.
  *
  * This post-processor assumes that most complex functionality like
  * tool changes and work coordinate setting is handled in the machine firmware.
@@ -46,8 +46,8 @@ String.prototype.capitalize = function() {
 };
 
 // Set display configuration of Postprocessor in Fusion360
-description = "MillenniumOS v0.5.0-1-gca8a344-dirty for Milo v1.5";
-longDescription = "MillenniumOS v0.5.0-1-gca8a344-dirty Post Processor for Milo v1.5.";
+description = "NeXT %%NXT_VERSION%% for Milo v1.5";
+longDescription = "NeXT %%NXT_VERSION%% Post Processor for Milo v1.5.";
 vendor = "Millennium Machines";
 vendorUrl = "https://www.millennium-machines.com/";
 legal = "Copyright (C) 2012-2018 by Autodesk, Inc. 2023-2024 Millennium Machines";
@@ -61,12 +61,8 @@ extension = "gcode";
 setCodePage("ascii");
 
 // Machine capabilities
-capabilities = CAPABILITY_MILLING | CAPABILITY_ROTARY;
+capabilities = CAPABILITY_MILLING;
 tolerance    = spatial(0.002, MM);
-
-var aAxis = createAxis({coordinate:0, table:true, axis:[1, 0, 0], cyclic:true, preference:1});
-machineConfiguration = new MachineConfiguration(aAxis);
-setRotation(aAxis);
 
 // Postprocessor settings specific to machine capabilities
 minimumChordLength    = spatial(0.1, MM);  // Minimum delta movement when interpolating circular moves
@@ -145,8 +141,8 @@ properties = {
     value: true
   },
   versionCheck: {
-    title: "Check MillenniumOS version",
-    description: "Check that the MillenniumOS version installed in RRF matches the post-processor version. Undefined behaviour may occur if this check is disabled and the firmware is not compatible with this post-processor.",
+    title: "Check NeXT version",
+    description: "Check that the NeXT version installed in RRF matches the post-processor version. Undefined behaviour may occur if this check is disabled and the firmware is not compatible with this post-processor.",
     group: "formats",
     scope: "post",
     type: "boolean",
@@ -252,7 +248,6 @@ var tCmd = createOutputVariable({ control: CONTROL_FORCE }, tFmt );
 var xVar = createOutputVariable({ prefix: "X" }, axesFmt);
 var yVar = createOutputVariable({ prefix: "Y" }, axesFmt);
 var zVar = createOutputVariable({ prefix: "Z" }, axesFmt); // TODO: Investigate safe retracts using parking location
-var aVar = createOutputVariable({ prefix: "A" }, axesFmt);
 
 // Output Feed variable when set
 var fVar = createOutputVariable({ prefix:"F"}, feedFmt);
@@ -443,7 +438,7 @@ function onOpen() {
   // Output header and preamble
   writeComment("Exported by Fusion360");
 
-  var version = "v0.5.0-1-gca8a344-dirty";
+  var version = "%%NXT_VERSION%%";
 
   // Write post-processor and generation details.
   writeComment("Post Processor: {desc} by {vendor}, version: {version}".supplant({desc: description, vendor: vendor, version: version }));
@@ -459,7 +454,7 @@ function onOpen() {
   writeln("");
 
   if(properties.versionCheck) {
-    writeComment("Check MillenniumOS version matches post-processor version");
+    writeComment("Check NeXT version matches post-processor version");
     writeBlock(mCodes.format(M.VERSION_CHECK), 'V"{version}"'.supplant({version: version}));
     writeln("");
   }
@@ -521,7 +516,7 @@ function onOpen() {
       writeBlock(gCodes.format(21));
       break;
     case IN:
-      error("MillenniumOS does not support gcode output in inches. Please switch your post-processor output to millimeters.");
+      error("NeXT does not support gcode output in inches. Please switch your post-processor output to millimeters.");
   }
 
   // All feeds in mm/min
@@ -635,7 +630,7 @@ function onSection() {
   var curWorkOffset = currentSection.workOffset;
 
   if(curWorkOffset > 9) {
-    error("Extended Work Co-ordinate Systems above G59.3 are not supported by MillenniumOS!")
+    error("Extended Work Co-ordinate Systems above G59.3 are not supported by NeXT!")
   }
 
   // Work Offset
@@ -878,27 +873,25 @@ function onSpindleSpeed(rpm) {
 }
 
 // Called when a rapid linear move is requested
-function onRapid(x, y, z, a) {
+function onRapid(x, y, z) {
   var a1 = xVar.format(x);
   var a2 = yVar.format(y);
   var a3 = zVar.format(z);
-  var a4 = aVar.format(a);
 
   // If any co-ordinates are changing, output G0 move.
-  if (a1 || a2 || a3 || a4) {
-    writeBlock(gCodesF.format(0), a1, a2, a3, a4);
+  if (a1 || a2 || a3) {
+    writeBlock(gCodesF.format(0), a1, a2, a3);
     // Always output feed after rapid moves.
     fVar.reset();
   }
 }
 
 // Called when a controlled linear move is requested
-function onLinear(x, y, z, a, f) {
+function onLinear(x, y, z, f) {
   var a1 = xVar.format(x);
   var a2 = yVar.format(y);
   var a3 = zVar.format(z);
-  var a4 = aVar.format(a);
-  var a5 = fVar.format(f);
+  var a4 = fVar.format(f);
 
   var warpMode = getProperty("warpSpeedMode");
   var warpable = false;
@@ -924,19 +917,19 @@ function onLinear(x, y, z, a, f) {
   if ((isHorizontal || isVertical) && warpable) {
       writeln("");
       writeComment("Warp move");
-      writeBlock(gCodesF.format(0), a1, a2, a3, a4);
+      writeBlock(gCodesF.format(0), a1, a2, a3);
       fVar.reset();
   // Otherwise output normal linear move
-  } else if (a1 || a2 || a3 || a4) {
-    writeBlock(gCodesF.format(1), a1, a2, a3, a4, a5);
+  } else if (a1 || a2 || a3) {
+    writeBlock(gCodesF.format(1), a1, a2, a3, a4);
   // Otherwise output just feed change if necessary
-  } else if(a5) {
+  } else if(a4) {
     // Try not to output feed changes on their own unless
     // the next record is not a motion command.
     if (!getNextRecord().isMotion()) {
       // If next record is not motion, just output feed change
       // on its' own.
-      writeBlock(gCodesF.format(1), a5);
+      writeBlock(gCodesF.format(1), a4);
     } else {
       fVar.reset();
     }

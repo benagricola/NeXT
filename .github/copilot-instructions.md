@@ -1,7 +1,7 @@
 # NeXT AI Coding Guidelines
 
 ## Project Overview
-NeXT (Next-Gen Extended Tooling) is a complete rewrite of MillenniumOS that extends RepRapFirmware (RRF) v3.6+ with meta G-code macros for CNC operations. This is designed specifically for CNC machines, not 3D printers.
+NeXT (Next-Gen Extended Tooling) is a complete rewrite of the legacy MillenniumOS that extends RepRapFirmware (RRF) v3.6+ with meta G-code macros for CNC operations. This is designed specifically for CNC machines, not 3D printers.
 
 ### Core Architecture
 - **Macros** (`macros/`): G-code files with logic organized by function:

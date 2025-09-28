@@ -324,7 +324,7 @@
    },
    "post" : {
       "default" : {
-         "path" : "user://millennium-os-%%MOS_VERSION%%-post-f360.cps",
+         "path" : "user://next-%%NXT_VERSION%%-post-f360.cps",
          "properties" : {
             "jobHomeBeforeStart" : true
          }
