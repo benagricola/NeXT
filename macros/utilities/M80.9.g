@@ -13,10 +13,7 @@ if { state.atxPower }
     M99
 
 ; Prompt the operator to enable ATX power
-if { global.nxtUiReady }
-    M1000 P{"<b>CAUTION</b>: Machine Power is currently <b>deactivated</b>. Do you want to activate power to the machine?<br/>Check the machine is in a safe state before pressing <b>Activate</b>!"} R"NeXT: Safety Net" K{"Activate", "Cancel"} F1
-else
-    M291 P{"<b>CAUTION</b>: Machine Power is currently <b>deactivated</b>. Do you want to activate power to the machine?<br/>Check the machine is in a safe state before pressing <b>Activate</b>!"} R"NeXT: Safety Net" S4 K{"Activate", "Cancel"} F1
+M291.9 P{"<b>CAUTION</b>: Machine Power is currently <b>deactivated</b>. Do you want to activate power to the machine?<br/>Check the machine is in a safe state before pressing <b>Activate</b>!"} R"NeXT: Safety Net" S4 K{"Activate", "Cancel"} F1
 
 if { input == 0 }
     M80

@@ -132,14 +132,31 @@ export default {
         },
 
         wcsOptions() {
-            return [
-                { text: 'G54', value: 54 },
-                { text: 'G55', value: 55 },
-                { text: 'G56', value: 56 },
-                { text: 'G57', value: 57 },
-                { text: 'G58', value: 58 },
-                { text: 'G59', value: 59 }
-            ];
+            // Extract WCS options from object model
+            const workplaceOffsets = this.$store.state.machine.model.move?.workplaceOffsets || [];
+            const options = [];
+            
+            // Generate options based on available workplace offsets
+            for (let i = 0; i < workplaceOffsets.length && i < 6; i++) {
+                options.push({
+                    text: `G${54 + i}`,
+                    value: 54 + i
+                });
+            }
+            
+            // Fallback to standard G54-G59 if no object model data
+            if (options.length === 0) {
+                return [
+                    { text: 'G54', value: 54 },
+                    { text: 'G55', value: 55 },
+                    { text: 'G56', value: 56 },
+                    { text: 'G57', value: 57 },
+                    { text: 'G58', value: 58 },
+                    { text: 'G59', value: 59 }
+                ];
+            }
+            
+            return options;
         }
     },
 
@@ -149,11 +166,11 @@ export default {
         },
 
         pushToWcs(result) {
-            const wcsCode = `G${this.targetWcs}`;
+            const wcsNumber = this.targetWcs - 53; // Convert G54-G59 to WCS numbers 1-6
             const coords = result.coordinates;
             
-            // Build G-code command to set WCS origin
-            let gcode = wcsCode;
+            // Use G10 to set WCS origin
+            let gcode = `G10 L2 P${wcsNumber}`;
             Object.keys(coords).forEach(axis => {
                 gcode += ` ${axis}${coords[axis]}`;
             });

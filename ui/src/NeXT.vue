@@ -30,6 +30,9 @@
                 <nxt-configuration-panel />
             </v-col>
         </v-row>
+        
+        <!-- Dialog Widget - Always present for M291.9 dialogs -->
+        <nxt-dialog-widget />
     </v-container>
 </template>
 

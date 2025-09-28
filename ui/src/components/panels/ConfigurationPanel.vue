@@ -266,16 +266,33 @@ export default {
         },
 
         measureDeflection() {
-            // Trigger probe deflection measurement macro
-            this.sendCode('M98 P"macros/probing/measure-deflection.g"');
+            // Trigger probe deflection measurement using M-code
+            this.sendCode('M7001'); // Custom M-code for probe deflection measurement
         },
 
         saveConfiguration() {
-            // Save all settings to nxt-user-vars.g file
-            this.sendCode('M98 P"macros/system/save-config.g"');
+            // Save configuration using echo to write directly to file
+            const configLines = [
+                `; NeXT User Configuration - Generated ${new Date().toISOString()}`,
+                `set global.nxtProbeDeflection = ${this.probeSettings.deflection}`,
+                `set global.nxtProbeTipRadius = ${this.probeSettings.tipRadius}`,
+                `set global.nxtProbeToolId = ${this.toolSettings.probeToolId}`,
+                `set global.nxtParkPosition = {${this.machineSettings.parkX}, ${this.machineSettings.parkY}, ${this.machineSettings.parkZ}}`,
+                `set global.nxtSafeZ = ${this.machineSettings.safeZ}`,
+                `set global.nxtUseToolSetter = ${this.toolSettings.useToolSetter}`
+            ];
+            
+            // First, clear the existing user vars file
+            this.sendCode('echo >{nxt-user-vars.g} {"; NeXT User Configuration"}');
+            
+            // Then append each configuration line
+            configLines.forEach(line => {
+                this.sendCode(`echo >>{nxt-user-vars.g} {"${line}"}`);
+            });
             
             // Show success message
             this.$emit('configuration-saved');
+            console.log('Configuration saved to nxt-user-vars.g');
         }
     }
 };

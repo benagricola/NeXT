@@ -40,3 +40,12 @@ global nxtActionResponse = null       ; User response to pending action
 global nxtParkPosition = { 0.0, 0.0, 10.0 } ; Park position [X, Y, Z]
 global nxtSafeZ = 5.0                ; Safe Z height for operations
 
+; --- Dialog System (M291.9) ---
+global nxtDialogActive = false       ; Flag indicating active UI dialog
+global nxtDialogMessage = null       ; Dialog message text
+global nxtDialogTitle = null         ; Dialog title
+global nxtDialogChoices = null       ; Dialog button choices
+global nxtDialogDefault = 0          ; Default button index
+global nxtDialogTimeout = 30         ; Dialog timeout in seconds
+global nxtDialogResponse = null      ; Dialog response from UI
+

@@ -2,11 +2,16 @@
 ;
 ; Park spindle, and center the work area in an accessible location.
 ;
-; USAGE: G27
+; USAGE: G27 [P<mode>]
+; P0 = Normal park (uses user-defined park position if set)
+; P1 = Tool change park (always parks at machine limits for safety)
 
 ; Make sure this file is not executed by the secondary motion system
 if { !inputs[state.thisInput].active }
     M99
+
+; Determine park mode
+var parkMode = { exists(param.P) ? param.P : 0 }
 
 ; Use absolute positions in mm
 G90
@@ -16,7 +21,7 @@ G94
 ; Turn off all coolant outputs
 M9
 
-; Move spindle to top of Z travel
+; Move spindle to top of Z travel (always for safety)
 if { move.axes[2].homed }
     G53 G0 Z{move.axes[2].max}
 
@@ -26,11 +31,15 @@ M400
 ; Stop spindle and wait
 M5.9
 
-; If park is called with Z parameter, then the table itself will not be
-; moved.
+; If park is called with Z parameter, then the table itself will not be moved.
 if { !exists(param.Z) && move.axes[0].homed && move.axes[1].homed }
-    ; Move table to center of X, and front of Y
-    G53 G0 X{(move.axes[0].max - move.axes[0].min)/2} Y{move.axes[1].max}
+    ; Choose park position based on mode
+    if { var.parkMode == 1 || !exists(global.nxtParkPosition) }
+        ; Tool change mode or no user park position - use machine limits
+        G53 G0 X{(move.axes[0].max - move.axes[0].min)/2} Y{move.axes[1].max}
+    else
+        ; Normal mode - use user-defined park position
+        G53 G0 X{global.nxtParkPosition[0]} Y{global.nxtParkPosition[1]}
 
 ; Wait for movement to stop
 M400
