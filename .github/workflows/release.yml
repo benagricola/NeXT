@@ -1,0 +1,48 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Create Release
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Duet Web Control
+        uses: actions/checkout@v4
+        with:
+          repository: Duet3D/DuetWebControl
+          ref: v3.6.0
+          path: dwc-build
+
+      - name: Build release asset
+        run: |
+          command -v rsync >/dev/null 2>&1 || {
+            apt update && apt install -y rsync;
+          }
+          dist/release.sh mos-release-${{ github.ref_name }} ${{ github.workspace }}/dwc-build
+
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: MillenniumOS ${{ github.ref_name }}
+          draft: true
+          generate_release_notes: true
+          files: |
+            dist/MillenniumOS-${{ github.ref_name }}.zip
+            dist/millennium-os.cps
+            dist/millennium_os_post.py
+            dist/milo-v1.5-std.mch
