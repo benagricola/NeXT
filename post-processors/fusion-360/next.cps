@@ -438,7 +438,7 @@ function onOpen() {
   // Output header and preamble
   writeComment("Exported by Fusion360");
 
-  var version = "%%MOS_VERSION%%";
+  var version = "%%NXT_VERSION%%";
 
   // Write post-processor and generation details.
   writeComment("Post Processor: {desc} by {vendor}, version: {version}".supplant({desc: description, vendor: vendor, version: version }));
