@@ -48,33 +48,15 @@ NeXT (Next-Gen Extended Tooling) is a complete rewrite of the legacy MillenniumO
 
 ## Technical Standards
 
+**IMPORTANT: Always read ALL documentation files in the `docs/` directory before starting any work, especially `docs/CODE.md` for complete coding conventions and style requirements.**
+
 ### RRF Meta G-Code Development
 - **System G/M-Codes**: Reference https://docs.duet3d.com/User_manual/Reference/Gcodes
 - **Meta G-Code**: Leverage RRF's extended language features (variables, conditionals, loops)
 - **Documentation**: https://docs.duet3d.com/User_manual/Reference/Gcode_meta_commands
 
-### Coding Conventions (see `docs/CODE.md` for full details)
-- **Variables**: 
-  - Global: `nxt*` prefix, camelCase (e.g., `nxtProbeDeflection`)
-  - Descriptive names over abbreviations
-- **Expressions**: ALWAYS wrap in `{}`:
-  - `if { exists(param.X) && param.X > 0 }`
-  - `var myVar = { 5 }`
-- **Macro Structure**:
-  - Header comments with purpose, usage, and parameters
-  - Early parameter validation
-  - Use `abort` for fatal errors with descriptive messages
-  - Prefix error messages with macro name
-- **G-Code Extensions**:
-  - Follow NIST standards where possible
-  - Wrapper macros use decimal extensions (e.g., `M3.9` wraps `M3`)
-  - Post-processors must output extended codes
-
-### File Organization & Naming
-- **System Files**: Use `nxt` prefix (e.g., `nxt-boot.g`, `nxt-vars.g`)
-- **Macro Files**: Organized by function in appropriate subdirectories
-- **Vector Usage**: Use vectors for multi-axis data handling
-- **Comments**: Header blocks for each file, inline for complex logic
+### Coding Conventions
+**ALL coding conventions, style requirements, and technical standards are documented in `docs/CODE.md`. Read this file completely before making any code changes.**
 
 ## Testing & Quality Assurance
 
