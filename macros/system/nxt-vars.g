@@ -22,6 +22,13 @@ global nxtLastProbeResult = null   ; Stores the result of the last probing opera
 global nxtProbeTipRadius = 0.0    ; Radius of the probe tip for compensation (mm)
 global nxtProbeDeflection = 0.0   ; Probe deflection compensation value (mm)
 global nxtToolSetterPos = null     ; Toolsetter position vector [X, Y, Z]
+global nxtReferencePos = null      ; Reference surface position for touch probe calibration
+
+; --- Tool Change State Management ---
+global nxtToolChangeState = null   ; Current state of tool change process (0-4)
+global nxtPreviousToolOffset = null ; Z offset of the previous tool for relative calculations
+global nxtAbsPos = vector(4, 0.0)  ; Current absolute machine position (from M5000)
+global nxtProbeDetected = null     ; ID of the last probe that had a status change (for M8002)
 
 ; --- Coolant Control ---
 global nxtCoolantAirID = null ; Coolant Air Output Pin ID
