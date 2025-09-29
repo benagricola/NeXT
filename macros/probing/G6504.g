@@ -3,9 +3,10 @@
 ; Probes a protruding web feature in either X OR Y direction to find the center point.
 ; Uses single-axis probing from both sides and calculates the center along the specified axis.
 ;
-; USAGE: G6504 N<axis> W<width> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6504 P<index> N<axis> W<width> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   N: Axis to probe (0 for X, 1 for Y) - REQUIRED
 ;   W: Web width along the specified axis - REQUIRED
 ;   L: Depth to move down before probing - REQUIRED
@@ -39,6 +40,12 @@ if { param.N != 0 && param.N != 1 }
     abort { "G6504: Axis parameter N must be 0 (X) or 1 (Y)" }
 
 ; Validate required parameters
+if { !exists(param.P) || param.P == null || param.P < 0 }
+    abort { "G6504: Result index parameter P is required and must be >= 0" }
+
+if { param.P >= #global.nxtProbeResults }
+    abort { "G6504: Result index P=" ^ param.P ^ " exceeds table size (" ^ #global.nxtProbeResults ^ ")" }
+
 if { !exists(param.W) || param.W == null || param.W <= 0 }
     abort { "G6504: Width parameter W is required and must be positive" }
 
@@ -156,23 +163,13 @@ else
     var resultY = { var.calculatedCenter }
 
 ; Log results to probe results table
-; Find the next available slot in the results table
-var resultIndex = 0
-while { var.resultIndex < #global.nxtProbeResults && 
-        global.nxtProbeResults[var.resultIndex][var.probeAxis] != 0 }
-    set var.resultIndex = { var.resultIndex + 1 }
-
-; If table is full, use the last slot
-if { var.resultIndex >= #global.nxtProbeResults }
-    set var.resultIndex = { #global.nxtProbeResults - 1 }
-
 ; Initialize the result vector if needed
-if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
+if { #global.nxtProbeResults[param.P] < 3 }
+    set global.nxtProbeResults[param.P] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the calculated center coordinate
-set global.nxtProbeResults[var.resultIndex][0] = { var.resultX }
-set global.nxtProbeResults[var.resultIndex][1] = { var.resultY }
+set global.nxtProbeResults[param.P][0] = { var.resultX }
+set global.nxtProbeResults[param.P][1] = { var.resultY }
 
 ; Move to calculated center
 G6550 X{var.resultX} Y{var.resultY}
@@ -183,4 +180,4 @@ G27 Z1
 echo "G6504: Web probe completed"
 echo "G6504: Web center along " ^ var.axisName ^ " axis: " ^ var.calculatedCenter
 echo "G6504: Measured width: " ^ var.actualWidth ^ "mm"
-echo "G6504: Result logged to table index " ^ var.resultIndex
+echo "G6504: Result logged to table index " ^ param.P

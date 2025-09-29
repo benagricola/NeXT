@@ -3,9 +3,10 @@
 ; Probes all 4 edges of a rectangular block from the outside to find the center point.
 ; Uses single-axis probing for each edge and calculates the geometric center.
 ;
-; USAGE: G6503 W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6503 P<index> W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   W: Block width in X direction - REQUIRED
 ;   H: Block height in Y direction - REQUIRED
 ;   L: Depth to move down before probing - REQUIRED
@@ -32,6 +33,12 @@ if { state.currentTool != global.nxtProbeToolID }
     abort { "G6503: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
 ; Validate required parameters
+if { !exists(param.P) || param.P == null || param.P < 0 }
+    abort { "G6503: Result index parameter P is required and must be >= 0" }
+
+if { param.P >= #global.nxtProbeResults }
+    abort { "G6503: Result index P=" ^ param.P ^ " exceeds table size (" ^ #global.nxtProbeResults ^ ")" }
+
 if { !exists(param.W) || !exists(param.H) || !exists(param.L) }
     abort { "G6503: Width (W), Height (H), and Depth (L) parameters are required" }
 
@@ -137,23 +144,13 @@ var actualWidth = { var.xPlusEdge - var.xMinusEdge }
 var actualHeight = { var.yPlusEdge - var.yMinusEdge }
 
 ; Log results to probe results table
-; Find the next available slot in the results table
-var resultIndex = 0
-while { iterations < #global.nxtProbeResults && (global.nxtProbeResults[iterations][0] != 0 || global.nxtProbeResults[iterations][1] != 0) }
-    ; iterations auto-increments, we track the current index
-    set var.resultIndex = { iterations + 1 }
-
-; If table is full, use the last slot
-if { var.resultIndex >= #global.nxtProbeResults }
-    set var.resultIndex = { #global.nxtProbeResults - 1 }
-
 ; Initialize the result vector if needed
-if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
+if { #global.nxtProbeResults[param.P] < 3 }
+    set global.nxtProbeResults[param.P] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the calculated center coordinates
-set global.nxtProbeResults[var.resultIndex][0] = { var.calculatedCenterX }
-set global.nxtProbeResults[var.resultIndex][1] = { var.calculatedCenterY }
+set global.nxtProbeResults[param.P][0] = { var.calculatedCenterX }
+set global.nxtProbeResults[param.P][1] = { var.calculatedCenterY }
 
 ; Move to calculated center
 G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY}
@@ -164,4 +161,4 @@ G27 Z1
 echo "G6503: Rectangle block probe completed"
 echo "G6503: Block center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY
 echo "G6503: Measured dimensions: " ^ var.actualWidth ^ "x" ^ var.actualHeight ^ "mm"
-echo "G6503: Result logged to table index " ^ var.resultIndex
+echo "G6503: Result logged to table index " ^ param.P

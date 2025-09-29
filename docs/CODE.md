@@ -199,19 +199,31 @@ if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
 
 ## 12. Variable Usage Best Practices
 
-- **Avoid Redundant Variables:** Do not create local variables that simply reference other local variables without transformation. Use the original variable directly with clear comments.
-- **Direct Variable Usage:** When a variable already exists and is used "as-is" under a different name, use the existing variable and add explanatory comments for clarity.
+- **Avoid Redundant Assignments:** Do not create local variables that simply reference other data sources without transformation. Use the original source directly instead of creating unnecessary local assignments.
 
-Example:
+Examples:
 ```gcode
-; INCORRECT - Redundant variable assignment
-var probeSpacing = { var.spacing }
-set var.firstPos = { var.currentPos + var.probeSpacing }
+; INCORRECT - Unnecessary local variable assignments
+var spacing = { var.probeSpacing }
+var resultIndex = { param.P }
+var currentTool = { global.nxtCurrentTool }
 
-; CORRECT - Direct usage with comment  
-; Calculate first probe position using configured spacing
-set var.firstPos = { var.currentPos + var.spacing }
+; CORRECT - Use original sources directly
+set var.firstPos = { var.currentPos + var.probeSpacing }
+set global.nxtProbeResults[param.P][0] = { var.centerX }
+echo "Current tool: " ^ global.nxtCurrentTool
+while { iterations < #move.axes }
+
+; ACCEPTABLE - Preserving value at specific execution point
+var axisCount = { #move.axes }  ; Store count before operations that might change it
+; ... operations that might affect move.axes ...
+while { iterations < var.axisCount }  ; Use preserved count
 ```
+
+**Exception:** Create local variables only when:
+- The source value needs modification (e.g., incrementing, calculations)
+- The object model path is very long and helps stay under the 250 character line limit
+- You need to preserve a value at a specific point in execution for later use when the source value may change
 
 ---
 

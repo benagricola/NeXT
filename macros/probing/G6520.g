@@ -3,9 +3,10 @@
 ; Probes a vise corner by first probing the top surface in Z, then probing
 ; the corner in X and Y using an outside corner probe sequence.
 ;
-; USAGE: G6520 L<depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6520 P<index> L<depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   L: Probe depth below starting position - REQUIRED
 ;   X: Target coordinate for X-axis surface probe (defaults to current X - overtravel)
 ;   Y: Target coordinate for Y-axis surface probe (defaults to current Y - overtravel)
@@ -30,6 +31,12 @@ if { state.currentTool != global.nxtProbeToolID }
     abort { "G6520: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
 ; Validate required parameters
+if { !exists(param.P) || param.P == null || param.P < 0 }
+    abort { "G6520: Result index parameter P is required and must be >= 0" }
+
+if { param.P >= #global.nxtProbeResults }
+    abort { "G6520: Result index P=" ^ param.P ^ " exceeds table size (" ^ #global.nxtProbeResults ^ ")" }
+
 if { !exists(param.L) || param.L == null || param.L <= 0 }
     abort { "G6520: Depth parameter L is required and must be positive" }
 
@@ -100,24 +107,14 @@ var cornerY = { var.ySurface }
 var cornerZ = { var.zSurface }
 
 ; Log results to probe results table
-; Find the next available slot in the results table
-var resultIndex = 0
-while { var.resultIndex < #global.nxtProbeResults && 
-        (global.nxtProbeResults[var.resultIndex][0] != 0 || global.nxtProbeResults[var.resultIndex][1] != 0 || global.nxtProbeResults[var.resultIndex][2] != 0) }
-    set var.resultIndex = { var.resultIndex + 1 }
-
-; If table is full, use the last slot
-if { var.resultIndex >= #global.nxtProbeResults }
-    set var.resultIndex = { #global.nxtProbeResults - 1 }
-
 ; Initialize the result vector if needed
-if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
+if { #global.nxtProbeResults[param.P] < 3 }
+    set global.nxtProbeResults[param.P] = { vector(#move.axes + 1, 0.0) }
 
 ; Store all three coordinates (X, Y, Z)
-set global.nxtProbeResults[var.resultIndex][0] = { var.cornerX }
-set global.nxtProbeResults[var.resultIndex][1] = { var.cornerY }
-set global.nxtProbeResults[var.resultIndex][2] = { var.cornerZ }
+set global.nxtProbeResults[param.P][0] = { var.cornerX }
+set global.nxtProbeResults[param.P][1] = { var.cornerY }
+set global.nxtProbeResults[param.P][2] = { var.cornerZ }
 
 ; Move to the found corner position
 G6550 X{var.cornerX} Y{var.cornerY} Z{var.cornerZ}
@@ -127,4 +124,4 @@ G27 Z1
 
 echo "G6520: Vise corner probe completed"
 echo "G6520: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY ^ " Z=" ^ var.cornerZ
-echo "G6520: Result logged to table index " ^ var.resultIndex
+echo "G6520: Result logged to table index " ^ param.P
