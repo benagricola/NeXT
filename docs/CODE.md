@@ -108,6 +108,10 @@ var gcode = {"G0 X" ^ var.x ^ " Y" ^ var.y}
 - **Avoid Magic Numbers:** Use named constants or variables instead of hard-coded numbers.
 - **Modular Code:** Break down complex logic into smaller, reusable functions or macros.
 - **Testing:** Write code with testing in mind; ensure macros can be tested independently.
+- **Line Length:** Keep all lines under 250 characters. Do not split expressions across multiple lines.
+- **Loop Iterations:** Use RRF's built-in `iterations` variable instead of creating custom counters.
+- **Required Parameters:** Parameters that depend on workpiece dimensions (width, height, depth) must be required, not defaulted.
+- **Variable Consistency:** Use consistent variable names for the same concepts across macros (e.g., `feedRate`, `retries`, `overtravel`).
 
 ---
 
@@ -136,6 +140,22 @@ var gcode = {"G0 X" ^ var.x ^ " Y" ^ var.y}
 - **Avoid Axis Letters:** Do not use common axis letters (e.g., `X`, `Y`, `Z`, `A`, `B`, `C`, `U`, `V`, `W`) for parameters that do not represent a coordinate in that axis.
 - **Avoid Reserved Letters:** Do not use letters that correspond to G-code or M-code commands (e.g., `G`, `M`, `T`). The `P` parameter is also frequently used by RRF for various purposes and should be used with caution.
 - **Clarity:** Choose parameter letters that are descriptive or conventional for their purpose (e.g., `I` for ID, `F` for speed (feed), `R` for retries, `J` for axis index). Document the purpose of each parameter in the macro's header comment.
+
+### Parameter Validation and Iteration
+
+- **No Direct Parameter Iteration:** You CANNOT iterate over the `param` object directly as it is not a vector. Instead, create a local vector with the relevant parameters first.
+- **Parameter Checking Pattern:** Use the following pattern for checking multiple similar parameters:
+
+```gcode
+var axisParams = { param.X, param.Y, param.Z, param.A }
+var selectedAxis = -1
+
+while { iterations < #var.axisParams }
+    if { var.axisParams[iterations] != null }
+        if { var.selectedAxis != -1 }
+            abort { "Only one axis parameter allowed" }
+        set var.selectedAxis = { iterations }
+```
 
 ---
 
@@ -174,3 +194,48 @@ if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
 ## 11. Documentation and File Organization
 
 - **No README Files in NeXT Structure:** Do not create README files within the NeXT structure itself. Documentation for components is fine, but it needs to go in the `docs/` folder, being careful to not overwrite or delete any documentation that explains how the legacy MillenniumOS system worked.
+
+---
+
+## 12. Variable Usage Best Practices
+
+- **Avoid Redundant Variables:** Do not create local variables that simply reference other local variables without transformation. Use the original variable directly with clear comments.
+- **Direct Variable Usage:** When a variable already exists and is used "as-is" under a different name, use the existing variable and add explanatory comments for clarity.
+
+Example:
+```gcode
+; INCORRECT - Redundant variable assignment
+var probeSpacing = { var.spacing }
+set var.firstPos = { var.currentPos + var.probeSpacing }
+
+; CORRECT - Direct usage with comment  
+; Calculate first probe position using configured spacing
+set var.firstPos = { var.currentPos + var.spacing }
+```
+
+---
+
+## 13. Probing System Standards
+
+### Required Parameters
+- **Workpiece Dimensions:** All probing cycles require explicit workpiece dimensions (W, H, L, D parameters)
+- **Result Index:** All probing cycles require P parameter specifying exact result table index (0-based)
+- **No Default Dimensions:** Never provide defaults for workpiece-dependent parameters
+
+### Standard Defaults
+- **Overtravel (O):** 2.0mm - safe touch probe contact distance
+- **Clearance (C):** 10.0mm - sufficient starting distance for accuracy  
+- **Feed Rate (F):** null - uses probe-specific speeds
+
+### Result Management
+- UI controls result table indexing via mandatory P parameter
+- Probing cycles write to specified index, overwriting existing data
+- Enables multi-stage probing: X/Y → Z → rotation on same result row
+
+Example:
+```gcode
+; UI specifies result index 0
+G6500 P0 D25.4 L10.2  ; Bore probe writes to index 0
+G6510 P0 Z-15.0       ; Z probe adds Z data to same index 0  
+G6506 P0 N0 D1 S20.0  ; Rotation adds angle to same index 0
+```

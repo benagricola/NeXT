@@ -2,8 +2,12 @@
 ;
 ; Enables air blast for chip clearing.
 
+; Make sure this file is not executed by the secondary motion system
+if { !inputs[state.thisInput].active }
+    M99
+
 if { !global.nxtFeatureCoolantControl || global.nxtCoolantAirID == null }
-    echo "NeXT: Coolant Control feature is disabled or not configured, cannot enable Air Blast."
+    echo { "NeXT: Coolant Control feature is disabled or not configured, cannot enable Air Blast." }
     M99
 
 ; Wait for all movement to stop before continuing.

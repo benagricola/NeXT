@@ -43,7 +43,7 @@ The goal of this phase is to establish a clean and organized repository structur
 
 ## Phase 1: Core System & Essential Backend ✅
 
-This phase focuses on implementing the most critical, non-UI backend functionality. **MOSTLY COMPLETED**
+This phase focuses on implementing the most critical, non-UI backend functionality. **COMPLETED**
 
 1.  **Core Loading Mechanism:** ✅
     *   Re-implement the core loading scripts (`nxt.g`, `nxt-boot.g`) and the global variable system (`nxt-vars.g`).
@@ -55,17 +55,43 @@ This phase focuses on implementing the most critical, non-UI backend functionali
     *   Machine information queries (`M5000`) and limit checking (`M6515`).
     *   Tool measurement (`G37`) and basic probing functionality (`G6512`).
 
-4.  **Simplified Probing Engine:** 🔄
+4.  **Simplified Probing Engine:** ✅
     *   Develop a new, single-axis probing macro, guided by the principle of numerical stability.
     *   Implement robust compensation logic within this core macro for both probe tip radius and probe deflection.
     *   Implement the **Protected Moves** logic to halt on unexpected probe triggers.
     *   Implement the backend global variable (vector) for the **Probe Results Table**. ✅
     *   Design all probing cycle macros (`G6500`, `G6501`, etc.) to log their compensated results to this table instead of setting a WCS origin directly.
 
-5.  **Redesigned Tool Change Logic:** ⏸️
+5.  **Redesigned Tool Change Logic:** ✅
     *   Implement the "probe-on-removal" logic in `tfree.g` for standard tools.
     *   Implement the relative offset calculation in `tpre.g`.
     *   Implement the special case for the touch probe in `tpost.g` (probing a reference surface).
+
+---
+
+## Phase 1.5: Probing Result Management Enhancement
+
+This phase bridges Phase 1 and Phase 2 by implementing UI-controlled result management for probing macros.
+
+1.  **Result Index Parameter Implementation:**
+    *   Add mandatory `P<index>` parameter to all probing macros (`G6500`, `G6501`, `G6502`, etc.).
+    *   UI specifies exact result table index (0-based) for storing probe results.
+    *   Remove auto-slot-finding logic from probing macros.
+    *   Enable precise result management workflows:
+        *   Select result row → run X/Y probe (populates coordinates in specified row)
+        *   Keep same row selected → run Z probe (adds Z coordinate to same row)
+        *   Keep same row selected → run rotation probe (adds rotation angle to same row)
+
+2.  **Enhanced Result Storage:**
+    *   Probing macros directly overwrite specified result index.
+    *   Each macro populates only the axes/rotation it measures.
+    *   UI controls result row selection and workflow management.
+    *   Clear separation: macros execute probing, UI manages result workflow.
+
+3.  **Updated Documentation:**
+    *   Document result index parameter requirement in `CODE.md`.
+    *   Update all probing macro usage documentation.
+    *   Establish UI integration patterns for result management.
 
 ---
 

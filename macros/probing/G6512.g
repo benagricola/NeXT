@@ -71,7 +71,7 @@ while { iterations < var.retries }
     G53 G38.2 K{param.I} F{var.speed} X{var.targetVector[0]} Y{var.targetVector[1]} Z{var.targetVector[2]} A{var.targetVector[3]}
 
     if { result != 0 }
-        abort "G6512: Probe failed to trigger"
+        abort { "G6512: Probe failed to trigger" }
 
     ; Get the triggered position
     M5000

@@ -7,7 +7,7 @@ if { !inputs[state.thisInput].active }
     M99
 
 if { exists(param.D) && param.D < 0 }
-    abort "Dwell time must be a positive value!"
+    abort { "Dwell time must be a positive value!" }
 
 ; Wait for all movement to stop before continuing.
 M400

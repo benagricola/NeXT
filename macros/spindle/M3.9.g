@@ -8,7 +8,7 @@ if { !inputs[state.thisInput].active }
 
 ; Validate Spindle ID parameter
 if { exists(param.P) && param.P < 0 }
-    abort "Spindle ID must be a positive value!"
+    abort { "Spindle ID must be a positive value!" }
 
 ; Allocate Spindle ID
 var spindleID = { (exists(param.P) ? param.P : global.nxtSpindleID) }
@@ -52,7 +52,7 @@ if { spindles[var.spindleID].current == 0 && !global.nxtExpertMode }
 
     ; If operator picked cancel, then abort the job
     if { input == 1 }
-        abort "Operator aborted spindle startup!"
+        abort { "Operator aborted spindle startup!" }
 
 ; Dwell time defaults to the previously timed spindle acceleration time.
 var dwellTime = { global.nxtSpindleAccelSec }
