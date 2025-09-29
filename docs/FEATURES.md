@@ -42,15 +42,15 @@ These features form the core of the new NeXT system and must be implemented for 
 - [x] These will be re-implemented to log their results to the new Probe Results Table.
     - [x] Bore (`G6500`) - Probe both sides of the bore in X and Y and find the centre point (4 probe points total)
     - [x] Boss (`G6501`) - Probe both sides of the boss in X and Y and find the centre point (4 probe points total)
-    - [ ] Rectangle Pocket (`G6502`) - Probe all 4 edges of the pocket in X and Y, and find the centre point (4 probe points total)
-    - [ ] Rectangle Block (`G6503`) - Probe all 4 edges of the block in X and Y, and find the centre point (4 probe points total)
-    - [ ] Web (X/Y) (`G6504`) - Probe a block (web) in either X OR Y, and find the centre point on that axis (2 probe points total)
-    - [ ] Pocket (X/Y) (`G6505`) - Probe a pocket in either X OR Y, and find the centre point on that axis (2 probe points total)
-    - [ ] Rotation (`G6506`) - Probe 2 points along a single surface in X or Y to find the rotation of that surface against the relevant axis (2 probe points total)
+    - [x] Rectangle Pocket (`G6502`) - Probe all 4 edges of the pocket in X and Y, and find the centre point (4 probe points total)
+    - [x] Rectangle Block (`G6503`) - Probe all 4 edges of the block in X and Y, and find the centre point (4 probe points total)
+    - [x] Web (X/Y) (`G6504`) - Probe a block (web) in either X OR Y, and find the centre point on that axis (2 probe points total)
+    - [x] Pocket (X/Y) (`G6505`) - Probe a pocket in either X OR Y, and find the centre point on that axis (2 probe points total)
+    - [x] Rotation (`G6506`) - Probe 2 points along a single surface in X or Y to find the rotation of that surface against the relevant axis (2 probe points total)
     - [x] Outside Corner (`G6508`) - Probe each surface forming an assumed-90-degree outside corner, finding the intersection point of the two surfaces (2 probe points total)
-    - [ ] **New:** Inside Corner (`G6509`) - Probe each surface forming an assumed-90-degree inside corner, finding the intersection point of the two surfaces (2 probe points total)
+    - [x] **New:** Inside Corner (`G6509`) - Probe each surface forming an assumed-90-degree inside corner, finding the intersection point of the two surfaces (2 probe points total)
     - [x] Single Surface (`G6510`) - Probe one surface in X, Y or Y, finding the location of the surface on the selected axis (1 probe point total)
-    - [ ] Vise Corner (`G6520`) - Run a single surface Z probe to find the top of a vise corner, then run an outside corner probe to find the corner point in X and Y (3 probe points total)
+    - [x] Vise Corner (`G6520`) - Run a single surface Z probe to find the top of a vise corner, then run an outside corner probe to find the corner point in X and Y (3 probe points total)
 
 #### **Tool Change Logic**
 - [x] **Probe-on-Removal:** Standard cutting tools will have their length measured by the toolsetter during the `tfree.g` (tool removal) phase.

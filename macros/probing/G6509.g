@@ -1,17 +1,18 @@
-; G6508.g: OUTSIDE CORNER PROBE
+; G6509.g: INSIDE CORNER PROBE
 ;
-; Probes an outside corner by probing two perpendicular surfaces.
+; Probes an inside corner by probing two perpendicular surfaces from the inside.
 ; Finds the intersection point of the two surfaces and logs the result.
 ;
-; USAGE: G6508 [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [L<depth>]
+; USAGE: G6509 [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [L<depth>] [O<overtravel>]
 ;
 ; Parameters:
-;   X: Target coordinate for X-axis surface probe (defaults to current X - overtravel)
-;   Y: Target coordinate for Y-axis surface probe (defaults to current Y - overtravel)
+;   X: Target coordinate for X-axis surface probe (defaults to current X + overtravel)
+;   Y: Target coordinate for Y-axis surface probe (defaults to current Y + overtravel)
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging
 ;   C: Clearance distance between probes (default: 5mm)
 ;   L: Depth to move down before probing (default: 5mm)
+;   O: Overtravel distance beyond expected surfaces for default targets (default: 10mm)
 ;
 ; The corner coordinates are logged to nxtProbeResults table.
 
@@ -21,22 +22,23 @@ if { !inputs[state.thisInput].active }
 
 ; Validate that touch probe feature is enabled and configured
 if { !global.nxtFeatureTouchProbe }
-    abort { "G6508: Touch probe feature not enabled" }
+    abort { "G6509: Touch probe feature not enabled" }
 
 if { global.nxtTouchProbeID == null }
-    abort { "G6508: Touch probe ID not configured" }
+    abort { "G6509: Touch probe ID not configured" }
 
 ; Ensure we're using the touch probe
 if { state.currentTool != global.nxtProbeToolID }
-    abort { "G6508: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
+    abort { "G6509: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
 ; Set defaults
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
 var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var overtravel = { exists(param.O) ? param.O : 10.0 }
 
-echo "G6508: Starting outside corner probe"
+echo "G6509: Starting inside corner probe"
 
 ; Get current position for planning probe moves (preserve starting position)
 M5000
@@ -44,15 +46,15 @@ var startX = { global.nxtAbsPos[0] }
 var startY = { global.nxtAbsPos[1] }
 var startZ = { global.nxtAbsPos[2] }
 
-; Set default targets if not provided (current position for outside corner)
-var xTarget = { exists(param.X) ? param.X : var.startX - 10.0 }
-var yTarget = { exists(param.Y) ? param.Y : var.startY - 10.0 }
+; Set default targets if not provided (current position + overtravel for inside corner)
+var xTarget = { exists(param.X) ? param.X : var.startX + var.overtravel }
+var yTarget = { exists(param.Y) ? param.Y : var.startY + var.overtravel }
 
 ; Probe X surface first
-echo "G6508: Probing X surface"
+echo "G6509: Probing X surface"
 
 ; Move to X probe position (away from corner by clearance distance)
-var xProbeY = { var.yTarget > var.startY ? var.yTarget + var.clearance : var.yTarget - var.clearance }
+var xProbeY = { var.yTarget > var.startY ? var.yTarget - var.clearance : var.yTarget + var.clearance }
 G6550 X{var.startX} Y{var.xProbeY}
 
 ; Move down to probe depth
@@ -71,10 +73,10 @@ var xClearPos = { var.xTarget > var.startX ? var.xTarget - var.clearance : var.x
 G6550 X{var.xClearPos}
 
 ; Probe Y surface second
-echo "G6508: Probing Y surface"
+echo "G6509: Probing Y surface"
 
 ; Move to Y probe position (away from corner by clearance distance)
-var yProbeX = { var.xTarget > var.startX ? var.xTarget + var.clearance : var.xTarget - var.clearance }
+var yProbeX = { var.xTarget > var.startX ? var.xTarget - var.clearance : var.xTarget + var.clearance }
 G6550 X{var.yProbeX} Y{var.startY}
 
 ; Move down to probe depth
@@ -82,13 +84,6 @@ G6550 Z{var.probeZ}
 
 ; Execute Y surface probe
 G6512 X{var.yProbeX} Y{var.yTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
-var ySurface = { global.nxtLastProbeResult }
-
-; Return to start height
-G6550 Z{var.startZ}
-
-; Execute Y surface probe
-G6512 X{var.yProbeX} Y{param.Y} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var ySurface = { global.nxtLastProbeResult }
 
 ; Return to start height
@@ -120,10 +115,6 @@ set global.nxtProbeResults[var.resultIndex][1] = { var.cornerY }
 ; Return to safe height
 G27 Z1
 
-echo "G6508: Outside corner probe completed"
-echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
-echo "G6508: Result logged to table index " ^ var.resultIndex
-
-echo "G6508: Outside corner probe completed"
-echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
-echo "G6508: Result logged to table index " ^ var.resultIndex
+echo "G6509: Inside corner probe completed"
+echo "G6509: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
+echo "G6509: Result logged to table index " ^ var.resultIndex
