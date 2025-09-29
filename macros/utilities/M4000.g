@@ -38,5 +38,3 @@ if { !exists(global.nxtToolRadii) }
 
 set global.nxtToolNames[param.T] = param.S
 set global.nxtToolRadii[param.T] = param.R
-
-echo {"M4000: Created tool T" ^ param.T ^ " - " ^ param.S ^ " (R" ^ param.R ^ "mm)"}
