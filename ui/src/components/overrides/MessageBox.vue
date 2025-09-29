@@ -11,6 +11,35 @@
         <v-card-text>
             <div v-html="messageBox.message" class="message-content"></div>
             
+            <!-- Input fields for number/string input modes -->
+            <form v-if="needsNumberInput || needsStringInput" @submit.prevent="submitInput" class="mt-3">
+                <v-text-field
+                    v-if="needsNumberInput"
+                    v-model.number="numberInput"
+                    type="number"
+                    :min="messageBox.min"
+                    :max="messageBox.max"
+                    :step="needsIntInput ? 1 : 'any'"
+                    :label="needsIntInput ? 'Enter integer' : 'Enter number'"
+                    outlined
+                    dense
+                    autofocus
+                    required
+                />
+                <v-text-field
+                    v-else-if="needsStringInput"
+                    v-model="stringInput"
+                    type="text"
+                    :minlength="messageBox.min || 0"
+                    :maxlength="messageBox.max || 100"
+                    label="Enter text"
+                    outlined
+                    dense
+                    autofocus
+                    required
+                />
+            </form>
+            
             <!-- Progress bar for timeout -->
             <v-progress-linear
                 v-if="hasTimeout && timeoutProgress > 0"
@@ -26,16 +55,60 @@
         
         <v-card-actions>
             <v-spacer />
-            <v-btn
-                v-for="(choice, index) in messageBoxChoices"
-                :key="index"
-                :color="getButtonColor(index)"
-                :variant="getButtonVariant(index)"
-                @click="respondToMessage(index)"
-                class="mx-1"
-            >
-                {{ choice }}
-            </v-btn>
+            <template v-if="needsNumberInput || needsStringInput">
+                <!-- Input mode buttons -->
+                <v-btn
+                    color="primary"
+                    :disabled="!canConfirm"
+                    @click="submitInput"
+                >
+                    OK
+                </v-btn>
+                <v-btn
+                    v-if="messageBox.cancelButton"
+                    color="default"
+                    variant="outlined"
+                    @click="cancelMessage"
+                    class="ml-2"
+                >
+                    Cancel
+                </v-btn>
+            </template>
+            <template v-else-if="isMultipleChoice()">
+                <!-- Multiple choice buttons (OK/Cancel, Yes/No, or custom choices) -->
+                <v-btn
+                    v-for="(choice, index) in messageBoxChoices"
+                    :key="index"
+                    :color="getButtonColor(index)"
+                    :variant="getButtonVariant(index)"
+                    @click="respondToMessage(index)"
+                    class="mx-1"
+                >
+                    {{ choice }}
+                </v-btn>
+                <!-- Cancel button if explicitly available -->
+                <v-btn
+                    v-if="messageBox.cancelButton"
+                    color="default"
+                    variant="outlined"
+                    @click="cancelMessage"
+                    class="mx-1"
+                >
+                    Cancel
+                </v-btn>
+            </template>
+            <template v-else>
+                <!-- Single button (OK, Close, etc.) -->
+                <v-btn
+                    v-for="(choice, index) in messageBoxChoices"
+                    :key="index"
+                    color="primary"
+                    @click="respondToMessage(index)"
+                    class="mx-1"
+                >
+                    {{ choice }}
+                </v-btn>
+            </template>
         </v-card-actions>
     </v-card>
 </template>
@@ -50,7 +123,9 @@ export default {
         return {
             timeoutProgress: 0,
             remainingTime: 0,
-            timeoutInterval: null
+            timeoutInterval: null,
+            numberInput: 0,
+            stringInput: ''
         };
     },
 
@@ -67,6 +142,11 @@ export default {
         messageBoxChoices() {
             if (!this.messageBox) return [];
             
+            // If custom choices are provided, use them
+            if (this.messageBox.choices && Array.isArray(this.messageBox.choices)) {
+                return this.messageBox.choices;
+            }
+            
             // Handle different message box modes
             switch (this.messageBox.mode) {
                 case 0: // Message only
@@ -80,8 +160,7 @@ export default {
                 case 4: // Message with Yes/No
                     return ['Yes', 'No'];
                 default:
-                    // Custom choices if provided
-                    return this.messageBox.choices || ['OK'];
+                    return ['OK'];
             }
         },
 
@@ -100,6 +179,43 @@ export default {
                 return { icon: 'mdi-help-circle', color: 'primary' };
             }
             return { icon: 'mdi-information', color: 'info' };
+        },
+
+        // Input handling computed properties
+        needsIntInput() {
+            return this.messageBox && this.messageBox.mode === 5; // IntInput mode
+        },
+
+        needsNumberInput() {
+            return this.messageBox && (this.messageBox.mode === 5 || this.messageBox.mode === 6); // IntInput or FloatInput
+        },
+
+        needsStringInput() {
+            return this.messageBox && this.messageBox.mode === 7; // StringInput mode
+        },
+
+        canConfirm() {
+            if (this.needsNumberInput) {
+                const isValidNumber = typeof this.numberInput === 'number' && !isNaN(this.numberInput);
+                if (!isValidNumber) return false;
+                
+                if (this.needsIntInput && this.numberInput !== Math.round(this.numberInput)) {
+                    return false;
+                }
+                
+                if (this.messageBox.min !== null && this.numberInput < this.messageBox.min) return false;
+                if (this.messageBox.max !== null && this.numberInput > this.messageBox.max) return false;
+                
+                return true;
+            }
+
+            if (this.needsStringInput) {
+                const minLen = this.messageBox.min || 0;
+                const maxLen = this.messageBox.max || 100;
+                return this.stringInput.length >= minLen && this.stringInput.length <= maxLen;
+            }
+
+            return true;
         }
     },
 
@@ -107,7 +223,15 @@ export default {
         messageBox: {
             handler(newVal, oldVal) {
                 if (newVal && !oldVal) {
-                    // New message box appeared
+                    // New message box appeared - initialize input values
+                    if (typeof newVal.default === 'number') {
+                        this.numberInput = newVal.default;
+                    } else if (typeof newVal.default === 'string') {
+                        this.stringInput = newVal.default;
+                    } else {
+                        this.numberInput = 0;
+                        this.stringInput = '';
+                    }
                     this.startTimeout();
                 } else if (!newVal && oldVal) {
                     // Message box disappeared
@@ -120,10 +244,27 @@ export default {
 
     methods: {
         respondToMessage(buttonIndex) {
-            if (!this.messageBox) return;
+            if (!this.messageBox || !this.messageBox.seq) return;
             
-            // Send response to RRF
-            this.sendCode(`M292 P${buttonIndex}`);
+            // Send proper M292 response with sequence number
+            if (this.messageBox.mode >= 3) { // Multiple choice modes
+                this.sendCode(`M292 R{${buttonIndex}} S${this.messageBox.seq}`);
+            } else {
+                // Simple OK/Close responses
+                this.sendCode(`M292 S${this.messageBox.seq}`);
+            }
+            
+            this.clearTimeout();
+        },
+
+        cancelMessage() {
+            if (!this.messageBox || !this.messageBox.seq) return;
+            
+            // Send cancel response if cancel button is available
+            if (this.messageBox.cancelButton) {
+                this.sendCode(`M292 P1 S${this.messageBox.seq}`);
+            }
+            
             this.clearTimeout();
         },
 
@@ -153,6 +294,25 @@ export default {
             return 'outlined';
         },
 
+        submitInput() {
+            if (!this.canConfirm || !this.messageBox || !this.messageBox.seq) return;
+
+            // Send input response with proper format
+            if (this.needsNumberInput) {
+                this.sendCode(`M292 R{${this.numberInput}} S${this.messageBox.seq}`);
+            } else if (this.needsStringInput) {
+                // Escape quotes in string input
+                const escapedString = this.stringInput.replace(/"/g, '""').replace(/'/g, "''");
+                this.sendCode(`M292 R{"${escapedString}"} S${this.messageBox.seq}`);
+            }
+            
+            this.clearTimeout();
+        },
+
+        isMultipleChoice() {
+            return this.messageBox && this.messageBox.mode >= 3 && this.messageBox.mode <= 4;
+        },
+
         startTimeout() {
             this.clearTimeout();
             
@@ -166,9 +326,14 @@ export default {
                 this.timeoutProgress = (this.remainingTime / this.messageBox.timeout) * 100;
 
                 if (this.remainingTime <= 0) {
-                    // Timeout - select default or first option
-                    const defaultChoice = this.messageBox.default || 0;
-                    this.respondToMessage(defaultChoice);
+                    // Timeout - select default or first option for multiple choice
+                    if (this.isMultipleChoice()) {
+                        const defaultChoice = this.messageBox.default || 0;
+                        this.respondToMessage(defaultChoice);
+                    } else {
+                        // For simple dialogs, just acknowledge
+                        this.respondToMessage(0);
+                    }
                 }
             }, 100);
         },
