@@ -20,7 +20,7 @@ This document outlines the coding conventions and style guidelines to be followe
 
 ---
 
-## 3. Expression Handling - ALL Expressions Must Use Curly Braces
+## 3. Expression Handling 
 
 - **Universal Requirement:** ALL expressions in RepRapFirmware meta G-code must be wrapped in curly braces `{}` to ensure proper parsing and prevent ambiguities.
 - **This applies to:**
@@ -53,6 +53,24 @@ var y = var.x + 1
 if exists(param.S) && param.S > 0
 ```
 
+- **Dynamic Commands:** It is NOT possible in RRF to build a command string, and then execute it.
+### Examples:
+
+#### ✅ CORRECT:
+```gcode
+var x = {1}
+var y = {2}
+G0 X{var.x} Y{var.y}
+```
+
+#### ❌ INCORRECT - Command built from string:
+```gcode
+var x = {1}
+var y = {2}
+var gcode = {"G0 X" ^ var.x ^ " Y" ^ var.y}
+{gcode}
+```
+
 ---
 
 ## 4. G-code and M-code Conventions
@@ -63,7 +81,7 @@ if exists(param.S) && param.S > 0
 - **Legacy Compatibility:** We must try not to implement custom M- or G-codes that use the same numbers as those used by legacy MillenniumOS, unless they implement roughly the same thing. Refer to `docs/DETAILS.md` for the complete list of legacy codes to avoid conflicts.
 - **NO Named Macros:** **DO NOT** create named macro files (e.g., `measure-tool-length.g`, `probe-workpiece.g`) that require M98 calls to execute. These are unwieldy, ugly, and inconsistent with CNC conventions. Instead, always create proper G-code or M-code macros that can be called directly.
 - **Post-Processor Configuration:** Ensure post-processors are configured to output these extended codes.
-
+- **Parking:** When the machine needs to be in a 'safe' position for a subsequent move, it should be parked. This is important before tool changes, spindle start or stop, probing and tool length measurements. Use `G27 Z1` to park the machine in Z.
 ---
 
 ## 5. Macro Structure
