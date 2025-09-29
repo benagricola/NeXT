@@ -3,10 +3,10 @@
 ; Probes a vise corner by first probing the top surface in Z, then probing
 ; the corner in X and Y using an outside corner probe sequence.
 ;
-; USAGE: G6520 L<z-depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6520 L<depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
-;   L: Z probe depth below starting position - REQUIRED
+;   L: Probe depth below starting position - REQUIRED
 ;   X: Target coordinate for X-axis surface probe (defaults to current X - overtravel)
 ;   Y: Target coordinate for Y-axis surface probe (defaults to current Y - overtravel)
 ;   F: Optional speed override in mm/min
@@ -39,7 +39,7 @@ if { !exists(param.L) || param.L == null || param.L <= 0 }
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var zDepth = { param.L }
+var depth = { param.L }
 var overtravel = { exists(param.O) ? param.O : 10.0 }
 
 echo "G6520: Starting vise corner probe"
@@ -58,7 +58,7 @@ var ySurfaceTarget = { exists(param.Y) ? param.Y : var.startY - var.overtravel }
 echo "G6520: Probing Z surface (top of vise corner)"
 
 ; Calculate Z probe target
-var zTarget = { var.startZ - var.zDepth }
+var zTarget = { var.startZ - var.depth }
 
 ; Execute Z surface probe
 G6512 X{var.startX} Y{var.startY} Z{var.zTarget} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
