@@ -2,7 +2,6 @@
 ; Defines default global variables for the NeXT system.
 
 ; --- System Information ---
-global nxtVersion = "1.0.0-dev"        ; NeXT version string
 global nxtAbsPos = vector(4, 0.0)       ; Current tool-compensated absolute position [X,Y,Z,A]
 
 ; --- Features ---
