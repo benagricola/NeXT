@@ -3,14 +3,14 @@
 ; Probes a circular bore by probing in 4 directions (±X, ±Y) to find the center.
 ; This implements single-axis probing principles - each probe move is along one axis only.
 ;
-; USAGE: G6500 [F<speed>] [R<retries>] [D<diameter>] [O<overtravel>] [L<depth>]
+; USAGE: G6500 D<diameter> L<depth> [F<speed>] [R<retries>] [O<overtravel>]
 ;
 ; Parameters:
+;   D: Bore diameter for move planning - REQUIRED
+;   L: Depth to move down into bore before probing - REQUIRED
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging per probe point
-;   D: Approximate bore diameter for move planning (default: 10mm)
 ;   O: Overtravel distance beyond expected surface (default: 2mm)
-;   L: Depth to move down into bore before probing (default: 5mm)
 ;
 ; The bore center coordinates are logged to nxtProbeResults table.
 
@@ -29,12 +29,19 @@ if { global.nxtTouchProbeID == null }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6500: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.D) || param.D == null || param.D <= 0 }
+    abort { "G6500: Diameter parameter D is required and must be positive" }
+
+if { !exists(param.L) || param.L == null || param.L <= 0 }
+    abort { "G6500: Depth parameter L is required and must be positive" }
+
+; Set defaults for optional parameters
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var boreDiameter = { exists(param.D) ? param.D : 10.0 }
+var boreDiameter = { param.D }
 var overtravel = { exists(param.O) ? param.O : 2.0 }
-var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var probeDepth = { param.L }
 
 ; Park in Z before starting
 G27 Z1

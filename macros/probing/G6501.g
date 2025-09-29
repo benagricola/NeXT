@@ -3,15 +3,15 @@
 ; Probes a circular boss by probing from outside in 4 directions (±X, ±Y) to find the center.
 ; This implements single-axis probing principles - each probe move is along one axis only.
 ;
-; USAGE: G6501 [F<speed>] [R<retries>] [D<diameter>] [C<clearance>] [O<overtravel>] [L<depth>]
+; USAGE: G6501 D<diameter> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   D: Boss diameter for move planning - REQUIRED
+;   L: Depth to move down before probing - REQUIRED
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging per probe point
-;   D: Approximate boss diameter for move planning (default: 10mm)
 ;   C: Clearance distance from boss edge for starting position (default: 5mm)
 ;   O: Overtravel distance beyond expected surface for probe moves (default: 2mm)
-;   L: Depth to move down before probing (default: 5mm)
 ;
 ; The boss center coordinates are logged to nxtProbeResults table.
 
@@ -30,13 +30,20 @@ if { global.nxtTouchProbeID == null }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6501: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.D) || param.D == null || param.D <= 0 }
+    abort { "G6501: Diameter parameter D is required and must be positive" }
+
+if { !exists(param.L) || param.L == null || param.L <= 0 }
+    abort { "G6501: Depth parameter L is required and must be positive" }
+
+; Set defaults for optional parameters
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var bossDiameter = { exists(param.D) ? param.D : 10.0 }
+var bossDiameter = { param.D }
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var overtravel = { exists(param.O) ? param.O : 2.0 }
-var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var probeDepth = { param.L }
 
 echo "G6501: Starting boss probe cycle"
 
