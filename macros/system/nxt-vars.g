@@ -35,3 +35,10 @@ global nxtSpindleID = null  ; Default Spindle ID
 global nxtSpindleAccelSec = null  ; Spindle Acceleration Time (seconds)
 global nxtSpindleDecelSec = null  ; Spindle Deceleration Time (seconds)
 
+; --- Dialog System (for M1000 and UI integration) ---
+global nxtDialogActive = false    ; Flag indicating if a dialog is currently active
+global nxtDialogMessage = null    ; Current dialog message text
+global nxtDialogTitle = null      ; Current dialog title
+global nxtDialogButtons = null    ; Array of button labels for current dialog
+global nxtDialogResponse = null   ; Response from user (button index clicked)
+
