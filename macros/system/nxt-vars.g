@@ -16,7 +16,7 @@ global nxtUiReady = false          ; Flag to indicate if the NeXT UI is loaded a
 
 ; --- Tooling & Probing ---
 global nxtDeltaMachine = null      ; The static Z distance between the toolsetter and reference surface
-global nxtProbeResults = vector(10, {0.0, 0.0, 0.0}) ; A table to store the last 10 probe results
+global nxtProbeResults = vector(10, null) ; A table to store the last 10 probe results (initialized to proper length per machine)
 global nxtToolCache = vector(limits.tools, null) ; A cache for tool measurement results per session
 global nxtLastProbeResult = null   ; Stores the result of the last probing operation
 global nxtProbeTipRadius = 0.0    ; Radius of the probe tip for compensation (mm)

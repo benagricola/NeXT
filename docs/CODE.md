@@ -108,6 +108,10 @@ var gcode = {"G0 X" ^ var.x ^ " Y" ^ var.y}
 - **Avoid Magic Numbers:** Use named constants or variables instead of hard-coded numbers.
 - **Modular Code:** Break down complex logic into smaller, reusable functions or macros.
 - **Testing:** Write code with testing in mind; ensure macros can be tested independently.
+- **Line Length:** Keep all lines under 250 characters. Do not split expressions across multiple lines.
+- **Loop Iterations:** Use RRF's built-in `iterations` variable instead of creating custom counters.
+- **Required Parameters:** Parameters that depend on workpiece dimensions (width, height, depth) must be required, not defaulted.
+- **Variable Consistency:** Use consistent variable names for the same concepts across macros (e.g., `feedRate`, `retries`, `overtravel`).
 
 ---
 

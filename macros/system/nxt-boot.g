@@ -21,4 +21,11 @@ if { !exists(global.nxtProbeToolID) }
     M99
 
 ; --- All checks passed ---
+
+; Initialize probe results table with proper dimensions based on machine axes
+; Each result vector has: [axis positions..., rotation angle]
+var resultVectorSize = { #move.axes + 1 }
+while { iterations < #global.nxtProbeResults }
+    set global.nxtProbeResults[iterations] = { vector(var.resultVectorSize, 0.0) }
+
 set global.nxtLoaded = true

@@ -85,7 +85,22 @@ if { sensors.probes[var.probeID].value[0] != 0 }
 ; G38.3 stops when the probe triggers, which provides the protection we need
 G53 G38.3 K{var.probeID} F{var.feedRate} X{var.targetCoords[0]} Y{var.targetCoords[1]} Z{var.targetCoords[2]} A{var.targetCoords[3]}
 
-; Update position after move
+; Update position after move and check if target was reached
 M5000
+
+; Check if probe was triggered or we reached the target position
+; Use tolerance to avoid floating point comparison issues
+var tolerance = 0.01
+var reachedTarget = true
+var axisCoords = { global.nxtAbsPos[0], global.nxtAbsPos[1], global.nxtAbsPos[2], global.nxtAbsPos[3] }
+
+while { iterations < #var.axisCoords && iterations < #var.targetCoords }
+    var diff = { abs(var.axisCoords[iterations] - var.targetCoords[iterations]) }
+    if { var.diff > var.tolerance }
+        set var.reachedTarget = false
+
+; If we didn't reach target and probe isn't triggered, something went wrong
+if { !var.reachedTarget && sensors.probes[var.probeID].value[0] == 0 }
+    abort { "G6550: Move stopped before reaching target and probe was not triggered - check for obstacles" }
 
 echo "G6550: Protected move completed"

@@ -3,14 +3,14 @@
 ; Probes all 4 edges of a rectangular pocket to find the center point.
 ; Uses single-axis probing for each edge and calculates the geometric center.
 ;
-; USAGE: G6502 [F<speed>] [R<retries>] [W<width>] [H<height>] [L<depth>] [C<clearance>] [O<overtravel>]
+; USAGE: G6502 W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   W: Pocket width in X direction - REQUIRED
+;   H: Pocket height in Y direction - REQUIRED
+;   L: Depth to move down into pocket before probing - REQUIRED
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging per probe point
-;   W: Approximate pocket width in X direction (default: 20mm)
-;   H: Approximate pocket height in Y direction (default: 20mm)
-;   L: Depth to move down into pocket before probing (default: 5mm)
 ;   C: Clearance distance from pocket edges (default: 5mm)
 ;   O: Overtravel distance beyond expected surfaces (default: 2mm)
 ;
@@ -31,12 +31,16 @@ if { global.nxtTouchProbeID == null }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6502: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.W) || !exists(param.H) || !exists(param.L) }
+    abort { "G6502: Width (W), Height (H), and Depth (L) parameters are required" }
+
+; Set parameters
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var pocketWidth = { exists(param.W) ? param.W : 20.0 }
-var pocketHeight = { exists(param.H) ? param.H : 20.0 }
-var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var pocketWidth = { param.W }
+var pocketHeight = { param.H }
+var probeDepth = { param.L }
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var overtravel = { exists(param.O) ? param.O : 2.0 }
 
@@ -102,9 +106,9 @@ var actualHeight = { var.yPlusEdge - var.yMinusEdge }
 ; Log results to probe results table
 ; Find the next available slot in the results table
 var resultIndex = 0
-while { var.resultIndex < #global.nxtProbeResults && 
-        (global.nxtProbeResults[var.resultIndex][0] != 0 || global.nxtProbeResults[var.resultIndex][1] != 0) }
-    set var.resultIndex = { var.resultIndex + 1 }
+while { iterations < #global.nxtProbeResults && (global.nxtProbeResults[iterations][0] != 0 || global.nxtProbeResults[iterations][1] != 0) }
+    ; iterations auto-increments, we track the current index
+    set var.resultIndex = { iterations + 1 }
 
 ; If table is full, use the last slot
 if { var.resultIndex >= #global.nxtProbeResults }
@@ -112,7 +116,7 @@ if { var.resultIndex >= #global.nxtProbeResults }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(3, 0.0) }
+    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the calculated center coordinates
 set global.nxtProbeResults[var.resultIndex][0] = { var.calculatedCenterX }

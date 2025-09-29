@@ -3,14 +3,14 @@
 ; Probes all 4 edges of a rectangular block from the outside to find the center point.
 ; Uses single-axis probing for each edge and calculates the geometric center.
 ;
-; USAGE: G6503 [F<speed>] [R<retries>] [W<width>] [H<height>] [L<depth>] [C<clearance>] [O<overtravel>]
+; USAGE: G6503 W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   W: Block width in X direction - REQUIRED
+;   H: Block height in Y direction - REQUIRED
+;   L: Depth to move down before probing - REQUIRED
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging per probe point
-;   W: Approximate block width in X direction (default: 20mm)
-;   H: Approximate block height in Y direction (default: 20mm)
-;   L: Depth to move down before probing (default: 5mm)
 ;   C: Clearance distance from block edges for approach (default: 5mm)
 ;   O: Overtravel distance beyond expected surfaces (default: 2mm)
 ;
@@ -31,12 +31,16 @@ if { global.nxtTouchProbeID == null }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6503: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.W) || !exists(param.H) || !exists(param.L) }
+    abort { "G6503: Width (W), Height (H), and Depth (L) parameters are required" }
+
+; Set parameters
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var blockWidth = { exists(param.W) ? param.W : 20.0 }
-var blockHeight = { exists(param.H) ? param.H : 20.0 }
-var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var blockWidth = { param.W }
+var blockHeight = { param.H }
+var probeDepth = { param.L }
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var overtravel = { exists(param.O) ? param.O : 2.0 }
 
@@ -67,7 +71,7 @@ var probeZ = { var.startZ - var.probeDepth }
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.xPlusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.xPlusTarget} Y{var.centerY} Z{var.probeZ} F{var.feedRate} R{var.retries}
 var xPlusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height before moving to next position
@@ -83,7 +87,7 @@ G6550 X{var.xMinusStart} Y{var.centerY}
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.xMinusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.xMinusTarget} Y{var.centerY} Z{var.probeZ} F{var.feedRate} R{var.retries}
 var xMinusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height before moving to next position
@@ -91,15 +95,19 @@ G6550 Z{var.startZ}
 
 ; Probe from +Y direction (approach from front)
 echo "G6503: Probing from +Y direction"
+
+; Calculate the X center from previous probes and use it for Y probes
+var calculatedCenterX = { (var.xPlusEdge + var.xMinusEdge) / 2 }
+
 var yPlusStart = { var.centerY + var.yApproachDistance }
 var yPlusTarget = { var.centerY + var.yProbeTarget }
 
-; Move to approach position and down to probe depth
-G6550 X{var.centerX} Y{var.yPlusStart}
+; Move to approach position using the calculated X center and down to probe depth
+G6550 X{var.calculatedCenterX} Y{var.yPlusStart}
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.centerX} Y{var.yPlusTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.calculatedCenterX} Y{var.yPlusTarget} Z{var.probeZ} F{var.feedRate} R{var.retries}
 var yPlusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height before moving to next position
@@ -110,19 +118,18 @@ echo "G6503: Probing from -Y direction"
 var yMinusStart = { var.centerY - var.yApproachDistance }
 var yMinusTarget = { var.centerY - var.yProbeTarget }
 
-; Move to approach position and down to probe depth
-G6550 X{var.centerX} Y{var.yMinusStart}
+; Move to approach position using the calculated X center and down to probe depth
+G6550 X{var.calculatedCenterX} Y{var.yMinusStart}
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.centerX} Y{var.yMinusTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.calculatedCenterX} Y{var.yMinusTarget} Z{var.probeZ} F{var.feedRate} R{var.retries}
 var yMinusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height
 G6550 Z{var.startZ}
 
-; Calculate block center from the 4 probe points
-var calculatedCenterX = { (var.xPlusEdge + var.xMinusEdge) / 2 }
+; Calculate final block center from all 4 probe points
 var calculatedCenterY = { (var.yPlusEdge + var.yMinusEdge) / 2 }
 
 ; Calculate actual block dimensions
@@ -132,9 +139,9 @@ var actualHeight = { var.yPlusEdge - var.yMinusEdge }
 ; Log results to probe results table
 ; Find the next available slot in the results table
 var resultIndex = 0
-while { var.resultIndex < #global.nxtProbeResults && 
-        (global.nxtProbeResults[var.resultIndex][0] != 0 || global.nxtProbeResults[var.resultIndex][1] != 0) }
-    set var.resultIndex = { var.resultIndex + 1 }
+while { iterations < #global.nxtProbeResults && (global.nxtProbeResults[iterations][0] != 0 || global.nxtProbeResults[iterations][1] != 0) }
+    ; iterations auto-increments, we track the current index
+    set var.resultIndex = { iterations + 1 }
 
 ; If table is full, use the last slot
 if { var.resultIndex >= #global.nxtProbeResults }
@@ -142,7 +149,7 @@ if { var.resultIndex >= #global.nxtProbeResults }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(3, 0.0) }
+    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the calculated center coordinates
 set global.nxtProbeResults[var.resultIndex][0] = { var.calculatedCenterX }

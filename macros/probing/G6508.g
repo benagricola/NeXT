@@ -3,15 +3,15 @@
 ; Probes an outside corner by probing two perpendicular surfaces.
 ; Finds the intersection point of the two surfaces and logs the result.
 ;
-; USAGE: G6508 [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [L<depth>]
+; USAGE: G6508 L<depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>]
 ;
 ; Parameters:
+;   L: Depth to move down before probing - REQUIRED
 ;   X: Target coordinate for X-axis surface probe (defaults to current X - overtravel)
 ;   Y: Target coordinate for Y-axis surface probe (defaults to current Y - overtravel)
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging
 ;   C: Clearance distance between probes (default: 5mm)
-;   L: Depth to move down before probing (default: 5mm)
 ;
 ; The corner coordinates are logged to nxtProbeResults table.
 
@@ -30,11 +30,15 @@ if { global.nxtTouchProbeID == null }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6508: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.L) }
+    abort { "G6508: Depth (L) parameter is required" }
+
+; Set parameters
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var probeDepth = { param.L }
 
 echo "G6508: Starting outside corner probe"
 
@@ -60,7 +64,7 @@ var probeZ = { var.startZ - var.probeDepth }
 G6550 Z{var.probeZ}
 
 ; Execute X surface probe
-G6512 X{var.xTarget} Y{var.xProbeY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.xTarget} Y{var.xProbeY} Z{var.probeZ} F{var.feedRate} R{var.retries}
 var xSurface = { global.nxtLastProbeResult }
 
 ; Return to start height
@@ -81,7 +85,7 @@ G6550 X{var.yProbeX} Y{var.startY}
 G6550 Z{var.probeZ}
 
 ; Execute Y surface probe
-G6512 X{var.yProbeX} Y{var.yTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.yProbeX} Y{var.yTarget} Z{var.probeZ} F{var.feedRate} R{var.retries}
 var ySurface = { global.nxtLastProbeResult }
 
 ; Return to start height
@@ -111,7 +115,7 @@ if { var.resultIndex >= #global.nxtProbeResults }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(3, 0.0) }
+    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
 
 ; Store both X and Y results
 set global.nxtProbeResults[var.resultIndex][0] = { var.cornerX }

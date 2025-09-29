@@ -65,7 +65,7 @@ if { var.resultIndex >= #global.nxtProbeResults }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(3, 0.0) }
+    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the result
 set global.nxtProbeResults[var.resultIndex][var.probeAxis] = { global.nxtLastProbeResult }
