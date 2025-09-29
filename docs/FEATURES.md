@@ -16,9 +16,9 @@ This document distills the requirements for the NeXT rewrite, categorizing featu
 These features form the core of the new NeXT system and must be implemented for the system to be considered functional.
 
 #### **Core System & Structure**
-- [ ] **Simplified Loading Mechanism:** Retain the `nxt.g` entrypoint and `nxt-boot.g` sanity-check structure, but simplify the internal logic.
-- [ ] **Global Variable System:** Keep the concept of using global variables for state management, loaded from `nxt-vars.g` and `nxt-user-vars.g`.
-- [ ] **Reorganized Macro Folders:** The `macro/` directory will be restructured by purpose (e.g., `macros/probing`, `macros/tooling`, `macros/spindle`) to improve clarity and maintainability.
+- [x] **Simplified Loading Mechanism:** Retain the `nxt.g` entrypoint and `nxt-boot.g` sanity-check structure, but simplify the internal logic.
+- [x] **Global Variable System:** Keep the concept of using global variables for state management, loaded from `nxt-vars.g` and `nxt-user-vars.g`.
+- [x] **Reorganized Macro Folders:** The `macro/` directory will be restructured by purpose (e.g., `macros/probing`, `macros/tooling`, `macros/spindle`) to improve clarity and maintainability.
 
 #### **Probing Engine & Safety**
 - [ ] **Single-Axis Probing Core:** A new, fundamental probing macro that *only* moves along a single specified axis (X, Y, Z, A, etc.) per command. All complex, multi-axis probe moves will be removed. In particular, this applies to Bore and Boss probes that previously would probe at 120 degree angles.
@@ -65,10 +65,10 @@ These features form the core of the new NeXT system and must be implemented for 
 - [ ] **UI-Driven Probing:** All probing cycles will be initiated and configured through the DWC UI.
 
 #### **Machine Control**
-- [ ] **Spindle Control:** Core macros for safe spindle start/stop with acceleration waits (`M3.9`, `M4.9`, `M5.9`).
-- [ ] **Coolant Control:** Core macros for coolant control (`M7`, `M8`, `M9`, and `M7.1`).
-- [ ] **Parking (`G27`):** A critical macro for moving the machine to a safe, known position.
-- [ ] **Safety Net (ATX Power Control):** The `M80.9`/`M81.9` system for safe, operator-confirmed ATX power control.
+- [x] **Spindle Control:** Core macros for safe spindle start/stop with acceleration waits (`M3.9`, `M4.9`, `M5.9`).
+- [x] **Coolant Control:** Core macros for coolant control (`M7`, `M8`, `M9`, and `M7.1`).
+- [x] **Parking (`G27`):** A critical macro for moving the machine to a safe, known position.
+- [x] **Safety Net (ATX Power Control):** The `M80.9`/`M81.9` system for safe, operator-confirmed ATX power control.
 
 ---
 

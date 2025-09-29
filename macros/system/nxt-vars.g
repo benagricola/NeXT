@@ -22,6 +22,7 @@ global nxtLastProbeResult = null   ; Stores the result of the last probing opera
 global nxtProbeTipRadius = 0.0    ; Radius of the probe tip for compensation (mm)
 global nxtProbeDeflection = 0.0   ; Probe deflection compensation value (mm)
 global nxtToolSetterPos = null     ; Toolsetter position vector [X, Y, Z]
+global nxtToolChangeState = null   ; Tracks the current tool change state (1=tfree, 2=tfree done, 3=tpre done, 4=tpost, null=complete)
 
 ; --- Coolant Control ---
 global nxtCoolantAirID = null ; Coolant Air Output Pin ID
