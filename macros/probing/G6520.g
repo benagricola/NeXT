@@ -3,15 +3,15 @@
 ; Probes a vise corner by first probing the top surface in Z, then probing
 ; the corner in X and Y using an outside corner probe sequence.
 ;
-; USAGE: G6520 [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [L<z-depth>] [O<overtravel>]
+; USAGE: G6520 L<z-depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   L: Z probe depth below starting position - REQUIRED
 ;   X: Target coordinate for X-axis surface probe (defaults to current X - overtravel)
 ;   Y: Target coordinate for Y-axis surface probe (defaults to current Y - overtravel)
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging
 ;   C: Clearance distance between probes (default: 5mm)
-;   L: Z probe depth below starting position (default: 10mm)
 ;   O: Overtravel distance beyond expected surfaces for default targets (default: 10mm)
 ;
 ; The vise corner coordinates (X, Y, Z) are logged to nxtProbeResults table.
@@ -31,11 +31,15 @@ if { global.nxtTouchProbeID == null }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6520: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.L) || param.L == null || param.L <= 0 }
+    abort { "G6520: Depth parameter L is required and must be positive" }
+
+; Set defaults for optional parameters
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var zDepth = { exists(param.L) ? param.L : 10.0 }
+var zDepth = { param.L }
 var overtravel = { exists(param.O) ? param.O : 10.0 }
 
 echo "G6520: Starting vise corner probe"

@@ -3,14 +3,14 @@
 ; Probes a protruding web feature in either X OR Y direction to find the center point.
 ; Uses single-axis probing from both sides and calculates the center along the specified axis.
 ;
-; USAGE: G6504 N<axis> [F<speed>] [R<retries>] [W<width>] [L<depth>] [C<clearance>] [O<overtravel>]
+; USAGE: G6504 N<axis> W<width> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
 ;   N: Axis to probe (0 for X, 1 for Y) - REQUIRED
+;   W: Web width along the specified axis - REQUIRED
+;   L: Depth to move down before probing - REQUIRED
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging per probe point
-;   W: Approximate web width along the specified axis (default: 10mm)
-;   L: Depth to move down before probing (default: 5mm)
 ;   C: Clearance distance from web edges for approach (default: 5mm)
 ;   O: Overtravel distance beyond expected surfaces (default: 2mm)
 ;
@@ -38,12 +38,19 @@ if { !exists(param.N) || param.N == null }
 if { param.N != 0 && param.N != 1 }
     abort { "G6504: Axis parameter N must be 0 (X) or 1 (Y)" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.W) || param.W == null || param.W <= 0 }
+    abort { "G6504: Width parameter W is required and must be positive" }
+
+if { !exists(param.L) || param.L == null || param.L <= 0 }
+    abort { "G6504: Depth parameter L is required and must be positive" }
+
+; Set defaults for optional parameters
 var probeAxis = { param.N }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var webWidth = { exists(param.W) ? param.W : 10.0 }
-var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var webWidth = { param.W }
+var probeDepth = { param.L }
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var overtravel = { exists(param.O) ? param.O : 2.0 }
 

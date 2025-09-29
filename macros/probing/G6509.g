@@ -3,15 +3,15 @@
 ; Probes an inside corner by probing two perpendicular surfaces from the inside.
 ; Finds the intersection point of the two surfaces and logs the result.
 ;
-; USAGE: G6509 [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [L<depth>] [O<overtravel>]
+; USAGE: G6509 L<depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   L: Depth to move down before probing - REQUIRED
 ;   X: Target coordinate for X-axis surface probe (defaults to current X + overtravel)
 ;   Y: Target coordinate for Y-axis surface probe (defaults to current Y + overtravel)
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging
 ;   C: Clearance distance between probes (default: 5mm)
-;   L: Depth to move down before probing (default: 5mm)
 ;   O: Overtravel distance beyond expected surfaces for default targets (default: 10mm)
 ;
 ; The corner coordinates are logged to nxtProbeResults table.
@@ -31,11 +31,15 @@ if { global.nxtTouchProbeID == null }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6509: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Set defaults
+; Validate required parameters
+if { !exists(param.L) || param.L == null || param.L <= 0 }
+    abort { "G6509: Depth parameter L is required and must be positive" }
+
+; Set defaults for optional parameters
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-var probeDepth = { exists(param.L) ? param.L : 5.0 }
+var probeDepth = { param.L }
 var overtravel = { exists(param.O) ? param.O : 10.0 }
 
 echo "G6509: Starting inside corner probe"
