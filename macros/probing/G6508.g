@@ -110,24 +110,21 @@ var cornerX = { var.xSurface }
 var cornerY = { var.ySurface }
 
 ; Log results to probe results table
-; Use the specified result index directly
-var resultIndex = { param.P }
-
 ; Initialize the result vector if needed
-if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
+if { #global.nxtProbeResults[param.P] < 3 }
+    set global.nxtProbeResults[param.P] = { vector(#move.axes + 1, 0.0) }
 
 ; Store both X and Y results
-set global.nxtProbeResults[var.resultIndex][0] = { var.cornerX }
-set global.nxtProbeResults[var.resultIndex][1] = { var.cornerY }
+set global.nxtProbeResults[param.P][0] = { var.cornerX }
+set global.nxtProbeResults[param.P][1] = { var.cornerY }
 
 ; Return to safe height
 G27 Z1
 
 echo "G6508: Outside corner probe completed"
 echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
-echo "G6508: Result logged to table index " ^ var.resultIndex
+echo "G6508: Result logged to table index " ^ param.P
 
 echo "G6508: Outside corner probe completed"
 echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
-echo "G6508: Result logged to table index " ^ var.resultIndex
+echo "G6508: Result logged to table index " ^ param.P

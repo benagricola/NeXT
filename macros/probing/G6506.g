@@ -166,16 +166,13 @@ G6550 Z{var.startZ}
 ; Rotation probe complete - coordinates not needed, only rotation angle matters
 
 ; Log results to probe results table
-; Use the specified result index directly
-var resultIndex = { param.P }
-
 ; Initialize the result vector if needed (should already be done by nxt-boot.g)
 var resultVectorSize = { #move.axes + 1 }
-if { #global.nxtProbeResults[var.resultIndex] != var.resultVectorSize }
-    set global.nxtProbeResults[var.resultIndex] = { vector(var.resultVectorSize, 0.0) }
+if { #global.nxtProbeResults[param.P] != var.resultVectorSize }
+    set global.nxtProbeResults[param.P] = { vector(var.resultVectorSize, 0.0) }
 
 ; Store only rotation angle in dedicated rotation slot (last position)
-set global.nxtProbeResults[var.resultIndex][#move.axes] = { var.rotationDeg }
+set global.nxtProbeResults[param.P][#move.axes] = { var.rotationDeg }
 
 ; Return to safe height
 G27 Z1
@@ -183,4 +180,4 @@ G27 Z1
 echo "G6506: Rotation probe completed"
 echo "G6506: Surface midpoint at X=" ^ var.midpointX ^ " Y=" ^ var.midpointY
 echo "G6506: Surface rotation: " ^ var.rotationDeg ^ " degrees"
-echo "G6506: Result logged to table index " ^ var.resultIndex
+echo "G6506: Result logged to table index " ^ param.P

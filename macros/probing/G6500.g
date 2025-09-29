@@ -117,16 +117,13 @@ var actualDiameterY = { var.yPlusSurface - var.yMinusSurface }
 var avgDiameter = { (var.actualDiameterX + var.actualDiameterY) / 2 }
 
 ; Log results to probe results table
-; Use the specified result index directly
-var resultIndex = { param.P }
-
 ; Initialize the result vector if needed
-if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
+if { #global.nxtProbeResults[param.P] < 3 }
+    set global.nxtProbeResults[param.P] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the calculated center coordinates
-set global.nxtProbeResults[var.resultIndex][0] = { var.calculatedCenterX }
-set global.nxtProbeResults[var.resultIndex][1] = { var.calculatedCenterY }
+set global.nxtProbeResults[param.P][0] = { var.calculatedCenterX }
+set global.nxtProbeResults[param.P][1] = { var.calculatedCenterY }
 
 ; Move to calculated center
 G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY}
@@ -137,4 +134,4 @@ G6550 Z{var.startZ}
 echo "G6500: Bore probe completed"
 echo "G6500: Bore center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY
 echo "G6500: Measured diameter: X=" ^ var.actualDiameterX ^ " Y=" ^ var.actualDiameterY ^ " (avg=" ^ var.avgDiameter ^ ")"
-echo "G6500: Result logged to table index " ^ var.resultIndex
+echo "G6500: Result logged to table index " ^ param.P

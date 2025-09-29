@@ -163,16 +163,13 @@ else
     var resultY = { var.calculatedCenter }
 
 ; Log results to probe results table
-; Use the specified result index directly
-var resultIndex = { param.P }
-
 ; Initialize the result vector if needed
-if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
+if { #global.nxtProbeResults[param.P] < 3 }
+    set global.nxtProbeResults[param.P] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the calculated center coordinate
-set global.nxtProbeResults[var.resultIndex][0] = { var.resultX }
-set global.nxtProbeResults[var.resultIndex][1] = { var.resultY }
+set global.nxtProbeResults[param.P][0] = { var.resultX }
+set global.nxtProbeResults[param.P][1] = { var.resultY }
 
 ; Move to calculated center
 G6550 X{var.resultX} Y{var.resultY}
@@ -183,4 +180,4 @@ G27 Z1
 echo "G6504: Web probe completed"
 echo "G6504: Web center along " ^ var.axisName ^ " axis: " ^ var.calculatedCenter
 echo "G6504: Measured width: " ^ var.actualWidth ^ "mm"
-echo "G6504: Result logged to table index " ^ var.resultIndex
+echo "G6504: Result logged to table index " ^ param.P

@@ -62,18 +62,15 @@ set var.targetCoords[var.probeAxis] = { var.targetCoord }
 G6512 X{var.targetCoords[0]} Y{var.targetCoords[1]} Z{var.targetCoords[2]} I{global.nxtTouchProbeID} F{param.F} R{param.R}
 
 ; Log result to probe results table
-; Use the specified result index directly
-var resultIndex = { param.P }
-
 ; Initialize the result vector if needed
-if { #global.nxtProbeResults[var.resultIndex] < 3 }
-    set global.nxtProbeResults[var.resultIndex] = { vector(#move.axes + 1, 0.0) }
+if { #global.nxtProbeResults[param.P] < 3 }
+    set global.nxtProbeResults[param.P] = { vector(#move.axes + 1, 0.0) }
 
 ; Store the result
-set global.nxtProbeResults[var.resultIndex][var.probeAxis] = { global.nxtLastProbeResult }
+set global.nxtProbeResults[param.P][var.probeAxis] = { global.nxtLastProbeResult }
 
 ; Return to safe height
 G27 Z1
 
 echo "G6510: Single surface probe completed"
-echo "G6510: Result logged to table index " ^ var.resultIndex ^ ", " ^ move.axes[var.probeAxis].letter ^ "=" ^ global.nxtLastProbeResult
+echo "G6510: Result logged to table index " ^ param.P ^ ", " ^ move.axes[var.probeAxis].letter ^ "=" ^ global.nxtLastProbeResult
