@@ -60,6 +60,7 @@ if exists(param.S) && param.S > 0
 - **Industry Standards:** Adhere to NIST standards for G-code numbering where possible.
 - **Extensions:** For functionality not implemented by RepRapFirmware (RRF), use standard G-codes (e.g., `G37` for tool measurement).
 - **Wrapper Macros:** To add safety or features to existing RRF commands (e.g., `M3`, `M5`), create "wrapper" macros with a decimal extension (e.g., `M3.9`, `M5.9`). These wrappers contain custom logic and then call the base RRF command.
+- **Legacy Compatibility:** We must try not to implement custom M- or G-codes that use the same numbers as those used by legacy MillenniumOS, unless they implement roughly the same thing. Refer to `docs/DETAILS.md` for the complete list of legacy codes to avoid conflicts.
 - **NO Named Macros:** **DO NOT** create named macro files (e.g., `measure-tool-length.g`, `probe-workpiece.g`) that require M98 calls to execute. These are unwieldy, ugly, and inconsistent with CNC conventions. Instead, always create proper G-code or M-code macros that can be called directly.
 - **Post-Processor Configuration:** Ensure post-processors are configured to output these extended codes.
 
@@ -70,6 +71,7 @@ if exists(param.S) && param.S > 0
 - **File Naming:** Core system files should use the `nxt` prefix where appropriate (e.g., `nxt.g`, `nxt-vars.g`).
 - **G-code/M-code Naming:** All user-callable macros must be named as G-codes or M-codes (e.g., `G37.g`, `M3000.g`, `M6515.g`) to be executed directly without M98 calls.
 - **Descriptive Named Files:** Only use descriptive names (e.g., `probe-workpiece.g`) for internal system files that are never called directly by users or post-processors. These should only be called from other macros using M98.
+- **UI Dialog Integration:** We will be using component injection to override the behaviour of M291 dialogs in the frontend. To our macro code, this will look exactly as M291 dialogs already do, so there is no need to change the way these work.
 - **Error Handling:** Use `abort` for fatal errors with descriptive messages.
 - **Validation:** Validate parameters early in macros to prevent runtime errors.
 
@@ -122,20 +124,24 @@ if exists(param.S) && param.S > 0
 ## 10. Object Model Best Practices
 
 - **Multi-Axis Checks:** When checking attributes on multiple axes via the object model (for example, to check if all axes are homed), use a loop rather than checking individual indexes. This ensures the code works correctly regardless of the number of configured axes.
+- **Sparse Arrays:** Some object model areas can be 'sparse' - that is, some entries might be `null` with subsequent entries containing an object. A great example of this is the tool list, which might have tool 1 and 49 allocated but all of the other tools `null`. This must be taken into account with any loops that check an attribute of an object that might or might not be there.
 
 ### Examples:
 
 #### ✅ CORRECT - Using loops for multi-axis checks:
 ```gcode
 ; Check if all axes are homed
-var allHomed = true
 while { iterations < #move.axes }
     if { !move.axes[iterations].homed }
-        set var.allHomed = false
-        break
+        abort { "Axis " ^ move.axes[iterations].letter ^ " is not homed. Please home all axes before continuing." }
+```
 
-if { !var.allHomed }
-    abort { "Not all axes are homed. Please home all axes before continuing." }
+#### ✅ CORRECT - Handling sparse arrays (checking for null):
+```gcode
+; Check all tools for a specific condition
+while { iterations < #tools }
+    if { tools[iterations] != null && tools[iterations].offsets[0] > 10 }
+        echo "Tool " ^ iterations ^ " has X offset > 10mm"
 ```
 
 #### ❌ INCORRECT - Checking individual indexes:
@@ -150,5 +156,3 @@ if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
 ## 11. Documentation and File Organization
 
 - **No README Files in NeXT Structure:** Do not create README files within the NeXT structure itself. Documentation for components is fine, but it needs to go in the `docs/` folder, being careful to not overwrite or delete any documentation that explains how the legacy MillenniumOS system worked.
-- **UI Dialog Integration:** We will be using component injection to override the behaviour of M291 dialogs in the frontend. To our macro code, this will look exactly as M291 dialogs already do, so there is no need to change the way these work.
-- **Legacy Compatibility:** We must try not to implement custom M- or G-codes that use the same numbers as those used by legacy MillenniumOS, unless they implement roughly the same thing. Refer to `docs/DETAILS.md` for the complete list of legacy codes to avoid conflicts.
