@@ -43,7 +43,7 @@ The goal of this phase is to establish a clean and organized repository structur
 
 ## Phase 1: Core System & Essential Backend ✅
 
-This phase focuses on implementing the most critical, non-UI backend functionality. **MOSTLY COMPLETED**
+This phase focuses on implementing the most critical, non-UI backend functionality. **COMPLETED**
 
 1.  **Core Loading Mechanism:** ✅
     *   Re-implement the core loading scripts (`nxt.g`, `nxt-boot.g`) and the global variable system (`nxt-vars.g`).
@@ -55,14 +55,14 @@ This phase focuses on implementing the most critical, non-UI backend functionali
     *   Machine information queries (`M5000`) and limit checking (`M6515`).
     *   Tool measurement (`G37`) and basic probing functionality (`G6512`).
 
-4.  **Simplified Probing Engine:** 🔄
+4.  **Simplified Probing Engine:** ✅
     *   Develop a new, single-axis probing macro, guided by the principle of numerical stability.
     *   Implement robust compensation logic within this core macro for both probe tip radius and probe deflection.
     *   Implement the **Protected Moves** logic to halt on unexpected probe triggers.
     *   Implement the backend global variable (vector) for the **Probe Results Table**. ✅
     *   Design all probing cycle macros (`G6500`, `G6501`, etc.) to log their compensated results to this table instead of setting a WCS origin directly.
 
-5.  **Redesigned Tool Change Logic:** ⏸️
+5.  **Redesigned Tool Change Logic:** ✅
     *   Implement the "probe-on-removal" logic in `tfree.g` for standard tools.
     *   Implement the relative offset calculation in `tpre.g`.
     *   Implement the special case for the touch probe in `tpost.g` (probing a reference surface).
