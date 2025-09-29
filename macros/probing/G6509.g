@@ -3,9 +3,10 @@
 ; Probes an inside corner by probing two perpendicular surfaces from the inside.
 ; Finds the intersection point of the two surfaces and logs the result.
 ;
-; USAGE: G6509 L<depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6509 P<index> L<depth> [X<x-surface>] [Y<y-surface>] [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   L: Depth to move down before probing - REQUIRED
 ;   X: Target coordinate for X-axis surface probe (defaults to current X + overtravel)
 ;   Y: Target coordinate for Y-axis surface probe (defaults to current Y + overtravel)
@@ -32,6 +33,12 @@ if { state.currentTool != global.nxtProbeToolID }
     abort { "G6509: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
 ; Validate required parameters
+if { !exists(param.P) || param.P == null || param.P < 0 }
+    abort { "G6509: Result index parameter P is required and must be >= 0" }
+
+if { param.P >= #global.nxtProbeResults }
+    abort { "G6509: Result index P=" ^ param.P ^ " exceeds table size (" ^ #global.nxtProbeResults ^ ")" }
+
 if { !exists(param.L) || param.L == null || param.L <= 0 }
     abort { "G6509: Depth parameter L is required and must be positive" }
 
@@ -98,15 +105,8 @@ var cornerX = { var.xSurface }
 var cornerY = { var.ySurface }
 
 ; Log results to probe results table
-; Find the next available slot in the results table
-var resultIndex = 0
-while { var.resultIndex < #global.nxtProbeResults && 
-        (global.nxtProbeResults[var.resultIndex][0] != 0 || global.nxtProbeResults[var.resultIndex][1] != 0) }
-    set var.resultIndex = { var.resultIndex + 1 }
-
-; If table is full, use the last slot
-if { var.resultIndex >= #global.nxtProbeResults }
-    set var.resultIndex = { #global.nxtProbeResults - 1 }
+; Use the specified result index directly
+var resultIndex = { param.P }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }

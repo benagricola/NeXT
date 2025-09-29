@@ -3,9 +3,10 @@
 ; Probes a single surface and logs the result to the probe results table.
 ; This cycle performs a single-axis probe move and records the compensated result.
 ;
-; USAGE: G6510 [X<pos>|Y<pos>|Z<pos>] [F<speed>] [R<retries>]
+; USAGE: G6510 P<index> [X<pos>|Y<pos>|Z<pos>] [F<speed>] [R<retries>]
 ;
 ; Parameters:
+;   P:     Result table index (0-based) where results will be stored - REQUIRED
 ;   X|Y|Z: Exactly ONE axis parameter must be provided, specifying the target coordinate
 ;   F:     Optional speed override in mm/min
 ;   R:     Number of retries for averaging (default: probe.maxProbeCount + 1)
@@ -22,6 +23,13 @@ if { !global.nxtFeatureTouchProbe }
 
 if { global.nxtTouchProbeID == null }
     abort { "G6510: Touch probe ID not configured" }
+
+; Validate result index parameter
+if { !exists(param.P) || param.P == null || param.P < 0 }
+    abort { "G6510: Result index parameter P is required and must be >= 0" }
+
+if { param.P >= #global.nxtProbeResults }
+    abort { "G6510: Result index P=" ^ param.P ^ " exceeds table size (" ^ #global.nxtProbeResults ^ ")" }
 
 ; Validate exactly one axis parameter is provided
 var axisParams = { param.X, param.Y, param.Z }
@@ -54,14 +62,8 @@ set var.targetCoords[var.probeAxis] = { var.targetCoord }
 G6512 X{var.targetCoords[0]} Y{var.targetCoords[1]} Z{var.targetCoords[2]} I{global.nxtTouchProbeID} F{param.F} R{param.R}
 
 ; Log result to probe results table
-; Find the next available slot in the results table
-var resultIndex = 0
-while { var.resultIndex < #global.nxtProbeResults && global.nxtProbeResults[var.resultIndex][var.probeAxis] != 0 }
-    set var.resultIndex = { var.resultIndex + 1 }
-
-; If table is full, use the last slot
-if { var.resultIndex >= #global.nxtProbeResults }
-    set var.resultIndex = { #global.nxtProbeResults - 1 }
+; Use the specified result index directly
+var resultIndex = { param.P }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }
