@@ -1,6 +1,10 @@
 ; nxt-vars.g
 ; Defines default global variables for the NeXT system.
 
+; --- System Information ---
+global nxtVersion = "1.0.0-dev"        ; NeXT version string
+global nxtAbsPos = vector(4, 0.0)       ; Current tool-compensated absolute position [X,Y,Z,A]
+
 ; --- Features ---
 global nxtFeatureTouchProbe = false
 global nxtFeatureToolSetter = false
@@ -13,6 +17,7 @@ global nxtToolSetterID = 1             ; The ID of the tool setter sensor
 global nxtError = null               ; Stores the last error message
 global nxtLoaded = false              ; Tracks if NeXT has loaded successfully
 global nxtUiReady = false          ; Flag to indicate if the NeXT UI is loaded and ready for interaction
+global nxtExpertMode = false        ; Expert mode flag to skip safety warnings
 
 ; --- Tooling & Probing ---
 global nxtDeltaMachine = null      ; The static Z distance between the toolsetter and reference surface
@@ -33,4 +38,8 @@ global nxtPinStates = { vector(limits.gpOutPorts, 0.0) } ; Tracks the state of g
 global nxtSpindleID = null  ; Default Spindle ID
 global nxtSpindleAccelSec = null  ; Spindle Acceleration Time (seconds)
 global nxtSpindleDecelSec = null  ; Spindle Deceleration Time (seconds)
+
+; --- Tool Change System ---
+global nxtToolChangeState = null  ; Tool change state tracking (0=free, 1=freed, 2=pre, 3=ready, 4=post)
+global nxtReferenceSurface = null  ; Reference surface Z position for touch probe datum
 

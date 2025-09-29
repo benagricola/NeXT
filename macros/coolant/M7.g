@@ -10,8 +10,9 @@ if { !global.nxtFeatureCoolantControl || global.nxtCoolantMistID == null }
 ; Wait for all movement to stop before continuing.
 M400
 
-; Turn on air if not already on
-M98 P"macros/coolant/M7.1.g"
+; Turn on air blast first (inline implementation to avoid M98)
+if { global.nxtCoolantAirID != null }
+    M42 P{global.nxtCoolantAirID} S1
 
 ; Turn on mist
 M42 P{global.nxtCoolantMistID} S1
