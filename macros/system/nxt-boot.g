@@ -21,4 +21,4 @@ if { !exists(global.nxtProbeToolID) }
     M99
 
 ; --- All checks passed ---
-set global.nxtLoaded = true
+set global.nxtLoaded = { true }

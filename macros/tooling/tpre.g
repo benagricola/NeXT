@@ -19,7 +19,7 @@ if { global.nxtToolChangeState < 1 }
     abort "tpre.g: Tool free process did not complete (tfree.g state check failed)"
 
 ; Set tool change state to pre-change
-set global.nxtToolChangeState = 2
+set global.nxtToolChangeState = { 2 }
 
 ; Validate that all critical axes are homed
 var axisCount = { min(#move.axes, 4) }  ; Check up to 4 axes (X,Y,Z,A)
@@ -78,4 +78,4 @@ if { state.nextTool != global.nxtProbeToolID }
     M291 P{var.toolMsg} R"Tool Change" S3 T30
 
 ; Set state to indicate tpre.g has completed successfully
-set global.nxtToolChangeState = 3
+set global.nxtToolChangeState = { 3 }

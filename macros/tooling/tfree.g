@@ -11,7 +11,7 @@ if { !inputs[state.thisInput].active }
     M99
 
 ; Initialize tool change state
-set global.nxtToolChangeState = 0
+set global.nxtToolChangeState = { 0 }
 
 ; Validate that all critical axes are homed
 var axisCount = { min(#move.axes, 4) }  ; Check up to 4 axes (X,Y,Z,A)
@@ -36,7 +36,7 @@ if { state.currentTool >= 0 && state.currentTool == global.nxtProbeToolID }
     M291 P{"Please remove the " ^ var.probeType ^ " and confirm when safely stowed"} R"Tool Change" S3 T30
     
     ; Set state to indicate tfree completed initial steps
-    set global.nxtToolChangeState = 1
+    set global.nxtToolChangeState = { 1 }
     M99  ; Exit early for probe tools
 
 ; Handle standard tool removal with probe-on-removal measurement
@@ -49,7 +49,7 @@ if { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
     ; Store the measurement in the tool cache
     if { state.currentTool >= 0 && state.currentTool < #global.nxtToolCache }
         set global.nxtToolCache[state.currentTool] = { global.nxtLastProbeResult }
-        echo "tfree.g: Cached tool " ^ state.currentTool ^ " length: " ^ global.nxtLastProbeResult
+        echo { "tfree.g: Cached tool " ^ state.currentTool ^ " length: " ^ global.nxtLastProbeResult }
 
 ; For tools without toolsetter, just prompt for manual removal
 if { !global.nxtFeatureToolSetter }
@@ -62,4 +62,4 @@ if { !global.nxtFeatureToolSetter }
     M291 P{"Please remove Tool " ^ state.currentTool ^ " and confirm when safely stowed"} R"Tool Change" S3 T30
 
 ; Set state to indicate tfree has completed
-set global.nxtToolChangeState = 1
+set global.nxtToolChangeState = { 1 }

@@ -71,9 +71,9 @@ else
 ; Apply the calculated offset to the current tool
 G10 P{state.currentTool} Z{var.toolOffset}
 
-echo "G37: Tool " ^ state.currentTool ^ " probed successfully"
-echo "G37: Probed Z position: " ^ var.probedZ
-echo "G37: Applied tool offset: " ^ var.toolOffset
+echo { "G37: Tool " ^ state.currentTool ^ " probed successfully" }
+echo { "G37: Probed Z position: " ^ var.probedZ }
+echo { "G37: Applied tool offset: " ^ var.toolOffset }
 
 ; Move to safe position after probing
 G53 G0 Z{global.nxtToolSetterPos[2] + 10}

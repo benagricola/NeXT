@@ -106,4 +106,4 @@ while { iterations < var.retries }
 ; --- Finalize ---
 set global.nxtLastProbeResult = { round(var.sum / var.count) / 1000 }
 
-echo "G6512: Compensated probe result for axis " ^ move.axes[var.probeAxisIndex].letter ^ ": " ^ global.nxtLastProbeResult
+echo { "G6512: Compensated probe result for axis " ^ move.axes[var.probeAxisIndex].letter ^ ": " ^ global.nxtLastProbeResult }

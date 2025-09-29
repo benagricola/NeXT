@@ -25,7 +25,7 @@ if { global.nxtToolChangeState < 3 }
     abort "tpost.g: Tool pre-change process did not complete (tpre.g state check failed)"
 
 ; Set tool change state to post-change
-set global.nxtToolChangeState = 4
+set global.nxtToolChangeState = { 4 }
 
 ; Stop and park spindle for safety
 G27 Z1  ; Park Z axis first for safety
@@ -43,11 +43,8 @@ if { state.currentTool == global.nxtProbeToolID }
         ; Fallback to M291 dialog
         M291 P"Touch probe installed. Will now probe reference surface to establish datum." R"Tool Change" S3 T15
         
-        ; TODO: Implement G6511 equivalent (reference surface probe)
-        ; For now, simulate the reference surface probing
-        echo "tpost.g: Reference surface probing not yet implemented (G6511 equivalent)"
-        ; This would call something like: G6511 S0 R1
-        ; And set global.nxtReferenceSurface = result
+        ; Probe reference surface to establish datum
+        G6511 S0 R1  ; Non-standalone mode, force re-probe
         
     ; Handle datum tool with only toolsetter enabled (no touch probe feature)
     if { !global.nxtFeatureTouchProbe && global.nxtFeatureToolSetter }
@@ -78,19 +75,13 @@ if { state.currentTool != global.nxtProbeToolID }
         echo "tpost.g: Tool length measurement complete"
         
     else
-        ; No automatic toolsetter - would need manual Z origin setup
-        ; TODO: Implement G37.1 equivalent for manual probing guidance
+        ; No automatic toolsetter - guide operator through manual setup
         echo "tpost.g: No toolsetter available - manual Z origin setup required"
         
-        ; Check UI availability for confirmation
-        if { global.nxtUiReady }
-            ; TODO: Use UI for manual Z origin setup when available
-            echo "tpost.g: UI for manual setup not yet implemented"
-        
-        ; For now, just inform the operator
-        M291 P"Tool change complete. Manual Z origin setup may be required." R"Tool Change" S1 T10
+        ; Call manual tool setup guide
+        G37.1
 
 ; Clear tool change state to indicate completion
-set global.nxtToolChangeState = null
+set global.nxtToolChangeState = { null }
 
 echo "tpost.g: Tool change process completed successfully"
