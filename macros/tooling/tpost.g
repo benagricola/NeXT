@@ -12,8 +12,9 @@ if { global.nxtToolChangeState < 3 }
     abort "tpost.g: tpre.g did not complete successfully"
 
 ; Ensure all axes are homed
-if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
-    abort "tpost.g: All axes must be homed before tool measurement"
+while { iterations < #move.axes }
+    if { !move.axes[iterations].homed }
+        abort {"tpost.g: Axis " ^ move.axes[iterations].letter ^ " must be homed before tool measurement"}
 
 ; Set tool change state to post-change
 set global.nxtToolChangeState = 4
@@ -35,10 +36,9 @@ if { state.currentTool == global.nxtProbeToolID }
         
         ; Move to reference surface XY position
         G53 G0 X{global.nxtReferencePos[0]} Y{global.nxtReferencePos[1]}
-        G53 G0 Z{global.nxtReferencePos[2] + 10}  ; 10mm above reference
         
         ; Probe the reference surface
-        G6512 Z{global.nxtReferencePos[2] - 5} I{global.nxtTouchProbeID}
+        G6512 Z{move.axes[2].min} I{global.nxtTouchProbeID}
         
         ; Set touch probe offset to 0 (it's our reference for the WCS)
         G10 P{state.currentTool} X0 Y0 Z0

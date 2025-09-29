@@ -30,7 +30,10 @@ else
         if { tools[state.currentTool].offsets[2] == 0 }
             echo {"tfree.g: Measuring tool T" ^ state.currentTool ^ " before removal (no existing offset)"}
             
-            ; Probe the tool on toolsetter from park position
+            ; Move to toolsetter XY position
+            G53 G0 X{global.nxtToolSetterPos[0]} Y{global.nxtToolSetterPos[1]}
+            
+            ; Probe the tool on toolsetter
             G6512 Z{move.axes[2].min} I{global.nxtToolSetterID}
             
             echo {"tfree.g: Tool T" ^ state.currentTool ^ " measured at Z=" ^ global.nxtLastProbeResult}

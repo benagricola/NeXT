@@ -40,6 +40,3 @@ set global.nxtToolNames[param.T] = param.S
 set global.nxtToolRadii[param.T] = param.R
 
 echo {"M4000: Created tool T" ^ param.T ^ " - " ^ param.S ^ " (R" ^ param.R ^ "mm)"}
-
-; Confirmation
-M291.9 P{"Tool T" ^ param.T ^ " created: " ^ param.S ^ " (R" ^ param.R ^ "mm)"} R"Tool Created" S1 T5
