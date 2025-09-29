@@ -116,3 +116,39 @@ if exists(param.S) && param.S > 0
 - **Avoid Axis Letters:** Do not use common axis letters (e.g., `X`, `Y`, `Z`, `A`, `B`, `C`, `U`, `V`, `W`) for parameters that do not represent a coordinate in that axis.
 - **Avoid Reserved Letters:** Do not use letters that correspond to G-code or M-code commands (e.g., `G`, `M`, `T`). The `P` parameter is also frequently used by RRF for various purposes and should be used with caution.
 - **Clarity:** Choose parameter letters that are descriptive or conventional for their purpose (e.g., `I` for ID, `F` for speed (feed), `R` for retries, `J` for axis index). Document the purpose of each parameter in the macro's header comment.
+
+---
+
+## 10. Object Model Best Practices
+
+- **Multi-Axis Checks:** When checking attributes on multiple axes via the object model (for example, to check if all axes are homed), use a loop rather than checking individual indexes. This ensures the code works correctly regardless of the number of configured axes.
+
+### Examples:
+
+#### ✅ CORRECT - Using loops for multi-axis checks:
+```gcode
+; Check if all axes are homed
+var allHomed = true
+while { iterations < #move.axes }
+    if { !move.axes[iterations].homed }
+        set var.allHomed = false
+        break
+
+if { !var.allHomed }
+    abort { "Not all axes are homed. Please home all axes before continuing." }
+```
+
+#### ❌ INCORRECT - Checking individual indexes:
+```gcode
+; Don't do this - assumes specific number of axes
+if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
+    abort { "Not all axes are homed" }
+```
+
+---
+
+## 11. Documentation and File Organization
+
+- **No README Files in NeXT Structure:** Do not create README files within the NeXT structure itself. Documentation for components is fine, but it needs to go in the `docs/` folder, being careful to not overwrite or delete any documentation that explains how the legacy MillenniumOS system worked.
+- **UI Dialog Integration:** We will be using component injection to override the behaviour of M291 dialogs in the frontend. To our macro code, this will look exactly as M291 dialogs already do, so there is no need to change the way these work.
+- **Legacy Compatibility:** We must try not to implement custom M- or G-codes that use the same numbers as those used by legacy MillenniumOS, unless they implement roughly the same thing. Refer to `docs/DETAILS.md` for the complete list of legacy codes to avoid conflicts.
