@@ -124,7 +124,3 @@ G27 Z1
 echo "G6508: Outside corner probe completed"
 echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
 echo "G6508: Result logged to table index " ^ param.P
-
-echo "G6508: Outside corner probe completed"
-echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
-echo "G6508: Result logged to table index " ^ param.P

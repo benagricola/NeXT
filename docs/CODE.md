@@ -199,30 +199,25 @@ if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
 
 ## 12. Variable Usage Best Practices
 
-- **Avoid Redundant Variables:** Do not create local variables that simply reference other local variables without transformation. Use the original variable directly with clear comments.
-- **Direct Variable Usage:** When a variable already exists and is used "as-is" under a different name, use the existing variable and add explanatory comments for clarity.
-- **Parameter Direct Usage:** Do not create local variables for parameters that are never modified. Use `param.X` directly instead of `var x = { param.X }`.
+- **Avoid Redundant Assignments:** Do not create local variables that simply reference other data sources without transformation. Use the original source directly instead of creating unnecessary local assignments.
 
 Examples:
 ```gcode
-; INCORRECT - Redundant variable assignment
-var probeSpacing = { var.spacing }
-set var.firstPos = { var.currentPos + var.probeSpacing }
-
-; CORRECT - Direct usage with comment  
-; Calculate first probe position using configured spacing
-set var.firstPos = { var.currentPos + var.spacing }
-
-; INCORRECT - Unnecessary parameter variable
+; INCORRECT - Unnecessary local variable assignments
+var spacing = { var.probeSpacing }
 var resultIndex = { param.P }
-set global.nxtProbeResults[var.resultIndex][0] = { var.centerX }
+var currentTool = { global.nxtCurrentTool }
+var axisCount = { #move.axes }
 
-; CORRECT - Direct parameter usage
+; CORRECT - Use original sources directly
+set var.firstPos = { var.currentPos + var.probeSpacing }
 set global.nxtProbeResults[param.P][0] = { var.centerX }
+echo "Current tool: " ^ global.nxtCurrentTool
+while { iterations < #move.axes }
 ```
 
-**Exception:** Create local variables for parameters only when:
-- The parameter value needs modification (e.g., incrementing, calculations)
+**Exception:** Create local variables only when:
+- The source value needs modification (e.g., incrementing, calculations)
 - The object model path is very long and helps stay under the 250 character line limit
 
 ---
