@@ -4,6 +4,10 @@
 ; If called with R1, restores the previous state of the
 ; coolant outputs. The state is only saved on pause.
 
+; Make sure this file is not executed by the secondary motion system
+if { !inputs[state.thisInput].active }
+    M99
+
 ; Do not report an error here as M9 is called during parking
 if { !global.nxtFeatureCoolantControl }
     M99

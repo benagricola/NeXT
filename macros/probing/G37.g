@@ -12,7 +12,7 @@ if { !inputs[state.thisInput].active }
 
 ; Validate toolsetter
 if { global.nxtToolSetterPos == null }
-    abort "G37: Toolsetter position not configured"
+    abort { "G37: Toolsetter position not configured" }
 
 ; Use configured toolsetter probe ID from global.nxtToolSetterID
 var probeID = {global.nxtToolSetterID}

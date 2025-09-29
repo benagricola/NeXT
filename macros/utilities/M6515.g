@@ -18,4 +18,4 @@ while { iterations < #move.axes && iterations < #var.axisCoords }
         var coord = { var.axisCoords[iterations] }
         var axisLetter = { move.axes[iterations].letter }
         if { var.coord < move.axes[iterations].min || var.coord > move.axes[iterations].max }
-            abort "M6515: Position " ^ var.coord ^ " for axis " ^ var.axisLetter ^ " is outside machine limits (" ^ move.axes[iterations].min ^ " to " ^ move.axes[iterations].max ^ ")"
+            abort { "M6515: Position " ^ var.coord ^ " for axis " ^ var.axisLetter ^ " is outside machine limits (" ^ move.axes[iterations].min ^ " to " ^ move.axes[iterations].max ^ ")" }
