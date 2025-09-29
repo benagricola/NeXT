@@ -207,18 +207,23 @@ Examples:
 var spacing = { var.probeSpacing }
 var resultIndex = { param.P }
 var currentTool = { global.nxtCurrentTool }
-var axisCount = { #move.axes }
 
 ; CORRECT - Use original sources directly
 set var.firstPos = { var.currentPos + var.probeSpacing }
 set global.nxtProbeResults[param.P][0] = { var.centerX }
 echo "Current tool: " ^ global.nxtCurrentTool
 while { iterations < #move.axes }
+
+; ACCEPTABLE - Preserving value at specific execution point
+var axisCount = { #move.axes }  ; Store count before operations that might change it
+; ... operations that might affect move.axes ...
+while { iterations < var.axisCount }  ; Use preserved count
 ```
 
 **Exception:** Create local variables only when:
 - The source value needs modification (e.g., incrementing, calculations)
 - The object model path is very long and helps stay under the 250 character line limit
+- You need to preserve a value at a specific point in execution for later use when the source value may change
 
 ---
 
