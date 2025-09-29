@@ -3,9 +3,10 @@
 ; Probes all 4 edges of a rectangular pocket to find the center point.
 ; Uses single-axis probing for each edge and calculates the geometric center.
 ;
-; USAGE: G6502 W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6502 P<index> W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   W: Pocket width in X direction - REQUIRED
 ;   H: Pocket height in Y direction - REQUIRED
 ;   L: Depth to move down into pocket before probing - REQUIRED
@@ -32,6 +33,12 @@ if { state.currentTool != global.nxtProbeToolID }
     abort { "G6502: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
 ; Validate required parameters
+if { !exists(param.P) || param.P == null || param.P < 0 }
+    abort { "G6502: Result index parameter P is required and must be >= 0" }
+
+if { param.P >= #global.nxtProbeResults }
+    abort { "G6502: Result index P=" ^ param.P ^ " exceeds table size (" ^ #global.nxtProbeResults ^ ")" }
+
 if { !exists(param.W) || !exists(param.H) || !exists(param.L) }
     abort { "G6502: Width (W), Height (H), and Depth (L) parameters are required" }
 
@@ -104,15 +111,8 @@ var actualWidth = { var.xPlusEdge - var.xMinusEdge }
 var actualHeight = { var.yPlusEdge - var.yMinusEdge }
 
 ; Log results to probe results table
-; Find the next available slot in the results table
-var resultIndex = 0
-while { iterations < #global.nxtProbeResults && (global.nxtProbeResults[iterations][0] != 0 || global.nxtProbeResults[iterations][1] != 0) }
-    ; iterations auto-increments, we track the current index
-    set var.resultIndex = { iterations + 1 }
-
-; If table is full, use the last slot
-if { var.resultIndex >= #global.nxtProbeResults }
-    set var.resultIndex = { #global.nxtProbeResults - 1 }
+; Use the specified result index directly
+var resultIndex = { param.P }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }

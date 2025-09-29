@@ -3,9 +3,10 @@
 ; Probes all 4 edges of a rectangular block from the outside to find the center point.
 ; Uses single-axis probing for each edge and calculates the geometric center.
 ;
-; USAGE: G6503 W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6503 P<index> W<width> H<height> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   W: Block width in X direction - REQUIRED
 ;   H: Block height in Y direction - REQUIRED
 ;   L: Depth to move down before probing - REQUIRED

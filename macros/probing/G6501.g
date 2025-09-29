@@ -3,9 +3,10 @@
 ; Probes a circular boss by probing from outside in 4 directions (±X, ±Y) to find the center.
 ; This implements single-axis probing principles - each probe move is along one axis only.
 ;
-; USAGE: G6501 D<diameter> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6501 P<index> D<diameter> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   D: Boss diameter for move planning - REQUIRED
 ;   L: Depth to move down before probing - REQUIRED
 ;   F: Optional speed override in mm/min
@@ -31,6 +32,12 @@ if { state.currentTool != global.nxtProbeToolID }
     abort { "G6501: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
 ; Validate required parameters
+if { !exists(param.P) || param.P == null || param.P < 0 }
+    abort { "G6501: Result index parameter P is required and must be >= 0" }
+
+if { param.P >= #global.nxtProbeResults }
+    abort { "G6501: Result index P=" ^ param.P ^ " exceeds table size (" ^ #global.nxtProbeResults ^ ")" }
+
 if { !exists(param.D) || param.D == null || param.D <= 0 }
     abort { "G6501: Diameter parameter D is required and must be positive" }
 
@@ -134,15 +141,8 @@ var actualDiameterY = { var.yPlusSurface - var.yMinusSurface }
 var avgDiameter = { (var.actualDiameterX + var.actualDiameterY) / 2 }
 
 ; Log results to probe results table
-; Find the next available slot in the results table
-var resultIndex = 0
-while { var.resultIndex < #global.nxtProbeResults && 
-        (global.nxtProbeResults[var.resultIndex][0] != 0 || global.nxtProbeResults[var.resultIndex][1] != 0) }
-    set var.resultIndex = { var.resultIndex + 1 }
-
-; If table is full, use the last slot
-if { var.resultIndex >= #global.nxtProbeResults }
-    set var.resultIndex = { #global.nxtProbeResults - 1 }
+; Use the specified result index directly
+var resultIndex = { param.P }
 
 ; Initialize the result vector if needed
 if { #global.nxtProbeResults[var.resultIndex] < 3 }

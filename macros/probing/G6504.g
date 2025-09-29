@@ -3,9 +3,10 @@
 ; Probes a protruding web feature in either X OR Y direction to find the center point.
 ; Uses single-axis probing from both sides and calculates the center along the specified axis.
 ;
-; USAGE: G6504 N<axis> W<width> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
+; USAGE: G6504 P<index> N<axis> W<width> L<depth> [F<speed>] [R<retries>] [C<clearance>] [O<overtravel>]
 ;
 ; Parameters:
+;   P: Result table index (0-based) where results will be stored - REQUIRED
 ;   N: Axis to probe (0 for X, 1 for Y) - REQUIRED
 ;   W: Web width along the specified axis - REQUIRED
 ;   L: Depth to move down before probing - REQUIRED
