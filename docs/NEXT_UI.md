@@ -29,10 +29,16 @@ The UI plugin provides a modern, integrated interface for NeXT functionality wit
 The UI integrates with NeXT macros through RRF global variables:
 
 - `global.nxtUiReady` - Set when UI is loaded and available
-- `global.nxtPendingAction` - Action requiring user confirmation
-- `global.nxtActionResponse` - User response to pending actions
 - `global.nxtProbeResults` - Array of probe results for display
 - All configuration variables use `nxt*` prefix
+
+## Dialog System Override
+
+The UI implements a DWC dialog override system that intercepts M291 message boxes and displays them in the NeXT UI instead of blocking dialogs. This is implemented through:
+
+- **DialogOverride** component that monitors the RRF object model for message box states
+- Non-blocking UI dialogs that integrate with the NeXT dashboard
+- Automatic handling of all M291 dialog types
 
 ## Build Requirements
 
@@ -56,4 +62,4 @@ For development and testing:
 
 ## Fallback Behavior
 
-The UI is designed to work alongside Phase 1 core macros. If the UI is not loaded, macros fall back to M291 dialogs for user interaction.
+The UI is designed to work alongside Phase 1 core macros. The dialog override system ensures that M291 dialogs are always handled appropriately, either through the UI or through standard DWC dialogs.

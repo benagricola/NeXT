@@ -45,7 +45,7 @@ var warningMessage = {"<b>CAUTION</b>: Spindle <b>#" ^ var.spindleID ^ "</b> wil
 
 ; If the spindle is stationary and not in expert mode, warn the operator
 if { spindles[var.spindleID].current == 0 && !global.nxtExpertMode }
-    M291.9 P{var.warningMessage} R"NeXT: Warning" S4 K{"Continue", "Cancel"} F0
+    M291 P{var.warningMessage} R"NeXT: Warning" S4 K{"Continue", "Cancel"} F0
 
     ; If operator picked cancel, then abort the job
     if { input == 1 }
