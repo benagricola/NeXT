@@ -51,16 +51,16 @@ This phase focuses on implementing the most critical, non-UI backend functionali
 2.  **Essential Control Macros:** ✅
     *   Implement core macros for Spindle Control (`M3.9`, `M4.9`, `M5.9`), Coolant Control (`M7`, `M7.1`, `M8`, `M9`), ATX Power Control (`M80.9`, `M81.9`), and Parking (`G27`).
 
-3.  **Simplified Probing Engine:** 🔄
+3.  **Basic Utility Macros:** ✅
+    *   Machine information queries (`M5000`) and limit checking (`M6515`).
+    *   Tool measurement (`G37`) and basic probing functionality (`G6512`).
+
+4.  **Simplified Probing Engine:** 🔄
     *   Develop a new, single-axis probing macro, guided by the principle of numerical stability.
     *   Implement robust compensation logic within this core macro for both probe tip radius and probe deflection.
     *   Implement the **Protected Moves** logic to halt on unexpected probe triggers.
     *   Implement the backend global variable (vector) for the **Probe Results Table**. ✅
     *   Design all probing cycle macros (`G6500`, `G6501`, etc.) to log their compensated results to this table instead of setting a WCS origin directly.
-
-4.  **Basic Utility Macros:** ✅
-    *   Machine information queries (`M5000`) and limit checking (`M6515`).
-    *   Tool measurement (`G37`) and basic probing functionality (`G6512`).
 
 5.  **Redesigned Tool Change Logic:** ⏸️
     *   Implement the "probe-on-removal" logic in `tfree.g` for standard tools.
