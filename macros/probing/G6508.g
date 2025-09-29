@@ -3,7 +3,7 @@
 ; Probes an outside corner by probing two perpendicular surfaces.
 ; Finds the intersection point of the two surfaces and logs the result.
 ;
-; USAGE: G6508 X<x-surface> Y<y-surface> [F<speed>] [R<retries>] [C<clearance>]
+; USAGE: G6508 X<x-surface> Y<y-surface> [F<speed>] [R<retries>] [C<clearance>] [L<depth>]
 ;
 ; Parameters:
 ;   X: Target coordinate for X-axis surface probe
@@ -11,6 +11,7 @@
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging
 ;   C: Clearance distance between probes (default: 5mm)
+;   L: Depth to move down before probing (default: 5mm)
 ;
 ; The corner coordinates are logged to nxtProbeResults table.
 
@@ -37,58 +38,61 @@ if { state.currentTool != global.nxtProbeToolID }
 var clearance = { exists(param.C) ? param.C : 5.0 }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
-
-; Park in Z before starting
-G27 Z1
+var probeDepth = { exists(param.L) ? param.L : 5.0 }
 
 echo "G6508: Starting outside corner probe"
 
-; Get current position for planning probe moves
+; Get current position for planning probe moves (preserve starting position)
 M5000
 var startX = { global.nxtAbsPos[0] }
 var startY = { global.nxtAbsPos[1] }
+var startZ = { global.nxtAbsPos[2] }
 
 ; Probe X surface first
 echo "G6508: Probing X surface"
 
 ; Move to X probe position (away from corner by clearance distance)
 var xProbeY = { param.Y > var.startY ? param.Y + var.clearance : param.Y - var.clearance }
-G6550 X{var.startX} Y{var.xProbeY} I{global.nxtTouchProbeID}
+G6550 X{var.startX} Y{var.xProbeY}
+
+; Move down to probe depth
+var probeZ = { var.startZ - var.probeDepth }
+G6550 Z{var.probeZ}
 
 ; Execute X surface probe
-if { var.feedRate != null && var.retries != null }
-    G6512 X{param.X} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
-elif { var.feedRate != null }
-    G6512 X{param.X} I{global.nxtTouchProbeID} F{var.feedRate}
-elif { var.retries != null }
-    G6512 X{param.X} I{global.nxtTouchProbeID} R{var.retries}
-else
-    G6512 X{param.X} I{global.nxtTouchProbeID}
-
+G6512 X{param.X} Y{var.xProbeY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var xSurface = { global.nxtLastProbeResult }
+
+; Return to start height
+G6550 Z{var.startZ}
 
 ; Move away from X surface
 var xClearPos = { param.X > var.startX ? param.X - var.clearance : param.X + var.clearance }
-G6550 X{var.xClearPos} I{global.nxtTouchProbeID}
+G6550 X{var.xClearPos}
 
 ; Probe Y surface second
 echo "G6508: Probing Y surface"
 
 ; Move to Y probe position (away from corner by clearance distance)
 var yProbeX = { param.X > var.startX ? param.X + var.clearance : param.X - var.clearance }
-G6550 X{var.yProbeX} Y{var.startY} I{global.nxtTouchProbeID}
+G6550 X{var.yProbeX} Y{var.startY}
+
+; Move down to probe depth
+G6550 Z{var.probeZ}
 
 ; Execute Y surface probe
-if { var.feedRate != null && var.retries != null }
-    G6512 Y{param.Y} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
-elif { var.feedRate != null }
-    G6512 Y{param.Y} I{global.nxtTouchProbeID} F{var.feedRate}
-elif { var.retries != null }
-    G6512 Y{param.Y} I{global.nxtTouchProbeID} R{var.retries}
-else
-    G6512 Y{param.Y} I{global.nxtTouchProbeID}
-
+G6512 X{var.yProbeX} Y{param.Y} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var ySurface = { global.nxtLastProbeResult }
+
+; Return to start height
+G6550 Z{var.startZ}
+
+; Execute Y surface probe
+G6512 X{var.yProbeX} Y{param.Y} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+var ySurface = { global.nxtLastProbeResult }
+
+; Return to start height
+G6550 Z{var.startZ}
 
 ; The corner coordinates are the intersection of the two surfaces
 var cornerX = { var.xSurface }
@@ -115,6 +119,10 @@ set global.nxtProbeResults[var.resultIndex][1] = { var.cornerY }
 
 ; Return to safe height
 G27 Z1
+
+echo "G6508: Outside corner probe completed"
+echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
+echo "G6508: Result logged to table index " ^ var.resultIndex
 
 echo "G6508: Outside corner probe completed"
 echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY

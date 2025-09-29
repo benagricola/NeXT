@@ -24,44 +24,34 @@ if { global.nxtTouchProbeID == null }
     abort { "G6510: Touch probe ID not configured" }
 
 ; Validate exactly one axis parameter is provided
-var axisCount = 0
+var axisParams = { param.X, param.Y, param.Z }
 var probeAxis = -1
 var targetCoord = 0
 
-if { exists(param.X) }
-    set var.axisCount = { var.axisCount + 1 }
-    set var.probeAxis = 0
-    set var.targetCoord = { param.X }
+; Set probeAxis and ensure exactly one axis parameter is provided
+while { iterations < #var.axisParams }
+    if { var.axisParams[iterations] != null }
+        if { var.probeAxis != -1 }
+            abort { "G6510: Exactly one of X, Y, or Z must be specified" }
+        set var.probeAxis = { iterations }
+        set var.targetCoord = { var.axisParams[iterations] }
 
-if { exists(param.Y) }
-    set var.axisCount = { var.axisCount + 1 }
-    set var.probeAxis = 1
-    set var.targetCoord = { param.Y }
-
-if { exists(param.Z) }
-    set var.axisCount = { var.axisCount + 1 }
-    set var.probeAxis = 2
-    set var.targetCoord = { param.Z }
-
-if { var.axisCount != 1 }
-    abort { "G6510: Exactly one of X, Y, or Z must be specified" }
+if { var.probeAxis == -1 }
+    abort { "G6510: One of X, Y, or Z must be specified" }
 
 ; Ensure we're using the touch probe
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6510: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-; Park in Z before starting
-G27 Z1
-
 echo "G6510: Starting single surface probe on " ^ move.axes[var.probeAxis].letter ^ " axis"
 
-; Execute the single-axis probe
-if { var.probeAxis == 0 }
-    G6512 X{var.targetCoord} I{global.nxtTouchProbeID} F{param.F} R{param.R}
-elif { var.probeAxis == 1 }
-    G6512 Y{var.targetCoord} I{global.nxtTouchProbeID} F{param.F} R{param.R}
-else
-    G6512 Z{var.targetCoord} I{global.nxtTouchProbeID} F{param.F} R{param.R}
+; Get current position to build target coordinates
+M5000
+var targetCoords = { global.nxtAbsPos }
+set var.targetCoords[var.probeAxis] = { var.targetCoord }
+
+; Execute the single-axis probe with all coordinates specified
+G6512 X{var.targetCoords[0]} Y{var.targetCoords[1]} Z{var.targetCoords[2]} I{global.nxtTouchProbeID} F{param.F} R{param.R}
 
 ; Log result to probe results table
 ; Find the next available slot in the results table

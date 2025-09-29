@@ -3,13 +3,14 @@
 ; Probes a circular bore by probing in 4 directions (±X, ±Y) to find the center.
 ; This implements single-axis probing principles - each probe move is along one axis only.
 ;
-; USAGE: G6500 [F<speed>] [R<retries>] [D<diameter>] [O<overtravel>]
+; USAGE: G6500 [F<speed>] [R<retries>] [D<diameter>] [O<overtravel>] [L<depth>]
 ;
 ; Parameters:
 ;   F: Optional speed override in mm/min
 ;   R: Number of retries for averaging per probe point
 ;   D: Approximate bore diameter for move planning (default: 10mm)
 ;   O: Overtravel distance beyond expected surface (default: 2mm)
+;   L: Depth to move down into bore before probing (default: 5mm)
 ;
 ; The bore center coordinates are logged to nxtProbeResults table.
 
@@ -33,6 +34,7 @@ var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
 var boreDiameter = { exists(param.D) ? param.D : 10.0 }
 var overtravel = { exists(param.O) ? param.O : 2.0 }
+var probeDepth = { exists(param.L) ? param.L : 5.0 }
 
 ; Park in Z before starting
 G27 Z1
@@ -43,6 +45,11 @@ echo "G6500: Starting bore probe cycle"
 M5000
 var centerX = { global.nxtAbsPos[0] }
 var centerY = { global.nxtAbsPos[1] }
+var startZ = { global.nxtAbsPos[2] }
+
+; Move down into the bore before starting probes
+var probeZ = { var.startZ - var.probeDepth }
+G6550 Z{var.probeZ}
 
 ; Calculate probe distances (half diameter plus overtravel)
 var probeDistance = { var.boreDiameter / 2 + var.overtravel }
@@ -53,69 +60,37 @@ echo "G6500: Probing bore with diameter ~" ^ var.boreDiameter ^ "mm"
 echo "G6500: Probing +X surface"
 var xPlusTarget = { var.centerX + var.probeDistance }
 
-if { var.feedRate != null && var.retries != null }
-    G6512 X{var.xPlusTarget} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
-elif { var.feedRate != null }
-    G6512 X{var.xPlusTarget} I{global.nxtTouchProbeID} F{var.feedRate}
-elif { var.retries != null }
-    G6512 X{var.xPlusTarget} I{global.nxtTouchProbeID} R{var.retries}
-else
-    G6512 X{var.xPlusTarget} I{global.nxtTouchProbeID}
-
+G6512 X{var.xPlusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var xPlusSurface = { global.nxtLastProbeResult }
 
 ; Move back to center for next probe
-G6550 X{var.centerX} I{global.nxtTouchProbeID}
+G6550 X{var.centerX}
 
 ; Probe -X direction (left side of bore)
 echo "G6500: Probing -X surface"
 var xMinusTarget = { var.centerX - var.probeDistance }
 
-if { var.feedRate != null && var.retries != null }
-    G6512 X{var.xMinusTarget} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
-elif { var.feedRate != null }
-    G6512 X{var.xMinusTarget} I{global.nxtTouchProbeID} F{var.feedRate}
-elif { var.retries != null }
-    G6512 X{var.xMinusTarget} I{global.nxtTouchProbeID} R{var.retries}
-else
-    G6512 X{var.xMinusTarget} I{global.nxtTouchProbeID}
-
+G6512 X{var.xMinusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var xMinusSurface = { global.nxtLastProbeResult }
 
 ; Move back to center for next probe
-G6550 X{var.centerX} I{global.nxtTouchProbeID}
+G6550 X{var.centerX}
 
 ; Probe +Y direction (front of bore)
 echo "G6500: Probing +Y surface"
 var yPlusTarget = { var.centerY + var.probeDistance }
 
-if { var.feedRate != null && var.retries != null }
-    G6512 Y{var.yPlusTarget} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
-elif { var.feedRate != null }
-    G6512 Y{var.yPlusTarget} I{global.nxtTouchProbeID} F{var.feedRate}
-elif { var.retries != null }
-    G6512 Y{var.yPlusTarget} I{global.nxtTouchProbeID} R{var.retries}
-else
-    G6512 Y{var.yPlusTarget} I{global.nxtTouchProbeID}
-
+G6512 X{var.centerX} Y{var.yPlusTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var yPlusSurface = { global.nxtLastProbeResult }
 
 ; Move back to center for next probe
-G6550 Y{var.centerY} I{global.nxtTouchProbeID}
+G6550 Y{var.centerY}
 
 ; Probe -Y direction (back of bore)
 echo "G6500: Probing -Y surface"
 var yMinusTarget = { var.centerY - var.probeDistance }
 
-if { var.feedRate != null && var.retries != null }
-    G6512 Y{var.yMinusTarget} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
-elif { var.feedRate != null }
-    G6512 Y{var.yMinusTarget} I{global.nxtTouchProbeID} F{var.feedRate}
-elif { var.retries != null }
-    G6512 Y{var.yMinusTarget} I{global.nxtTouchProbeID} R{var.retries}
-else
-    G6512 Y{var.yMinusTarget} I{global.nxtTouchProbeID}
-
+G6512 X{var.centerX} Y{var.yMinusTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var yMinusSurface = { global.nxtLastProbeResult }
 
 ; Calculate bore center from the 4 probe points
@@ -147,10 +122,10 @@ set global.nxtProbeResults[var.resultIndex][0] = { var.calculatedCenterX }
 set global.nxtProbeResults[var.resultIndex][1] = { var.calculatedCenterY }
 
 ; Move to calculated center
-G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY} I{global.nxtTouchProbeID}
+G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY}
 
 ; Return to safe height
-G27 Z1
+G6550 Z{var.startZ}
 
 echo "G6500: Bore probe completed"
 echo "G6500: Bore center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY

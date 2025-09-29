@@ -137,6 +137,22 @@ var gcode = {"G0 X" ^ var.x ^ " Y" ^ var.y}
 - **Avoid Reserved Letters:** Do not use letters that correspond to G-code or M-code commands (e.g., `G`, `M`, `T`). The `P` parameter is also frequently used by RRF for various purposes and should be used with caution.
 - **Clarity:** Choose parameter letters that are descriptive or conventional for their purpose (e.g., `I` for ID, `F` for speed (feed), `R` for retries, `J` for axis index). Document the purpose of each parameter in the macro's header comment.
 
+### Parameter Validation and Iteration
+
+- **No Direct Parameter Iteration:** You CANNOT iterate over the `param` object directly as it is not a vector. Instead, create a local vector with the relevant parameters first.
+- **Parameter Checking Pattern:** Use the following pattern for checking multiple similar parameters:
+
+```gcode
+var axisParams = { param.X, param.Y, param.Z, param.A }
+var selectedAxis = -1
+
+while { iterations < #var.axisParams }
+    if { var.axisParams[iterations] != null }
+        if { var.selectedAxis != -1 }
+            abort { "Only one axis parameter allowed" }
+        set var.selectedAxis = { iterations }
+```
+
 ---
 
 ## 10. Object Model Best Practices
