@@ -16,9 +16,7 @@
 ;
 ; The vise corner coordinates (X, Y, Z) are logged to nxtProbeResults table.
 
-; Make sure this file is not executed by the secondary motion system
-if { !inputs[state.thisInput].active }
-    M99
+
 
 ; Validate that touch probe feature is enabled and configured
 if { !global.nxtFeatureTouchProbe }
@@ -36,11 +34,11 @@ if { !exists(param.L) || param.L == null || param.L <= 0 }
     abort { "G6520: Depth parameter L is required and must be positive" }
 
 ; Set defaults for optional parameters
-var clearance = { exists(param.C) ? param.C : 5.0 }
+var clearance = { exists(param.C) ? param.C : 10.0 }
 var feedRate = { exists(param.F) ? param.F : null }
 var retries = { exists(param.R) ? param.R : null }
 var depth = { param.L }
-var overtravel = { exists(param.O) ? param.O : 10.0 }
+var overtravel = { exists(param.O) ? param.O : 2.0 }
 
 echo "G6520: Starting vise corner probe"
 

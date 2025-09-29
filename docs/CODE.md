@@ -194,3 +194,48 @@ if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
 ## 11. Documentation and File Organization
 
 - **No README Files in NeXT Structure:** Do not create README files within the NeXT structure itself. Documentation for components is fine, but it needs to go in the `docs/` folder, being careful to not overwrite or delete any documentation that explains how the legacy MillenniumOS system worked.
+
+---
+
+## 12. Variable Usage Best Practices
+
+- **Avoid Redundant Variables:** Do not create local variables that simply reference other local variables without transformation. Use the original variable directly with clear comments.
+- **Direct Variable Usage:** When a variable already exists and is used "as-is" under a different name, use the existing variable and add explanatory comments for clarity.
+
+Example:
+```gcode
+; INCORRECT - Redundant variable assignment
+var probeSpacing = { var.spacing }
+set var.firstPos = { var.currentPos + var.probeSpacing }
+
+; CORRECT - Direct usage with comment  
+; Calculate first probe position using configured spacing
+set var.firstPos = { var.currentPos + var.spacing }
+```
+
+---
+
+## 13. Probing System Standards
+
+### Required Parameters
+- **Workpiece Dimensions:** All probing cycles require explicit workpiece dimensions (W, H, L, D parameters)
+- **Result Index:** All probing cycles require P parameter specifying exact result table index (0-based)
+- **No Default Dimensions:** Never provide defaults for workpiece-dependent parameters
+
+### Standard Defaults
+- **Overtravel (O):** 2.0mm - safe touch probe contact distance
+- **Clearance (C):** 10.0mm - sufficient starting distance for accuracy  
+- **Feed Rate (F):** null - uses probe-specific speeds
+
+### Result Management
+- UI controls result table indexing via mandatory P parameter
+- Probing cycles write to specified index, overwriting existing data
+- Enables multi-stage probing: X/Y → Z → rotation on same result row
+
+Example:
+```gcode
+; UI specifies result index 0
+G6500 P0 D25.4 L10.2  ; Bore probe writes to index 0
+G6510 P0 Z-15.0       ; Z probe adds Z data to same index 0  
+G6506 P0 N0 D1 S20.0  ; Rotation adds angle to same index 0
+```

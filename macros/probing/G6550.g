@@ -88,19 +88,15 @@ G53 G38.3 K{var.probeID} F{var.feedRate} X{var.targetCoords[0]} Y{var.targetCoor
 ; Update position after move and check if target was reached
 M5000
 
-; Check if probe was triggered or we reached the target position
-; Use tolerance to avoid floating point comparison issues
-var tolerance = 0.01
-var reachedTarget = true
+; Check if target position was reached within tolerance
+; Use maximum of backlash compensation or 0.01mm for tolerance
+var tolerance = { max(0.01, move.axes[0].backlash) }
 var axisCoords = { global.nxtAbsPos[0], global.nxtAbsPos[1], global.nxtAbsPos[2], global.nxtAbsPos[3] }
 
-while { iterations < #var.axisCoords && iterations < #var.targetCoords }
-    var diff = { abs(var.axisCoords[iterations] - var.targetCoords[iterations]) }
-    if { var.diff > var.tolerance }
-        set var.reachedTarget = false
-
-; If we didn't reach target and probe isn't triggered, something went wrong
-if { !var.reachedTarget && sensors.probes[var.probeID].value[0] == 0 }
-    abort { "G6550: Move stopped before reaching target and probe was not triggered - check for obstacles" }
+while { iterations < #move.axes }
+    if { iterations < #var.axisCoords && iterations < #var.targetCoords }
+        var diff = { abs(var.axisCoords[iterations] - var.targetCoords[iterations]) }
+        if { var.diff > var.tolerance }
+            abort { "G6550: Protected move failed - target position not reached on " ^ move.axes[iterations].letter ^ " axis" }
 
 echo "G6550: Protected move completed"

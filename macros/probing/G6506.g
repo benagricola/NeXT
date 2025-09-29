@@ -156,9 +156,7 @@ else
 ; Return to start height
 G6550 Z{var.startZ}
 
-; Calculate midpoint of the two probe points
-var midpointX = { (var.firstX + var.secondX) / 2 }
-var midpointY = { (var.firstY + var.secondY) / 2 }
+; Rotation probe complete - coordinates not needed, only rotation angle matters
 
 ; Log results to probe results table
 ; Find the next available slot in the results table
@@ -176,13 +174,8 @@ var resultVectorSize = { #move.axes + 1 }
 if { #global.nxtProbeResults[var.resultIndex] != var.resultVectorSize }
     set global.nxtProbeResults[var.resultIndex] = { vector(var.resultVectorSize, 0.0) }
 
-; Store the midpoint coordinates and rotation angle in the last position
-set global.nxtProbeResults[var.resultIndex][0] = { var.midpointX }
-set global.nxtProbeResults[var.resultIndex][1] = { var.midpointY }
+; Store only rotation angle in dedicated rotation slot (last position)
 set global.nxtProbeResults[var.resultIndex][#move.axes] = { var.rotationDeg }
-
-; Move to calculated midpoint
-G6550 X{var.midpointX} Y{var.midpointY}
 
 ; Return to safe height
 G27 Z1
