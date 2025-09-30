@@ -12,7 +12,6 @@ global nxtTouchProbeID = 0             ; The ID of the touch probe sensor
 global nxtToolSetterID = 1             ; The ID of the tool setter sensor
 global nxtError = null               ; Stores the last error message
 global nxtLoaded = false              ; Tracks if NeXT has loaded successfully
-global nxtUiReady = false          ; Flag to indicate if the NeXT UI is loaded and ready for interaction
 
 ; --- Tooling & Probing ---
 global nxtDeltaMachine = null      ; The static Z distance between the toolsetter and reference surface
