@@ -44,25 +44,42 @@ This creates a "chicken and egg" problem where each measurement depends on the o
   - May vary slightly based on probe angle and surface material
   - Opposite when probing from opposite directions (deflects away from surface)
 
-### 2.2 Key Insight: Symmetry Cancellation
+### 2.2 Key Insight: Breaking the Circular Dependency
 
-The solution lies in exploiting the **symmetrical nature** of probe deflection and the **directional consistency** of backlash-compensated moves:
+The solution lies in exploiting different mathematical properties of each error source:
 
-1. **Probe deflection is symmetrical**: When probing opposite sides of an object:
-   - From negative direction (e.g., X-): probe deflects in +X before triggering
-   - From positive direction (e.g., X+): probe deflects in -X before triggering
-   - The measured distance includes deflection on BOTH sides
-   - For a known-size object, the measured size = actual size + 2 × deflection
-
-2. **Backlash can be eliminated directionally**: By always approaching from the same direction:
-   - Move far enough past the probe point to take up all slack
-   - Return from that direction to the measurement position
-   - All measurements are now in a "slack-taken-up" state
-
-3. **Steps-per-mm error is proportional**: The error scales with distance:
+1. **Steps-per-mm error is proportional**: The error scales with distance
    - If steps-per-mm is 1% high, a 100mm move travels 101mm
-   - A 50mm object will measure as 50.5mm (assuming perfect probe and no backlash)
-   - The ratio (measured/actual) reveals the steps-per-mm error
+   - By measuring TWO different dimensions and taking their difference, constant offsets (backlash + deflection) cancel out
+   - The ratio `(d2_measured - d1_measured) / (d2_actual - d1_actual)` reveals only the steps-per-mm error
+
+2. **Backlash is directional and consistent**: It only appears when changing direction
+   - Repeated measurements from alternating directions create a bimodal (two-cluster) distribution
+   - The separation between clusters equals the backlash magnitude
+   - Probe deflection affects both clusters equally (constant offset)
+   - Statistical analysis isolates backlash from deflection
+
+3. **Probe deflection is symmetrical and constant**: When probing opposite sides of an object
+   - From negative direction (e.g., X-): probe deflects in +X before triggering
+   - From positive direction (e.g., X+): probe deflects in -X before triggering  
+   - The measured distance includes deflection on BOTH sides
+   - For a known-size object: `measured size = actual size + 2 × deflection`
+   - Once steps-per-mm and backlash are correct, deflection can be isolated
+
+**The Calibration Sequence**:
+```
+Phase 1: Manual rough steps-per-mm (±1-2% accuracy sufficient)
+         ↓
+Phase 2: Dual-dimension steps-per-mm (cancels backlash + deflection)
+         ↓  
+Phase 3: Statistical backlash measurement (clusters reveal backlash)
+         ↓
+Phase 4: Direct deflection measurement (now isolated from other errors)
+         ↓
+Phase 5: Verification
+```
+
+**Note**: The order of Phase 2 and Phase 3 has been optimized - we measure precise steps-per-mm BEFORE backlash because the dual-dimension method works regardless of backlash presence, whereas backlash measurement benefits from accurate steps-per-mm.
 
 ---
 
@@ -91,14 +108,21 @@ The calibration follows a specific sequence to break the circular dependency:
 ```
 Phase 1: Rough Steps-per-mm Calibration (Manual)
          ↓
-Phase 2: Backlash Measurement & Compensation
+Phase 2: Precise Steps-per-mm Calibration (Automated, Dual-Dimension)
          ↓
-Phase 3: Precise Steps-per-mm Calibration (Automated)
+Phase 3: Backlash Measurement & Compensation (Statistical Drift Analysis)
          ↓
 Phase 4: Probe Deflection Measurement
          ↓
 Phase 5: Verification & Refinement
 ```
+
+**Why This Order Works**:
+- **Phase 1** gets steps-per-mm "close enough" (±1-2%) for probing to work reliably
+- **Phase 2** achieves precise steps-per-mm (<0.1%) using dual-dimension method that mathematically cancels out backlash and deflection
+- **Phase 3** uses statistical analysis with accurate steps-per-mm to isolate backlash from deflection
+- **Phase 4** measures deflection now that both steps-per-mm and backlash are correct
+- **Phase 5** verifies all calibrations are working together correctly
 
 ### 3.3 Phase 1: Rough Steps-per-mm Calibration (Manual)
 
@@ -123,70 +147,31 @@ Phase 5: Verification & Refinement
 - Gets steps-per-mm "close enough" for automated methods to work
 - 1-2% accuracy is sufficient for the next phases
 
-### 3.4 Phase 2: Backlash Measurement & Compensation
-
-**Goal**: Measure and compensate for mechanical backlash on each axis.
-
-**Concept**:
-With approximately correct steps-per-mm, we can now measure backlash using the touch probe. The key is to probe the same surface from opposite directions and measure the position difference.
-
-**Procedure for Each Axis (Example: X-axis)**:
-
-1. **Setup**:
-   - Install touch probe (T{nxtProbeToolID})
-   - Secure reference block on machine table
-   - Jog probe to approximately 10-20mm from one surface of the block
-
-2. **First Probe (Approach from Negative)**:
-   - Move to starting position well beyond the surface (ensure backlash is taken up)
-   - Command: `G6512 X{surface_position} I{nxtTouchProbeID}`
-   - Record result: `pos1 = nxtLastProbeResult`
-
-3. **Second Probe (Approach from Positive)**:
-   - Move well past the surface in the positive direction (at least 10mm beyond pos1)
-   - Command: `G6512 X{surface_position} I{nxtTouchProbeID}` (same target)
-   - Record result: `pos2 = nxtLastProbeResult`
-
-4. **Calculate Backlash**:
-   ```
-   backlash = abs(pos2 - pos1)
-   ```
-   
-5. **Apply Compensation**:
-   - In RRF firmware, use M425 to configure backlash compensation
-   - Example: `M425 X{backlash} Y{backlash_y} Z{backlash_z}`
-   - Add this to config.g for persistence
-
-6. **Verify**:
-   - Repeat the probe from opposite directions
-   - Results should now be within 0.01mm of each other
-
-**Note**: This measurement includes the effect of probe deflection (2× deflection magnitude), but for backlash compensation we only care about the total positional difference, which is the backlash amount.
-
-### 3.5 Phase 3: Precise Steps-per-mm Calibration (Automated)
+### 3.4 Phase 2: Precise Steps-per-mm Calibration (Automated, Dual-Dimension)
 
 **Goal**: Achieve high-precision steps-per-mm calibration using automated touch probe measurements.
 
 **Concept**:
-With backlash now compensated, we can probe opposite sides of a known-dimension object. The measured distance will include probe deflection on both sides, but the *ratio* of measured to actual dimension reveals the steps-per-mm error, independent of deflection.
+With approximately correct steps-per-mm from Phase 1, we can now achieve precision calibration using the dual-dimension method. This method works even with uncalibrated backlash and unknown probe deflection because these constant errors mathematically cancel out when measuring two different dimensions and taking their difference.
 
 **Mathematical Proof**:
 Let:
 - `d_actual` = actual dimension of reference object
 - `d_measured` = measured dimension from probe
 - `δ` = probe deflection (same magnitude on both sides)
+- `b` = backlash (appears in measurements)
 - `s_current` = current steps-per-mm setting
 - `s_actual` = actual steps-per-mm (what we need to find)
 
-When steps-per-mm is incorrect:
+When measuring a single dimension with all errors present:
 ```
-d_measured = (s_current / s_actual) × d_actual + 2δ
+d_measured = (s_current / s_actual) × d_actual + 2δ + b
 ```
 
-But we can eliminate δ by comparing two different dimensions:
+But we can eliminate both δ and b by comparing two different dimensions:
 ```
-d1_measured = (s_current / s_actual) × d1_actual + 2δ
-d2_measured = (s_current / s_actual) × d2_actual + 2δ
+d1_measured = (s_current / s_actual) × d1_actual + 2δ + b
+d2_measured = (s_current / s_actual) × d2_actual + 2δ + b
 
 Subtracting:
 d2_measured - d1_measured = (s_current / s_actual) × (d2_actual - d1_actual)
@@ -195,7 +180,7 @@ Therefore:
 s_actual = s_current × (d2_actual - d1_actual) / (d2_measured - d1_measured)
 ```
 
-The deflection term cancels out!
+**Both deflection and backlash terms cancel out!** This is why we can calibrate steps-per-mm precisely without knowing these other error sources.
 
 **Procedure for Each Axis (Example: X-axis with 1-2-3 block)**:
 
@@ -239,12 +224,203 @@ The deflection term cancels out!
 
 **Repeat for Y and Z axes** using the appropriate dimensions of the reference block.
 
+**Why Use a 1-2-3 Block**:
+The 1-2-3 block is ideal for this calibration because:
+- Large dimension differences (25.4mm vs 50.8mm = 25.4mm span) provide better accuracy
+- Precision ground surfaces (typically ±0.005mm tolerance)
+- The 25.4mm difference in measurements amplifies steps-per-mm errors while canceling constant offsets
+- Larger blocks reduce measurement uncertainty compared to gauge pins
+
 **Alternative Single-Dimension Method**:
-If probe deflection has already been measured accurately, a single dimension can be used:
+If probe deflection and backlash have already been measured accurately, a single dimension can be used:
 ```
-s_new = s_current × d_actual / (d_measured - 2δ)
+s_new = s_current × d_actual / (d_measured - 2δ - b)
 ```
-However, the two-dimension method is more robust as it doesn't require knowing deflection.
+However, the two-dimension method is more robust as it doesn't require knowing deflection or backlash.
+
+**Automation Implementation**:
+
+This procedure can be fully automated via a G-code macro or UI component:
+
+```gcode
+; Macro: G9000 - Calibrate Steps-per-mm on X-axis
+; Parameters: P<probe_id> X<block_center> D1<dimension1> D2<dimension2>
+
+var probeID = { param.P }
+var blockCenter = { param.X }
+var dim1_actual = { param.D1 }  ; e.g., 25.4
+var dim2_actual = { param.D2 }  ; e.g., 50.8
+
+; Measure first dimension
+G6512 X{var.blockCenter - var.dim1_actual/2 - 5} I{var.probeID}
+var left1 = { global.nxtLastProbeResult }
+G6512 X{var.blockCenter + var.dim1_actual/2 + 5} I{var.probeID}
+var right1 = { global.nxtLastProbeResult }
+var measured1 = { abs(var.right1 - var.left1) }
+
+; Measure second dimension (block rotated/repositioned)
+M291 P"Rotate block to measure " ^ var.dim2_actual ^ "mm dimension" S3
+G6512 X{var.blockCenter - var.dim2_actual/2 - 5} I{var.probeID}
+var left2 = { global.nxtLastProbeResult }
+G6512 X{var.blockCenter + var.dim2_actual/2 + 5} I{var.probeID}
+var right2 = { global.nxtLastProbeResult }
+var measured2 = { abs(var.right2 - var.left2) }
+
+; Calculate new steps-per-mm
+var current_steps = { move.axes[0].stepsPerMm }
+var new_steps = { var.current_steps * (var.dim2_actual - var.dim1_actual) / (var.measured2 - var.measured1) }
+
+echo "Current steps/mm: " ^ var.current_steps
+echo "Measured dim1: " ^ var.measured1 ^ "mm (actual: " ^ var.dim1_actual ^ "mm)"
+echo "Measured dim2: " ^ var.measured2 ^ "mm (actual: " ^ var.dim2_actual ^ "mm)"
+echo "Calculated steps/mm: " ^ var.new_steps
+
+; Apply correction
+M92 X{var.new_steps}
+```
+
+**UI Component Integration**:
+
+A dedicated calibration wizard in the Settings panel would:
+1. Guide user through block setup and measurement
+2. Execute dual-dimension probing automatically
+3. Display measured vs actual dimensions
+4. Calculate and apply steps-per-mm correction
+5. Verify correction with follow-up measurements
+6. Show before/after accuracy comparison
+
+### 3.5 Phase 3: Backlash Measurement & Compensation
+
+**Goal**: Measure and compensate for mechanical backlash on each axis using statistical analysis of repeated probe measurements.
+
+**Concept**:
+With approximately correct steps-per-mm (from Phase 1), we can now isolate backlash from probe deflection using a "drift detection" technique. Backlash causes repeated measurements of the same feature to cluster into two distinct groups when alternating approach directions, while probe deflection remains constant. By analyzing this clustering pattern, we can measure backlash independently of deflection.
+
+**Mathematical Foundation**:
+
+When probing a feature with both backlash and deflection present:
+- **From negative direction**: Measured position = actual + deflection + 0 (backlash taken up)
+- **From positive direction**: Measured position = actual + deflection + backlash
+
+The key insight: **Deflection is constant regardless of approach direction, but backlash only appears when reversing direction**. This creates a bimodal distribution in repeated measurements.
+
+**Procedure for Each Axis (Example: X-axis)**:
+
+1. **Setup**:
+   - Install touch probe (T{nxtProbeToolID})
+   - Secure 1-2-3 block on machine table with X-axis dimension accessible
+   - Jog probe to approximately 20mm from the left surface of the block
+
+2. **Repeated Probing with Alternating Directions**:
+   
+   For 10 iterations (i = 0 to 9):
+   ```
+   ; Approach from negative (left) - odd iterations
+   if (i % 2 == 1)
+       ; Start well to the left
+       G0 X{left_surface - 20}
+       ; Probe towards right
+       G6512 X{left_surface + 5} I{nxtTouchProbeID}
+       
+   ; Approach from positive (right) - even iterations  
+   else
+       ; Start well to the right
+       G0 X{left_surface + 20}
+       ; Probe towards left
+       G6512 X{left_surface + 5} I{nxtTouchProbeID}
+   
+   ; Record result
+   results[i] = global.nxtLastProbeResult
+   ```
+
+3. **Statistical Analysis**:
+   
+   Separate measurements by approach direction:
+   ```
+   negative_approaches = [results[1], results[3], results[5], results[7], results[9]]
+   positive_approaches = [results[0], results[2], results[4], results[6], results[8]]
+   
+   mean_negative = average(negative_approaches)
+   mean_positive = average(positive_approaches)
+   
+   backlash = abs(mean_positive - mean_negative)
+   ```
+   
+   **Why this works:**
+   - Measurements from the same direction cluster together
+   - The separation between clusters IS the backlash
+   - Probe deflection affects both clusters equally (adds same offset to both)
+   - Steps-per-mm error affects positioning but not the cluster separation
+
+4. **Validation**:
+   
+   Check measurement quality:
+   ```
+   std_dev_negative = standard_deviation(negative_approaches)
+   std_dev_positive = standard_deviation(positive_approaches)
+   
+   ; Each cluster should have low scatter (< 0.005mm)
+   if (std_dev_negative > 0.005 || std_dev_positive > 0.005)
+       ; Warning: High scatter indicates mechanical issues or probe problems
+   ```
+
+5. **Apply Compensation**:
+   - In RRF firmware, use M425 to configure backlash compensation
+   - Example: `M425 X{backlash} Y{backlash_y} Z{backlash_z}`
+   - Add this to config.g for persistence
+
+6. **Verify Compensation**:
+   - Repeat the 10-probe procedure
+   - All measurements should now cluster into a single group
+   - Standard deviation of all 10 measurements should be < 0.005mm
+   - If measurements still cluster into two groups, increase backlash compensation
+
+**Repeat for Y and Z axes** using appropriate surfaces of the reference block.
+
+**Automation Implementation**:
+
+This procedure can be fully automated via a G-code macro or UI component:
+
+```gcode
+; Macro: G9100 - Measure Backlash on X-axis
+; Parameters: P<probe_id> X<surface_position> [N<iterations>]
+
+var probeID = { param.P }
+var surface = { param.X }
+var iterations = { exists(param.N) ? param.N : 10 }
+
+var results = vector(iterations, null)
+var i = 0
+
+while { i < iterations }
+    ; Alternate approach direction
+    if { i % 2 == 1 }
+        ; Approach from negative
+        G0 X{var.surface - 20}
+        G6512 X{var.surface + 5} I{var.probeID}
+    else
+        ; Approach from positive  
+        G0 X{var.surface + 20}
+        G6512 X{var.surface + 5} I{var.probeID}
+    
+    set var.results[i] = { global.nxtLastProbeResult }
+    set i = { i + 1 }
+
+; Calculate means and backlash
+; (Statistical analysis code here)
+
+echo "Measured backlash: " ^ var.backlash ^ "mm"
+```
+
+**UI Component Integration**:
+
+A dedicated calibration wizard in the Settings panel would:
+1. Guide user through block setup
+2. Execute the repeated probing automatically
+3. Display real-time scatter plot showing clustering
+4. Calculate and apply backlash compensation
+5. Verify compensation with follow-up test
+6. Show before/after visualization of measurement scatter
 
 ### 3.6 Phase 4: Probe Deflection Measurement
 
