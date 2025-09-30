@@ -11,7 +11,7 @@ This directory contains the Vue.js-based UI plugin for NeXT (Next-Gen Extended T
 - Base component with common functionality (`BaseComponent.vue`)
 - Main layout component (`NeXT.vue`)
 - Core Status Widget for persistent machine status display
-- Action Confirmation Widget for M1000 dialog integration
+- Action Confirmation Widget for M291 dialog integration
 - Component registration system for modular organization
 - Localization support (English)
 - Integration with NeXT global variables
@@ -24,7 +24,7 @@ This directory contains the Vue.js-based UI plugin for NeXT (Next-Gen Extended T
 
 ### Panel Components
 - **`StatusWidget.vue`**: Persistent status bar showing tool, WCS, spindle, and position
-- **`ActionConfirmationWidget.vue`**: Non-blocking dialog interface for M1000 dialogs
+- **`ActionConfirmationWidget.vue`**: Non-blocking dialog interface for M291 dialogs
 - **`MachineStatusPanel.vue`**: Detailed machine and NeXT system status
 
 ### Placeholder Components
@@ -43,9 +43,10 @@ This directory contains the Vue.js-based UI plugin for NeXT (Next-Gen Extended T
 
 ## Dialog System Integration
 
-The Action Confirmation Widget integrates with the M1000 dialog system from PR #16:
-- Displays persistent dialogs instead of blocking modals
-- Connects to `nxtDialogActive`, `nxtDialogMessage`, etc. global variables
+The Action Confirmation Widget integrates with the M291 dialog system from PR #16:
+- Intercepts M291 dialogs from the DWC object model
+- Displays persistent dialogs instead of blocking modals when NeXT UI is active
+- Responds to dialogs using M292 commands
 - Provides responsive button interface for user actions
 
 ## Next Phases

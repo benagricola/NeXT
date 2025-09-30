@@ -47,49 +47,71 @@ import BaseComponent from '../base/BaseComponent.vue'
 /**
  * NeXT Action Confirmation Widget
  * 
- * Displays persistent dialog interface for M1000 dialogs and other
- * confirmation actions. Replaces blocking modal dialogs with a
- * persistent panel when NeXT UI is active.
+ * Displays persistent dialog interface for M291 dialogs.
+ * Intercepts M291 dialogs from the DWC object model and displays them
+ * in a non-blocking persistent panel instead of modal dialogs.
  */
 export default BaseComponent.extend({
   name: 'NxtActionConfirmationWidget',
   
   data() {
     return {
-      // Local dialog state for UI responsiveness
-      localDialogActive: false,
-      localDialogMessage: '',
-      localDialogTitle: 'NeXT',
-      localDialogButtons: ['OK']
+      // Test dialog for development
+      showTestDialog: false,
+      testDialogMessage: 'This is a test dialog for UI development',
+      testDialogTitle: 'Test Dialog',
+      testDialogButtons: ['Continue', 'Cancel']
     }
   },
 
   computed: {
+    /**
+     * Get active message box from DWC object model
+     */
+    activeMessageBox(): any {
+      const messageBox = this.$store.state.machine.model.messageBox
+      return messageBox && messageBox.message ? messageBox : null
+    },
+
     hasActiveDialog(): boolean {
-      return this.nxtGlobals.nxtDialogActive === true || this.localDialogActive
+      return this.activeMessageBox !== null || this.showTestDialog
     },
 
     dialogMessage(): string {
-      return this.nxtGlobals.nxtDialogMessage || this.localDialogMessage || ''
+      if (this.showTestDialog) return this.testDialogMessage
+      return this.activeMessageBox?.message || ''
     },
 
     dialogTitle(): string {
-      return this.nxtGlobals.nxtDialogTitle || this.localDialogTitle || 'NeXT'
+      if (this.showTestDialog) return this.testDialogTitle
+      return this.activeMessageBox?.title || 'NeXT'
     },
 
     dialogButtons(): string[] {
-      const buttons = this.nxtGlobals.nxtDialogButtons || this.localDialogButtons
-      if (Array.isArray(buttons)) {
-        return buttons
+      if (this.showTestDialog) return this.testDialogButtons
+      
+      const messageBox = this.activeMessageBox
+      if (!messageBox) return ['OK']
+      
+      // Handle different M291 dialog types
+      switch (messageBox.mode) {
+        case 0: // Close dialog
+          return []
+        case 1: // OK button
+          return ['OK']
+        case 2: // OK/Cancel buttons
+          return ['OK', 'Cancel']
+        case 3: // Yes/No buttons
+          return ['Yes', 'No']
+        case 4: // Yes/No/Cancel buttons
+          return ['Yes', 'No', 'Cancel']
+        default:
+          // Handle custom button labels if provided
+          if (messageBox.choices && Array.isArray(messageBox.choices)) {
+            return messageBox.choices
+          }
+          return ['OK']
       }
-      if (typeof buttons === 'string') {
-        try {
-          return JSON.parse(buttons)
-        } catch {
-          return [buttons]
-        }
-      }
-      return ['OK']
     }
   },
 
@@ -109,7 +131,7 @@ export default BaseComponent.extend({
       if (lowerButton.includes('cancel') || lowerButton.includes('abort')) {
         return 'error'
       }
-      if (lowerButton.includes('continue') || lowerButton.includes('ok')) {
+      if (lowerButton.includes('continue') || lowerButton.includes('ok') || lowerButton.includes('yes')) {
         return 'success'
       }
       
@@ -117,42 +139,45 @@ export default BaseComponent.extend({
     },
 
     async respondToDialog(buttonIndex: number): Promise<void> {
+      if (this.showTestDialog) {
+        // Handle test dialog
+        this.showTestDialog = false
+        console.log(`NeXT UI: Test dialog response: ${buttonIndex}`)
+        return
+      }
+
+      const messageBox = this.activeMessageBox
+      if (!messageBox) return
+
       try {
-        // Send response via G-code to set global variable
-        await this.sendCode(`set global.nxtDialogResponse = ${buttonIndex}`)
+        // Send M292 response to the message box
+        // M292 P<response> where response is the button index (0-based)
+        await this.sendCode(`M292 P${buttonIndex}`)
         
-        // Clear local dialog state
-        this.localDialogActive = false
-        this.localDialogMessage = ''
-        this.localDialogTitle = 'NeXT'
-        this.localDialogButtons = ['OK']
-        
-        console.log(`NeXT UI: Dialog response sent: ${buttonIndex}`)
+        console.log(`NeXT UI: M291 dialog response sent: ${buttonIndex}`)
       } catch (error) {
-        console.error('NeXT UI: Failed to send dialog response:', error)
+        console.error('NeXT UI: Failed to send M291 dialog response:', error)
         this.$store.dispatch('machine/showMessage', {
           type: 'error',
-          message: 'Failed to send response'
+          message: 'Failed to send dialog response'
         })
       }
     },
 
-    showTestDialog(): void {
-      this.localDialogActive = true
-      this.localDialogMessage = 'This is a test dialog for UI development'
-      this.localDialogTitle = 'Test Dialog'
-      this.localDialogButtons = ['Continue', 'Cancel']
+    showTestDialogMethod(): void {
+      this.showTestDialog = true
     }
+  },
   },
 
   mounted() {
-    // Listen for dialog state changes from RRF object model
+    // Listen for message box changes from RRF object model
     this.$store.subscribe((mutation: any) => {
       if (mutation.type === 'machine/model/update') {
-        // React to dialog state changes
-        const globals = mutation.payload.global || {}
-        if (globals.nxtDialogActive !== undefined) {
-          console.log('NeXT UI: Dialog state changed:', globals.nxtDialogActive)
+        // React to message box changes
+        const messageBox = mutation.payload.messageBox
+        if (messageBox !== undefined) {
+          console.log('NeXT UI: Message box state changed:', messageBox)
         }
       }
     })
@@ -160,7 +185,7 @@ export default BaseComponent.extend({
     // For development: show test dialog in 3 seconds if in dev environment
     if (process.env.NODE_ENV === 'development') {
       setTimeout(() => {
-        this.showTestDialog()
+        this.showTestDialogMethod()
       }, 3000)
     }
   }

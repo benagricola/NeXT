@@ -127,50 +127,9 @@ export default Vue.extend({
         console.error('NeXT UI: Failed to send code:', code, error)
         throw error
       }
-    },
-
-    /**
-     * Send NeXT dialog command (M1000)
-     */
-    async sendDialog(message: string, title: string = 'NeXT', buttons: string[] = ['OK']): Promise<number> {
-      const buttonStr = buttons.map(b => `"${b}"`).join(', ')
-      const code = `M1000 P"${message}" R"${title}" K{${buttonStr}}`
-      
-      try {
-        await this.sendCode(code)
-        // Wait for response in nxtDialogResponse
-        return await this.waitForDialogResponse()
-      } catch (error) {
-        console.error('NeXT UI: Dialog failed:', error)
-        throw error
-      }
-    },
-
-    /**
-     * Wait for dialog response from global variables
-     */
-    async waitForDialogResponse(timeout: number = 30000): Promise<number> {
-      const startTime = Date.now()
-      
-      return new Promise((resolve, reject) => {
-        const checkResponse = () => {
-          const response = this.nxtGlobals.nxtDialogResponse
-          if (response !== null && response !== undefined) {
-            resolve(response)
-            return
-          }
-          
-          if (Date.now() - startTime > timeout) {
-            reject(new Error('Dialog timeout'))
-            return
-          }
-          
-          setTimeout(checkResponse, 100)
-        }
-        
-        checkResponse()
-      })
     }
+  }
+})
   }
 })
 </script>
