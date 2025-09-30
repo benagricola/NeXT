@@ -558,17 +558,17 @@ Two implementation approaches are possible:
             - Input fields for measured distances
             - Calculate and apply corrections
             
-   Step 3: Backlash Measurement
-            - For each axis:
-              * Auto-probe from both directions
-              * Calculate backlash
-              * Apply M425 compensation
-              
-   Step 4: Precise Steps-per-mm (Automated)
+   Step 3: Precise Steps-per-mm (Automated)
             - For each axis:
               * Probe two different dimensions
               * Calculate correction
               * Apply M92 adjustment
+              
+   Step 4: Backlash Measurement
+            - For each axis:
+              * Auto-probe from both directions
+              * Calculate backlash
+              * Apply M425 compensation
               
    Step 5: Probe Deflection
             - For each axis:
@@ -583,7 +583,7 @@ Two implementation approaches are possible:
    ```
 
 3. **Calibration Results Storage**:
-   - Store in nxt-user-vars.g:
+   - Append to user-config.g for persistence:
      ```gcode
      ; Machine Calibration Data
      ; Last calibrated: 2024-01-15 14:32:00
@@ -603,16 +603,12 @@ Two implementation approaches are possible:
 **Backend Macros Needed**:
 - Existing `G6512` (single-axis probe) - already implemented ✓
 - Existing `M5000` (machine position query) - already implemented ✓
-- New: `M9001` - Query current steps-per-mm values
-- New: `M9002` - Query current backlash compensation values
-- New: `M9003` - Update steps-per-mm values temporarily (for testing before persistence)
-- New: `M9004` - Update backlash compensation temporarily
 
 **UI Integration Points**:
-- Read current calibration values from object model
+- Read current calibration values from object model (move.axes[].stepsPerMm, move.axes[].backlash)
 - Execute probe commands via G-code
-- Update firmware parameters via M-codes
-- Write results to nxt-user-vars.g file
+- Update firmware parameters via standard M-codes (M92 for steps-per-mm, M425 for backlash)
+- Append calibration results to user-config.g file
 
 ### 4.4 Error Handling
 
@@ -719,8 +715,8 @@ This calibration system should be implemented in **Phase 4** of the NeXT develop
 ### Calibration Sequence Summary
 ```
 1. Manual rough steps-per-mm → Get within 1-2%
-2. Probe backlash → Measure & compensate
-3. Automated precise steps-per-mm → Use dual-dimension method
+2. Automated precise steps-per-mm → Use dual-dimension method
+3. Probe backlash → Measure & compensate via statistical drift
 4. Probe deflection → Measure with known object
 5. Verify → Test accuracy and repeatability
 ```
