@@ -27,6 +27,9 @@ This directory contains the Vue.js-based UI plugin for NeXT (Next-Gen Extended T
 - **`ActionConfirmationWidget.vue`**: Non-blocking dialog interface for M291 dialogs
 - **`MachineStatusPanel.vue`**: Detailed machine and NeXT system status
 
+### Override Components
+- **`MessageBoxDialog.vue`**: Replaces DWC's MessageBoxDialog with conditional rendering (persistent vs modal)
+
 ### Placeholder Components
 - **`inputs/`**: Ready for Phase 2.2 input components (configuration UI)
 - **`overrides/panels/`**: Ready for DWC panel replacement components
@@ -44,8 +47,10 @@ This directory contains the Vue.js-based UI plugin for NeXT (Next-Gen Extended T
 ## Dialog System Integration
 
 The Action Confirmation Widget integrates with the M291 dialog system from PR #16:
-- Intercepts M291 dialogs from the DWC object model
-- Displays persistent dialogs instead of blocking modals when NeXT UI is active
+- **MessageBoxDialog Override**: Replaces DWC's built-in MessageBoxDialog component with conditional rendering
+- **Persistent Dialogs**: When NeXT UI is active, dialogs appear in the ActionConfirmationWidget instead of blocking modals
+- **Critical Message Fallback**: Emergency/error messages still show as blocking modals for safety
+- **Automatic Detection**: Uses `nxtUiReady` flag and message content analysis to determine rendering mode
 - Responds to dialogs using M292 commands
 - Provides responsive button interface for user actions
 
