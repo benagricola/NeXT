@@ -156,6 +156,16 @@ This phase focuses on completing the tool change system and advanced features.
 3.  **VSSC (Variable Spindle Speed Control):**
     *   Re-implement VSSC as a self-contained feature that can be enabled via the new UI configuration.
 
+4.  **Machine Calibration System:**
+    *   Implement UI-based calibration wizard in Settings panel for guided step-by-step workflow.
+    *   Create backend M-code macros for querying and updating calibration parameters (M9001-M9004).
+    *   Implement automated steps-per-mm calibration using dual-dimension measurement method.
+    *   Implement automated backlash measurement and compensation workflow.
+    *   Implement automated probe deflection measurement procedure.
+    *   Add calibration verification tests and accuracy reporting.
+    *   Store calibration data and history in nxt-user-vars.g.
+    *   Full documentation provided in `docs/CALIBRATION.md`.
+
 ---
 
 ## Phase 5: Finalization & Release

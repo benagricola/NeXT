@@ -113,6 +113,18 @@ To help us work out any issues, please run `M7600 D1` and paste the whole output
 
 ---
 
+## Documentation
+
+- **[GCODE.md](GCODE.md)** - Complete reference for all NeXT G-codes and M-codes
+- **[docs/CALIBRATION.md](docs/CALIBRATION.md)** - Comprehensive guide to machine calibration (steps-per-mm, backlash, probe deflection)
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** - Development roadmap and feature implementation plan
+- **[docs/FEATURES.md](docs/FEATURES.md)** - Feature requirements and implementation status
+- **[docs/CODE.md](docs/CODE.md)** - Coding standards and style guide for contributors
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development workflow and PR process
+- **[docs/TESTING.md](docs/TESTING.md)** - Testing procedures and guidelines
+
+---
+
 ## In Depth
 
 ### Implemented G- and M- codes
