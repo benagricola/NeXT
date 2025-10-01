@@ -1,0 +1,29 @@
+{
+  "NeXT": {
+    "name": "NeXT",
+    "title": "NeXT - Next-Gen Extended Tooling",
+    "status": {
+      "tool": "Tool",
+      "wcs": "WCS",
+      "spindle": "Spindle",
+      "coolant": "Coolant",
+      "position": "Position"
+    },
+    "actions": {
+      "continue": "Continue",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "close": "Close"
+    },
+    "panels": {
+      "status": "Status",
+      "configuration": "Configuration",
+      "probing": "Probing"
+    },
+    "messages": {
+      "uiReady": "NeXT UI is ready",
+      "loading": "Loading...",
+      "error": "Error"
+    }
+  }
+}

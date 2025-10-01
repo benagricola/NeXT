@@ -193,7 +193,9 @@ if { !move.axes[0].homed || !move.axes[1].homed || !move.axes[2].homed }
 
 ## 11. Documentation and File Organization
 
-- **No README Files in NeXT Structure:** Do not create README files within the NeXT structure itself. Documentation for components is fine, but it needs to go in the `docs/` folder, being careful to not overwrite or delete any documentation that explains how the legacy MillenniumOS system worked.
+- **Documentation Location Requirement:** All documentation MUST be placed in the `docs/` folder. Do not create documentation files (README.md, etc.) outside of the documentation folder.
+- **No README Files in NeXT Structure:** Do not create README files within the NeXT structure itself (e.g., in `ui/`, `macros/`, etc.). Component documentation is fine, but it needs to go in the `docs/` folder.
+- **Preserve Legacy Documentation:** Be careful not to overwrite or delete any documentation that explains how the legacy MillenniumOS system worked.
 
 ---
 
