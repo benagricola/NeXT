@@ -48,10 +48,10 @@ if [[ -f "${WD}/ui/plugin.json" ]]; then
     # Build the DWC Plugin
     (   cd "${DWC_REPO_PATH}"
         npm install
-        npm run build-plugin "${TMP_DIR}"
+        npm run build-plugin "${TMP_DIR}" || exit 1
         # Copy the built plugin to the main dist folder
-        cp dist/NeXT-${COMMIT_ID}.zip "${WD}/dist/"
-    )
+        cp dist/NeXT-${COMMIT_ID}.zip "${WD}/dist/" || exit 1
+    ) || exit 1
 
     # Extract the "dwc" folder from the plugin into the SD directory
     unzip -o "${WD}/dist/NeXT-${COMMIT_ID}.zip" "dwc/*" -d "${TMP_DIR}/sd"

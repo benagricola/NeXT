@@ -168,7 +168,6 @@ export default BaseComponent.extend({
       this.showTestDialog = true
     }
   },
-  },
 
   mounted() {
     // Listen for message box changes from RRF object model
