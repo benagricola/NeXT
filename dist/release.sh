@@ -10,20 +10,20 @@ DWC_REPO_PATH="${2:-${WD}/DuetWebControl}"
 echo "Building NeXT release ${ZIP_NAME} for ${COMMIT_ID}..."
 
 # Make stub folder-structure
-mkdir -p ${TMP_DIR}/sd/macros/system
-mkdir -p ${TMP_DIR}/sd/macros/probing
-mkdir -p ${TMP_DIR}/sd/macros/tooling
-mkdir -p ${TMP_DIR}/sd/macros/spindle
-mkdir -p ${TMP_DIR}/sd/macros/coolant
-mkdir -p ${TMP_DIR}/sd/macros/utilities
+mkdir -p "${TMP_DIR}/sd/macros/system"
+mkdir -p "${TMP_DIR}/sd/macros/probing"
+mkdir -p "${TMP_DIR}/sd/macros/tooling"
+mkdir -p "${TMP_DIR}/sd/macros/spindle"
+mkdir -p "${TMP_DIR}/sd/macros/coolant"
+mkdir -p "${TMP_DIR}/sd/macros/utilities"
 
 # Copy macro files to correct location in temp dir
-${SYNC_CMD} macros/system/* ${TMP_DIR}/sd/macros/system/
-${SYNC_CMD} macros/probing/* ${TMP_DIR}/sd/macros/probing/
-${SYNC_CMD} macros/tooling/* ${TMP_DIR}/sd/macros/tooling/
-${SYNC_CMD} macros/spindle/* ${TMP_DIR}/sd/macros/spindle/
-${SYNC_CMD} macros/coolant/* ${TMP_DIR}/sd/macros/coolant/
-${SYNC_CMD} macros/utilities/* ${TMP_DIR}/sd/macros/utilities/
+${SYNC_CMD} macros/system/* "${TMP_DIR}/sd/macros/system/"
+${SYNC_CMD} macros/probing/* "${TMP_DIR}/sd/macros/probing/"
+${SYNC_CMD} macros/tooling/* "${TMP_DIR}/sd/macros/tooling/"
+${SYNC_CMD} macros/spindle/* "${TMP_DIR}/sd/macros/spindle/"
+${SYNC_CMD} macros/coolant/* "${TMP_DIR}/sd/macros/coolant/"
+${SYNC_CMD} macros/utilities/* "${TMP_DIR}/sd/macros/utilities/"
 
 [[ -f "${ZIP_PATH}" ]] && rm "${ZIP_PATH}"
 
@@ -42,13 +42,13 @@ if [[ -f "${WD}/ui/plugin.json" ]]; then
     fi
 
     # Copy UI source for build
-    cp -r ${WD}/ui/* ${TMP_DIR}/
+    cp -r "${WD}/ui/"* "${TMP_DIR}/"
     sed -si -e "s/%%NXT_VERSION%%/${COMMIT_ID}/g" plugin.json
 
     # Build the DWC Plugin
     (   cd "${DWC_REPO_PATH}"
         npm install
-        npm run build-plugin ${TMP_DIR}
+        npm run build-plugin "${TMP_DIR}"
         # Copy the built plugin to the main dist folder
         cp dist/NeXT-${COMMIT_ID}.zip "${WD}/dist/"
     )
