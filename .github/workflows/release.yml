@@ -7,6 +7,11 @@ on:
       - 'main'
 
 name: Build and Release
+
+concurrency:
+  group: build-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build NeXT
