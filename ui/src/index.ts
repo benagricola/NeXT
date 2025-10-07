@@ -6,7 +6,9 @@
  */
 
 import Vue from 'vue'
-import { registerRoute, registerPluginLocalization, registerPluginData } from '@/utils/plugin'
+import { registerRoute } from '@/routes'
+import { registerPluginLocalization } from '@/i18n'
+import { registerPluginData, PluginDataType } from '@/store'
 
 // Import main components
 import NeXT from './NeXT.vue'
@@ -21,10 +23,10 @@ import './components/overrides'
 import en from './locales/en.json'
 
 // Register plugin localization
-registerPluginLocalization('en', en)
+registerPluginLocalization('NeXT', 'en', en)
 
 // Register plugin-specific data in the machine cache
-registerPluginData('nxtUiState', {
+registerPluginData('NeXT', PluginDataType.machineCache, 'nxtUiState', {
   ready: false,
   dialogActive: false,
   dialogMessage: null,
