@@ -128,15 +128,21 @@
                         <v-btn
                           icon
                           small
-                          @click="measureSpindleAcceleration"
-                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null || measuringAccel"
-                          :loading="measuringAccel"
+                          @mousedown="startAccelerationMeasurement"
+                          @mouseup="stopAccelerationMeasurement"
+                          @mouseleave="stopAccelerationMeasurement"
+                          @touchstart="startAccelerationMeasurement"
+                          @touchend="stopAccelerationMeasurement"
+                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null"
+                          :color="measuringAccel ? 'primary' : ''"
                           v-on="on"
                         >
-                          <v-icon small>mdi-timer-play</v-icon>
+                          <v-icon small :class="{ 'rotating-icon': measuringAccel }">
+                            {{ measuringAccel ? 'mdi-fan' : 'mdi-timer-play' }}
+                          </v-icon>
                         </v-btn>
                       </template>
-                      <span>Measure Acceleration</span>
+                      <span>{{ measuringAccel ? 'Release when at full speed' : 'Hold to measure acceleration' }}</span>
                     </v-tooltip>
                   </template>
                 </v-text-field>
@@ -158,15 +164,21 @@
                         <v-btn
                           icon
                           small
-                          @click="measureSpindleDeceleration"
-                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null || measuringDecel"
-                          :loading="measuringDecel"
+                          @mousedown="startDecelerationMeasurement"
+                          @mouseup="stopDecelerationMeasurement"
+                          @mouseleave="stopDecelerationMeasurement"
+                          @touchstart="startDecelerationMeasurement"
+                          @touchend="stopDecelerationMeasurement"
+                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null || !nxtGlobals.nxtSpindleAccelSec"
+                          :color="measuringDecel ? 'primary' : ''"
                           v-on="on"
                         >
-                          <v-icon small>mdi-timer-stop</v-icon>
+                          <v-icon small :class="{ 'rotating-icon': measuringDecel }">
+                            {{ measuringDecel ? 'mdi-fan' : 'mdi-timer-stop' }}
+                          </v-icon>
                         </v-btn>
                       </template>
-                      <span>Measure Deceleration</span>
+                      <span>{{ measuringDecel ? 'Release when fully stopped' : 'Hold to measure deceleration (requires acceleration time)' }}</span>
                     </v-tooltip>
                   </template>
                 </v-text-field>
@@ -667,19 +679,16 @@ export default BaseComponent.extend({
           `global nxtCoolantFloodID = ${g.nxtCoolantFloodID !== null && g.nxtCoolantFloodID !== undefined ? g.nxtCoolantFloodID : 'null'}`
         ]
         
-        // Write each line to the file using echo with append
-        // First, create/clear the file
-        await this.sendCode(`M28 "${filePath}"`)
+        // Write file using echo
+        // First line uses > to create/truncate file
+        const firstLine = lines[0].replace(/"/g, '""')
+        await this.sendCode(`echo >"${filePath}" "${firstLine}"`)
         
-        // Write all lines
-        for (const line of lines) {
-          // Escape quotes in the line
-          const escapedLine = line.replace(/"/g, '""')
+        // Remaining lines use >> to append
+        for (let i = 1; i < lines.length; i++) {
+          const escapedLine = lines[i].replace(/"/g, '""')
           await this.sendCode(`echo >>"${filePath}" "${escapedLine}"`)
         }
-        
-        // Close the file
-        await this.sendCode('M29')
         
         this.showStatus('Configuration saved to /sys/nxt-user-vars.g', 'success')
       } catch (error) {
@@ -727,62 +736,102 @@ export default BaseComponent.extend({
     },
     
     /**
-     * Measure spindle acceleration time
+     * Start measuring spindle acceleration (on button press)
+     * User holds button until spindle reaches full speed
      */
-    async measureSpindleAcceleration() {
-      if (this.nxtGlobals.nxtSpindleID === null) return
+    async startAccelerationMeasurement() {
+      if (this.nxtGlobals.nxtSpindleID === null || this.measuringAccel) return
       
       this.measuringAccel = true
+      
       try {
         const maxRpm = this.selectedSpindleMaxRpm
-        
-        // Start spindle at maximum speed
         this.accelStartTime = Date.now()
+        
+        this.showStatus(`Starting spindle at ${maxRpm} RPM. Hold button until at full speed, then release.`, 'info')
         await this.sendCode(`M3 S${maxRpm}`)
-        
-        // Wait for user to confirm spindle at speed with M291 dialog
-        await this.sendCode('M291 P"Click OK when spindle reaches full speed" R"Measuring Acceleration" S3 T15')
-        
+      } catch (error) {
+        console.error('NeXT: Acceleration measurement start failed', error)
+        this.showStatus('Failed to start acceleration measurement', 'error')
+        this.measuringAccel = false
+      }
+    },
+    
+    /**
+     * Stop measuring spindle acceleration (on button release)
+     */
+    async stopAccelerationMeasurement() {
+      if (!this.measuringAccel) return
+      
+      this.measuringAccel = false
+      
+      try {
         const elapsed = (Date.now() - this.accelStartTime) / 1000
         const measuredTime = parseFloat(elapsed.toFixed(2))
         
+        // Stop spindle
+        await this.sendCode('M5')
+        
+        // Save measured time
         await this.updateVariable('nxtSpindleAccelSec', measuredTime)
         
         this.showStatus(`Acceleration time measured: ${measuredTime}s`, 'success')
       } catch (error) {
         console.error('NeXT: Acceleration measurement failed', error)
         this.showStatus('Acceleration measurement failed', 'error')
-      } finally {
-        this.measuringAccel = false
       }
     },
     
     /**
-     * Measure spindle deceleration time
+     * Start measuring spindle deceleration (on button press)
+     * Uses measured acceleration time to spin up, then user holds until stopped
      */
-    async measureSpindleDeceleration() {
-      if (this.nxtGlobals.nxtSpindleID === null) return
+    async startDecelerationMeasurement() {
+      if (this.nxtGlobals.nxtSpindleID === null || this.measuringDecel) return
       
       this.measuringDecel = true
+      
       try {
-        // Stop spindle
+        const maxRpm = this.selectedSpindleMaxRpm
+        const accelTime = this.nxtGlobals.nxtSpindleAccelSec || 0
+        
+        // Start spindle
+        this.showStatus(`Starting spindle at ${maxRpm} RPM. Waiting ${accelTime}s for spin-up...`, 'info')
+        await this.sendCode(`M3 S${maxRpm}`)
+        
+        // Wait for acceleration time
+        await new Promise(resolve => setTimeout(resolve, accelTime * 1000))
+        
+        // Stop spindle and start timing
+        this.showStatus('Stopping spindle. Hold button until fully stopped, then release.', 'info')
         this.decelStartTime = Date.now()
         await this.sendCode('M5')
-        
-        // Wait for user to confirm spindle stopped with M291 dialog
-        await this.sendCode('M291 P"Click OK when spindle stops completely" R"Measuring Deceleration" S3 T15')
-        
+      } catch (error) {
+        console.error('NeXT: Deceleration measurement start failed', error)
+        this.showStatus('Failed to start deceleration measurement', 'error')
+        this.measuringDecel = false
+      }
+    },
+    
+    /**
+     * Stop measuring spindle deceleration (on button release)
+     */
+    async stopDecelerationMeasurement() {
+      if (!this.measuringDecel) return
+      
+      this.measuringDecel = false
+      
+      try {
         const elapsed = (Date.now() - this.decelStartTime) / 1000
         const measuredTime = parseFloat(elapsed.toFixed(2))
         
+        // Save measured time
         await this.updateVariable('nxtSpindleDecelSec', measuredTime)
         
         this.showStatus(`Deceleration time measured: ${measuredTime}s`, 'success')
       } catch (error) {
         console.error('NeXT: Deceleration measurement failed', error)
         this.showStatus('Deceleration measurement failed', 'error')
-      } finally {
-        this.measuringDecel = false
       }
     },
     
@@ -800,10 +849,10 @@ export default BaseComponent.extend({
         if (probe) {
           this.touchProbeTriggered = probe.triggered || false
           
-          // Reset after 2 seconds
+          // Reset after 15 seconds
           setTimeout(() => {
             this.touchProbeTriggered = false
-          }, 2000)
+          }, 15000)
         }
       } catch (error) {
         console.error('NeXT: Touch probe test failed', error)
@@ -824,10 +873,10 @@ export default BaseComponent.extend({
         if (probe) {
           this.toolSetterTriggered = probe.triggered || false
           
-          // Reset after 2 seconds
+          // Reset after 15 seconds
           setTimeout(() => {
             this.toolSetterTriggered = false
-          }, 2000)
+          }, 15000)
         }
       } catch (error) {
         console.error('NeXT: Tool setter test failed', error)
