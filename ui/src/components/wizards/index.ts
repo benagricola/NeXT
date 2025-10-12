@@ -1,17 +1,10 @@
 /**
  * Wizard Components Registration
  * 
- * Registers all NeXT wizard components globally for use in templates
+ * Placeholder for future wizard components.
+ * Wizards have been replaced with individual measurement buttons
+ * next to each input field that can be measured.
  */
 
-import Vue from 'vue'
-import ProbeDeflectionWizard from './ProbeDeflectionWizard.vue'
-import SpindleConfigWizard from './SpindleConfigWizard.vue'
-
-Vue.component('nxt-probe-deflection-wizard', ProbeDeflectionWizard)
-Vue.component('nxt-spindle-config-wizard', SpindleConfigWizard)
-
-export {
-  ProbeDeflectionWizard,
-  SpindleConfigWizard
-}
+// No wizard components currently registered
+export {}

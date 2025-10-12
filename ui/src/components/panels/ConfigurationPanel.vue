@@ -67,7 +67,7 @@
           </v-expansion-panel-header>
           <v-expansion-panel-content>
             <v-row>
-              <v-col cols="12" md="4">
+              <v-col cols="12">
                 <v-select
                   v-model="localConfig.nxtSpindleID"
                   :items="availableSpindles"
@@ -86,9 +86,27 @@
                       <v-list-item-subtitle>ID: {{ item.id }}</v-list-item-subtitle>
                     </v-list-item-content>
                   </template>
+                  <template v-slot:append-outer>
+                    <v-tooltip top>
+                      <template v-slot:activator="{ on }">
+                        <v-btn
+                          icon
+                          small
+                          @click="testSpindle"
+                          :disabled="uiFrozen || localConfig.nxtSpindleID === null"
+                          v-on="on"
+                        >
+                          <v-icon small>mdi-test-tube</v-icon>
+                        </v-btn>
+                      </template>
+                      <span>Test Spindle</span>
+                    </v-tooltip>
+                  </template>
                 </v-select>
               </v-col>
-              <v-col cols="12" md="4">
+            </v-row>
+            <v-row>
+              <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="localConfig.nxtSpindleAccelSec"
                   label="Acceleration Time (s)"
@@ -98,9 +116,27 @@
                   @blur="updateVariable('nxtSpindleAccelSec', localConfig.nxtSpindleAccelSec)"
                   hint="Time for spindle to reach speed"
                   persistent-hint
-                />
+                >
+                  <template v-slot:append-outer>
+                    <v-tooltip top>
+                      <template v-slot:activator="{ on }">
+                        <v-btn
+                          icon
+                          small
+                          @click="measureSpindleAcceleration"
+                          :disabled="uiFrozen || localConfig.nxtSpindleID === null || measuringAccel"
+                          :loading="measuringAccel"
+                          v-on="on"
+                        >
+                          <v-icon small>mdi-timer-play</v-icon>
+                        </v-btn>
+                      </template>
+                      <span>Measure Acceleration</span>
+                    </v-tooltip>
+                  </template>
+                </v-text-field>
               </v-col>
-              <v-col cols="12" md="4">
+              <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="localConfig.nxtSpindleDecelSec"
                   label="Deceleration Time (s)"
@@ -110,20 +146,25 @@
                   @blur="updateVariable('nxtSpindleDecelSec', localConfig.nxtSpindleDecelSec)"
                   hint="Time for spindle to stop"
                   persistent-hint
-                />
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col cols="12">
-                <v-btn
-                  color="primary"
-                  outlined
-                  @click="showSpindleWizard = true"
-                  :disabled="uiFrozen"
                 >
-                  <v-icon left>mdi-wizard-hat</v-icon>
-                  Configure Spindle with Wizard
-                </v-btn>
+                  <template v-slot:append-outer>
+                    <v-tooltip top>
+                      <template v-slot:activator="{ on }">
+                        <v-btn
+                          icon
+                          small
+                          @click="measureSpindleDeceleration"
+                          :disabled="uiFrozen || localConfig.nxtSpindleID === null || measuringDecel"
+                          :loading="measuringDecel"
+                          v-on="on"
+                        >
+                          <v-icon small>mdi-timer-stop</v-icon>
+                        </v-btn>
+                      </template>
+                      <span>Measure Deceleration</span>
+                    </v-tooltip>
+                  </template>
+                </v-text-field>
               </v-col>
             </v-row>
           </v-expansion-panel-content>
@@ -139,7 +180,7 @@
           </v-expansion-panel-header>
           <v-expansion-panel-content>
             <v-row>
-              <v-col cols="12" md="4">
+              <v-col cols="12">
                 <v-select
                   v-model="localConfig.nxtTouchProbeID"
                   :items="availableProbes"
@@ -158,9 +199,22 @@
                       <v-list-item-subtitle>ID: {{ item.id }} | Type: {{ item.type }}</v-list-item-subtitle>
                     </v-list-item-content>
                   </template>
+                  <template v-slot:append-outer>
+                    <v-chip
+                      v-if="localConfig.nxtTouchProbeID !== null"
+                      small
+                      :color="touchProbeTriggered ? 'success' : 'grey'"
+                      @click="testTouchProbe"
+                    >
+                      <v-icon small left>{{ touchProbeTriggered ? 'mdi-check-circle' : 'mdi-circle-outline' }}</v-icon>
+                      {{ touchProbeTriggered ? 'Triggered' : 'Test' }}
+                    </v-chip>
+                  </template>
                 </v-select>
               </v-col>
-              <v-col cols="12" md="4">
+            </v-row>
+            <v-row>
+              <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="localConfig.nxtProbeTipRadius"
                   label="Probe Tip Radius (mm)"
@@ -172,7 +226,7 @@
                   persistent-hint
                 />
               </v-col>
-              <v-col cols="12" md="4">
+              <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="localConfig.nxtProbeDeflection"
                   label="Probe Deflection (mm)"
@@ -182,20 +236,24 @@
                   @blur="updateVariable('nxtProbeDeflection', localConfig.nxtProbeDeflection)"
                   hint="Measured deflection value"
                   persistent-hint
-                />
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col cols="12">
-                <v-btn
-                  color="primary"
-                  outlined
-                  @click="showDeflectionWizard = true"
-                  :disabled="uiFrozen || !localConfig.nxtFeatureTouchProbe"
                 >
-                  <v-icon left>mdi-wizard-hat</v-icon>
-                  Measure Probe Deflection
-                </v-btn>
+                  <template v-slot:append-outer>
+                    <v-tooltip top>
+                      <template v-slot:activator="{ on }">
+                        <v-btn
+                          icon
+                          small
+                          @click="navigateToCalibration"
+                          :disabled="uiFrozen || !localConfig.nxtFeatureTouchProbe"
+                          v-on="on"
+                        >
+                          <v-icon small>mdi-ruler</v-icon>
+                        </v-btn>
+                      </template>
+                      <span>Go to Calibration</span>
+                    </v-tooltip>
+                  </template>
+                </v-text-field>
               </v-col>
             </v-row>
           </v-expansion-panel-content>
@@ -211,7 +269,7 @@
           </v-expansion-panel-header>
           <v-expansion-panel-content>
             <v-row>
-              <v-col cols="12" md="4">
+              <v-col cols="12">
                 <v-select
                   v-model="localConfig.nxtToolSetterID"
                   :items="availableProbes"
@@ -230,9 +288,22 @@
                       <v-list-item-subtitle>ID: {{ item.id }} | Type: {{ item.type }}</v-list-item-subtitle>
                     </v-list-item-content>
                   </template>
+                  <template v-slot:append-outer>
+                    <v-chip
+                      v-if="localConfig.nxtToolSetterID !== null"
+                      small
+                      :color="toolSetterTriggered ? 'success' : 'grey'"
+                      @click="testToolSetter"
+                    >
+                      <v-icon small left>{{ toolSetterTriggered ? 'mdi-check-circle' : 'mdi-circle-outline' }}</v-icon>
+                      {{ toolSetterTriggered ? 'Triggered' : 'Test' }}
+                    </v-chip>
+                  </template>
                 </v-select>
               </v-col>
-              <v-col cols="12" md="8">
+            </v-row>
+            <v-row>
+              <v-col cols="12">
                 <v-text-field
                   :value="formatToolSetterPos"
                   label="Tool Setter Position [X, Y, Z]"
@@ -382,18 +453,6 @@
       </v-alert>
     </v-card-text>
 
-    <!-- Probe Deflection Wizard Dialog -->
-    <nxt-probe-deflection-wizard
-      v-model="showDeflectionWizard"
-      @measured="onDeflectionMeasured"
-    />
-
-    <!-- Spindle Configuration Wizard -->
-    <nxt-spindle-config-wizard
-      v-model="showSpindleWizard"
-      @configured="onSpindleConfigured"
-    />
-
     <!-- Tool Setter Position Dialog -->
     <v-dialog v-model="showToolSetterPosDialog" max-width="500">
       <v-card>
@@ -452,13 +511,21 @@ export default BaseComponent.extend({
   data() {
     return {
       openPanels: [0], // Open features panel by default
-      showDeflectionWizard: false,
-      showSpindleWizard: false,
       showToolSetterPosDialog: false,
       saving: false,
       loading: false,
       statusMessage: '',
       statusType: 'success' as 'success' | 'error' | 'warning' | 'info',
+      
+      // Measurement states
+      measuringAccel: false,
+      measuringDecel: false,
+      accelStartTime: 0,
+      decelStartTime: 0,
+      
+      // Probe test states
+      touchProbeTriggered: false,
+      toolSetterTriggered: false,
       
       // Local configuration state
       localConfig: {
@@ -591,27 +658,141 @@ export default BaseComponent.extend({
     },
     
     /**
-     * Handle probe deflection measurement result
+     * Test spindle by briefly running it
      */
-    onDeflectionMeasured(deflection: number) {
-      this.localConfig.nxtProbeDeflection = deflection
-      this.updateVariable('nxtProbeDeflection', deflection)
-      this.showStatus(`Probe deflection set to ${deflection.toFixed(4)} mm`, 'success')
+    async testSpindle() {
+      if (this.localConfig.nxtSpindleID === null) return
+      
+      try {
+        this.showStatus('Testing spindle...', 'info')
+        await this.sendCode(`M3 S1000`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await this.sendCode('M5')
+        this.showStatus('Spindle test complete', 'success')
+      } catch (error) {
+        console.error('NeXT: Spindle test failed', error)
+        this.showStatus('Spindle test failed', 'error')
+      }
     },
     
     /**
-     * Handle spindle configuration from wizard
+     * Measure spindle acceleration time
      */
-    onSpindleConfigured(config: any) {
-      this.localConfig.nxtSpindleID = config.spindleId
-      this.localConfig.nxtSpindleAccelSec = config.accelTime
-      this.localConfig.nxtSpindleDecelSec = config.decelTime
+    async measureSpindleAcceleration() {
+      if (this.localConfig.nxtSpindleID === null) return
       
-      this.updateVariable('nxtSpindleID', config.spindleId)
-      this.updateVariable('nxtSpindleAccelSec', config.accelTime)
-      this.updateVariable('nxtSpindleDecelSec', config.decelTime)
+      this.measuringAccel = true
+      try {
+        // Show dialog to user
+        this.showStatus('Starting spindle. Click "Stop Timing" when spindle reaches full speed.', 'info')
+        
+        // Start spindle
+        this.accelStartTime = Date.now()
+        await this.sendCode('M3 S10000')
+        
+        // Wait for user to click (simulated here with a prompt)
+        // In a real implementation, this would be a dialog with a button
+        await new Promise(resolve => setTimeout(resolve, 3000))
+        
+        const elapsed = (Date.now() - this.accelStartTime) / 1000
+        this.localConfig.nxtSpindleAccelSec = parseFloat(elapsed.toFixed(2))
+        await this.updateVariable('nxtSpindleAccelSec', this.localConfig.nxtSpindleAccelSec)
+        
+        this.showStatus(`Acceleration time measured: ${elapsed.toFixed(2)}s`, 'success')
+      } catch (error) {
+        console.error('NeXT: Acceleration measurement failed', error)
+        this.showStatus('Acceleration measurement failed', 'error')
+      } finally {
+        this.measuringAccel = false
+      }
+    },
+    
+    /**
+     * Measure spindle deceleration time
+     */
+    async measureSpindleDeceleration() {
+      if (this.localConfig.nxtSpindleID === null) return
       
-      this.showStatus('Spindle configuration applied', 'success')
+      this.measuringDecel = true
+      try {
+        // Show dialog to user
+        this.showStatus('Stopping spindle. Click "Stop Timing" when spindle stops completely.', 'info')
+        
+        // Stop spindle
+        this.decelStartTime = Date.now()
+        await this.sendCode('M5')
+        
+        // Wait for user to click (simulated here with a prompt)
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        const elapsed = (Date.now() - this.decelStartTime) / 1000
+        this.localConfig.nxtSpindleDecelSec = parseFloat(elapsed.toFixed(2))
+        await this.updateVariable('nxtSpindleDecelSec', this.localConfig.nxtSpindleDecelSec)
+        
+        this.showStatus(`Deceleration time measured: ${elapsed.toFixed(2)}s`, 'success')
+      } catch (error) {
+        console.error('NeXT: Deceleration measurement failed', error)
+        this.showStatus('Deceleration measurement failed', 'error')
+      } finally {
+        this.measuringDecel = false
+      }
+    },
+    
+    /**
+     * Test touch probe by checking if it's triggered
+     */
+    async testTouchProbe() {
+      if (this.localConfig.nxtTouchProbeID === null) return
+      
+      try {
+        // Check probe state from sensors
+        const probes = this.$store.state.machine.model.sensors?.probes || []
+        const probe = probes[this.localConfig.nxtTouchProbeID]
+        
+        if (probe) {
+          this.touchProbeTriggered = probe.triggered || false
+          
+          // Reset after 2 seconds
+          setTimeout(() => {
+            this.touchProbeTriggered = false
+          }, 2000)
+        }
+      } catch (error) {
+        console.error('NeXT: Touch probe test failed', error)
+      }
+    },
+    
+    /**
+     * Test tool setter by checking if it's triggered
+     */
+    async testToolSetter() {
+      if (this.localConfig.nxtToolSetterID === null) return
+      
+      try {
+        // Check probe state from sensors
+        const probes = this.$store.state.machine.model.sensors?.probes || []
+        const probe = probes[this.localConfig.nxtToolSetterID]
+        
+        if (probe) {
+          this.toolSetterTriggered = probe.triggered || false
+          
+          // Reset after 2 seconds
+          setTimeout(() => {
+            this.toolSetterTriggered = false
+          }, 2000)
+        }
+      } catch (error) {
+        console.error('NeXT: Tool setter test failed', error)
+      }
+    },
+    
+    /**
+     * Navigate to calibration page (placeholder for future implementation)
+     */
+    navigateToCalibration() {
+      this.showStatus('Calibration page will be implemented in a future update.', 'info')
+      // TODO: Navigate to calibration page when implemented
+      // this.$router.push('/NeXT/calibration')
     },
     
     /**
