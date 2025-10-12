@@ -17,6 +17,7 @@ import NeXT from './NeXT.vue'
 import './components/base'
 import './components/inputs'
 import './components/panels'
+import './components/wizards'
 import './components/overrides'
 
 // Import localization

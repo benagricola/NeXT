@@ -71,10 +71,7 @@
               <!-- Configuration Tab -->
               <v-tab-item>
                 <div class="pa-4">
-                  <v-alert type="info" outlined>
-                    <v-icon left>mdi-cog</v-icon>
-                    Configuration UI will be implemented in Phase 2.2
-                  </v-alert>
+                  <nxt-configuration-panel />
                 </div>
               </v-tab-item>
 
