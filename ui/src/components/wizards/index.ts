@@ -6,9 +6,12 @@
 
 import Vue from 'vue'
 import ProbeDeflectionWizard from './ProbeDeflectionWizard.vue'
+import SpindleConfigWizard from './SpindleConfigWizard.vue'
 
 Vue.component('nxt-probe-deflection-wizard', ProbeDeflectionWizard)
+Vue.component('nxt-spindle-config-wizard', SpindleConfigWizard)
 
 export {
-  ProbeDeflectionWizard
+  ProbeDeflectionWizard,
+  SpindleConfigWizard
 }

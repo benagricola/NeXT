@@ -68,15 +68,25 @@
           <v-expansion-panel-content>
             <v-row>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="localConfig.nxtSpindleID"
-                  label="Spindle ID"
-                  type="number"
+                <v-select
+                  v-model="localConfig.nxtSpindleID"
+                  :items="availableSpindles"
+                  item-text="name"
+                  item-value="id"
+                  label="Spindle"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtSpindleID', localConfig.nxtSpindleID)"
-                  hint="RRF spindle index (0-based)"
+                  @change="updateVariable('nxtSpindleID', localConfig.nxtSpindleID)"
+                  hint="Select configured spindle"
                   persistent-hint
-                />
+                  clearable
+                >
+                  <template v-slot:item="{ item }">
+                    <v-list-item-content>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                      <v-list-item-subtitle>ID: {{ item.id }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                  </template>
+                </v-select>
               </v-col>
               <v-col cols="12" md="4">
                 <v-text-field
@@ -103,6 +113,19 @@
                 />
               </v-col>
             </v-row>
+            <v-row>
+              <v-col cols="12">
+                <v-btn
+                  color="primary"
+                  outlined
+                  @click="showSpindleWizard = true"
+                  :disabled="uiFrozen"
+                >
+                  <v-icon left>mdi-wizard-hat</v-icon>
+                  Configure Spindle with Wizard
+                </v-btn>
+              </v-col>
+            </v-row>
           </v-expansion-panel-content>
         </v-expansion-panel>
 
@@ -117,15 +140,25 @@
           <v-expansion-panel-content>
             <v-row>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="localConfig.nxtTouchProbeID"
-                  label="Touch Probe Sensor ID"
-                  type="number"
+                <v-select
+                  v-model="localConfig.nxtTouchProbeID"
+                  :items="availableProbes"
+                  item-text="name"
+                  item-value="id"
+                  label="Touch Probe Sensor"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtTouchProbeID', localConfig.nxtTouchProbeID)"
-                  hint="RRF probe index"
+                  @change="updateVariable('nxtTouchProbeID', localConfig.nxtTouchProbeID)"
+                  hint="Select configured probe"
                   persistent-hint
-                />
+                  clearable
+                >
+                  <template v-slot:item="{ item }">
+                    <v-list-item-content>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                      <v-list-item-subtitle>ID: {{ item.id }} | Type: {{ item.type }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                  </template>
+                </v-select>
               </v-col>
               <v-col cols="12" md="4">
                 <v-text-field
@@ -179,15 +212,25 @@
           <v-expansion-panel-content>
             <v-row>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="localConfig.nxtToolSetterID"
-                  label="Tool Setter Sensor ID"
-                  type="number"
+                <v-select
+                  v-model="localConfig.nxtToolSetterID"
+                  :items="availableProbes"
+                  item-text="name"
+                  item-value="id"
+                  label="Tool Setter Sensor"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtToolSetterID', localConfig.nxtToolSetterID)"
-                  hint="RRF probe index"
+                  @change="updateVariable('nxtToolSetterID', localConfig.nxtToolSetterID)"
+                  hint="Select configured probe"
                   persistent-hint
-                />
+                  clearable
+                >
+                  <template v-slot:item="{ item }">
+                    <v-list-item-content>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                      <v-list-item-subtitle>ID: {{ item.id }} | Type: {{ item.type }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                  </template>
+                </v-select>
               </v-col>
               <v-col cols="12" md="8">
                 <v-text-field
@@ -198,6 +241,20 @@
                   persistent-hint
                 >
                   <template v-slot:append>
+                    <v-tooltip top>
+                      <template v-slot:activator="{ on }">
+                        <v-btn
+                          icon
+                          small
+                          @click="setCurrentPositionAsToolSetter"
+                          :disabled="uiFrozen || !allAxesHomed"
+                          v-on="on"
+                        >
+                          <v-icon small>mdi-crosshairs-gps</v-icon>
+                        </v-btn>
+                      </template>
+                      <span>Set Current Position</span>
+                    </v-tooltip>
                     <v-btn
                       icon
                       small
@@ -224,40 +281,64 @@
           <v-expansion-panel-content>
             <v-row>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="localConfig.nxtCoolantAirID"
-                  label="Air Blast Pin ID"
-                  type="number"
+                <v-select
+                  v-model="localConfig.nxtCoolantAirID"
+                  :items="availableGpOutputs"
+                  item-text="name"
+                  item-value="id"
+                  label="Air Blast Output"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtCoolantAirID', localConfig.nxtCoolantAirID)"
-                  hint="GP Output port number"
+                  @change="updateVariable('nxtCoolantAirID', localConfig.nxtCoolantAirID)"
+                  hint="Select GP Output port"
                   persistent-hint
                   clearable
-                />
+                >
+                  <template v-slot:item="{ item }">
+                    <v-list-item-content>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                    </v-list-item-content>
+                  </template>
+                </v-select>
               </v-col>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="localConfig.nxtCoolantMistID"
-                  label="Mist Coolant Pin ID"
-                  type="number"
+                <v-select
+                  v-model="localConfig.nxtCoolantMistID"
+                  :items="availableGpOutputs"
+                  item-text="name"
+                  item-value="id"
+                  label="Mist Coolant Output"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtCoolantMistID', localConfig.nxtCoolantMistID)"
-                  hint="GP Output port number"
+                  @change="updateVariable('nxtCoolantMistID', localConfig.nxtCoolantMistID)"
+                  hint="Select GP Output port"
                   persistent-hint
                   clearable
-                />
+                >
+                  <template v-slot:item="{ item }">
+                    <v-list-item-content>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                    </v-list-item-content>
+                  </template>
+                </v-select>
               </v-col>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="localConfig.nxtCoolantFloodID"
-                  label="Flood Coolant Pin ID"
-                  type="number"
+                <v-select
+                  v-model="localConfig.nxtCoolantFloodID"
+                  :items="availableGpOutputs"
+                  item-text="name"
+                  item-value="id"
+                  label="Flood Coolant Output"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtCoolantFloodID', localConfig.nxtCoolantFloodID)"
-                  hint="GP Output port number"
+                  @change="updateVariable('nxtCoolantFloodID', localConfig.nxtCoolantFloodID)"
+                  hint="Select GP Output port"
                   persistent-hint
                   clearable
-                />
+                >
+                  <template v-slot:item="{ item }">
+                    <v-list-item-content>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                    </v-list-item-content>
+                  </template>
+                </v-select>
               </v-col>
             </v-row>
           </v-expansion-panel-content>
@@ -305,6 +386,12 @@
     <nxt-probe-deflection-wizard
       v-model="showDeflectionWizard"
       @measured="onDeflectionMeasured"
+    />
+
+    <!-- Spindle Configuration Wizard -->
+    <nxt-spindle-config-wizard
+      v-model="showSpindleWizard"
+      @configured="onSpindleConfigured"
     />
 
     <!-- Tool Setter Position Dialog -->
@@ -366,6 +453,7 @@ export default BaseComponent.extend({
     return {
       openPanels: [0], // Open features panel by default
       showDeflectionWizard: false,
+      showSpindleWizard: false,
       showToolSetterPosDialog: false,
       saving: false,
       loading: false,
@@ -509,6 +597,42 @@ export default BaseComponent.extend({
       this.localConfig.nxtProbeDeflection = deflection
       this.updateVariable('nxtProbeDeflection', deflection)
       this.showStatus(`Probe deflection set to ${deflection.toFixed(4)} mm`, 'success')
+    },
+    
+    /**
+     * Handle spindle configuration from wizard
+     */
+    onSpindleConfigured(config: any) {
+      this.localConfig.nxtSpindleID = config.spindleId
+      this.localConfig.nxtSpindleAccelSec = config.accelTime
+      this.localConfig.nxtSpindleDecelSec = config.decelTime
+      
+      this.updateVariable('nxtSpindleID', config.spindleId)
+      this.updateVariable('nxtSpindleAccelSec', config.accelTime)
+      this.updateVariable('nxtSpindleDecelSec', config.decelTime)
+      
+      this.showStatus('Spindle configuration applied', 'success')
+    },
+    
+    /**
+     * Set tool setter position to current machine position
+     */
+    async setCurrentPositionAsToolSetter() {
+      try {
+        const axes = this.visibleAxesByLetter
+        const pos = [
+          axes.X?.machinePosition || 0,
+          axes.Y?.machinePosition || 0,
+          axes.Z?.machinePosition || 0
+        ]
+        
+        await this.sendCode(`set global.nxtToolSetterPos = {${pos.join(', ')}}`)
+        this.localConfig.nxtToolSetterPos = pos
+        this.showStatus('Tool setter position set to current position', 'success')
+      } catch (error) {
+        console.error('NeXT: Failed to set tool setter position', error)
+        this.showStatus('Failed to set tool setter position', 'error')
+      }
     },
     
     /**

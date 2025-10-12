@@ -113,6 +113,40 @@ export default Vue.extend({
      */
     nxtReady(): boolean {
       return this.nxtGlobals.nxtLoaded === true && this.nxtGlobals.nxtUiReady === true
+    },
+
+    /**
+     * Get available spindles from RRF configuration
+     */
+    availableSpindles(): Array<{ id: number, name: string }> {
+      const spindles = this.$store.state.machine.model.spindles || []
+      return spindles.map((spindle: any, index: number) => ({
+        id: index,
+        name: spindle.name || `Spindle ${index}`
+      })).filter((s: any) => s !== null)
+    },
+
+    /**
+     * Get available probes from RRF configuration
+     */
+    availableProbes(): Array<{ id: number, name: string, type: string }> {
+      const probes = this.$store.state.machine.model.sensors?.probes || []
+      return probes.map((probe: any, index: number) => ({
+        id: index,
+        name: `Probe ${index}`,
+        type: probe?.type || 'unknown'
+      })).filter((p: any) => p !== null)
+    },
+
+    /**
+     * Get available GPIO output ports from RRF configuration
+     */
+    availableGpOutputs(): Array<{ id: number, name: string }> {
+      const outputs = this.$store.state.machine.model.sensors?.gpOut || []
+      return outputs.map((_: any, index: number) => ({
+        id: index,
+        name: `GP Out ${index}`
+      }))
     }
   },
 
