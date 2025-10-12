@@ -99,7 +99,7 @@ This phase bridges Phase 1 and Phase 2 by implementing UI-controlled result mana
 
 **This phase has been elevated in priority** as it has become clear that the settings UI will be very important to get done earlier than the more complex functionality. The settings UI is critical for proper system configuration and operation.
 
-1.  **UI Scaffolding & Core Layout:**
+1.  **UI Scaffolding & Core Layout:** ✅
     *   Set up a new, clean Vue 2.7 plugin structure within the `ui/` directory.
     *   Design and implement the new **Persistent UI Screen**, including the core **Status Widget** (Tool, WCS, Spindle, etc.) and the **Action Confirmation Widget**.
 

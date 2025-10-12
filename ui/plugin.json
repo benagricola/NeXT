@@ -1,0 +1,11 @@
+{
+  "id": "NeXT",
+  "name": "NeXT - Next-Gen Extended Tooling",
+  "author": "NeXT Development Team",
+  "version": "%%NXT_VERSION%%",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/benagricola/NeXT",
+  "dwcVersion": "auto",
+  "rrfVersion": "auto",
+  "dwcWebpackChunk": "NeXT"
+}
