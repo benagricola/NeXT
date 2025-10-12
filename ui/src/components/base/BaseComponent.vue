@@ -102,9 +102,9 @@ export default Vue.extend({
     },
 
     /**
-     * Get NeXT global variables from RRF object model
+     * Get global variables from RRF object model
      */
-    nxtGlobals(): Record<string, any> {
+    globals(): Record<string, any> {
       return this.$store.state.machine.model.global || {}
     },
 
@@ -112,7 +112,44 @@ export default Vue.extend({
      * Check if NeXT system is loaded and ready
      */
     nxtReady(): boolean {
-      return this.nxtGlobals.nxtLoaded === true && this.nxtGlobals.nxtUiReady === true
+      return this.globals.nxtLoaded === true && this.globals.nxtUiReady === true
+    },
+
+    /**
+     * Get available spindles from RRF configuration
+     */
+    availableSpindles(): Array<{ id: number, name: string }> {
+      const spindles = this.$store.state.machine.model.spindles || []
+      return spindles.map((_: any, index: number) => ({
+        id: index,
+        name: `Spindle ${index}`
+      }))
+    },
+
+    /**
+     * Get available probes from RRF configuration
+     * Only returns probes with type 5-8 (touch probes)
+     */
+    availableProbes(): Array<{ id: number, name: string, type: number }> {
+      const probes = this.$store.state.machine.model.sensors?.probes || []
+      return probes
+        .map((probe: any, index: number) => ({
+          id: index,
+          name: `Probe ${index}`,
+          type: probe?.type || 0
+        }))
+        .filter((p: any) => p.type >= 5 && p.type <= 8)
+    },
+
+    /**
+     * Get available GPIO output ports from RRF configuration
+     */
+    availableGpOutputs(): Array<{ id: number, name: string }> {
+      const outputs = this.$store.state.machine.model.sensors?.gpOut || []
+      return outputs.map((_: any, index: number) => ({
+        id: index,
+        name: `GP Out ${index}`
+      }))
     }
   },
 

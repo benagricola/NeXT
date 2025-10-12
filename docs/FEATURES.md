@@ -25,8 +25,8 @@ These features form the core of the new NeXT system and must be implemented for 
 - [x] **Probe Compensation:** The core probing macro will be responsible for applying compensation for:
     - [x] **Probe Tip Radius:** Applied for all horizontal (X, Y, etc.) probing moves.
     - [x] **Probe Deflection:** Applied for all probing moves, including Z. The Z-axis compensation will be handled to avoid applying the radius. We may need to track a separate probe deflection value for Z as opposed to X/Y because the probe behaviour may be different.
-- [ ] **Probe Deflection Measurement:** A dedicated mechanism (UI component) to automatically measure probe deflection by probing a known-sized object. This will be part of the new UI-based configuration and not implemented in a macro.
-- [ ] **Manual Deflection Input:** The UI will allow operators to manually enter their own pre-calculated deflection values.
+- [x] **Probe Deflection Measurement:** A dedicated mechanism (UI component) to automatically measure probe deflection by probing a known-sized object. This will be part of the new UI-based configuration and not implemented in a macro.
+- [x] **Manual Deflection Input:** The UI will allow operators to manually enter their own pre-calculated deflection values.
 - [x] **Protected Moves:** A critical safety feature. If the touch probe is triggered unexpectedly during any non-probing move (e.g., jogging, travel moves), the movement must halt immediately and the running macro must be aborted.
 
 #### **Probe Results Management**
@@ -58,10 +58,10 @@ These features form the core of the new NeXT system and must be implemented for 
 - [x] **Touch Probe Handling:** The touch probe is the exception. It will be measured against a reference surface upon installation (`tpost.g`) to establish its length relative to the toolsetter, ensuring accurate offsets for all subsequent tools.
 
 #### **UI-Driven Workflow**
-- [ ] **Persistent UI Screen:** A new primary screen/view in DWC dedicated to NeXT, containing always-visible widgets for core status and actions.
-    - [ ] **Status Widget:** A persistent widget displaying: selected tool name, tool offset, machine state, selected WCS, and spindle state (direction, RPM).
-    - [ ] **Action Confirmation Widget:** A persistent widget that replaces blocking `M291` dialogs. It will pause the job queue and display a confirmation request (e.g., "Start Spindle?") that the operator must interact with to resume the job.
-- [ ] **UI-Based Configuration:** A new settings panel within the UI plugin will completely replace the `G8000` configuration wizard, allowing for non-serial, direct editing of all settings.
+- [x] **Persistent UI Screen:** A new primary screen/view in DWC dedicated to NeXT, containing always-visible widgets for core status and actions.
+    - [x] **Status Widget:** A persistent widget displaying: selected tool name, tool offset, machine state, selected WCS, and spindle state (direction, RPM).
+    - [x] **Action Confirmation Widget:** A persistent widget that replaces blocking `M291` dialogs. It will pause the job queue and display a confirmation request (e.g., "Start Spindle?") that the operator must interact with to resume the job.
+- [x] **UI-Based Configuration:** A new settings panel within the UI plugin will completely replace the `G8000` configuration wizard, allowing for non-serial, direct editing of all settings.
 - [ ] **UI-Driven Probing:** All probing cycles will be initiated and configured through the DWC UI.
 
 #### **Machine Control**
@@ -89,5 +89,5 @@ These features and concepts from the old implementation will be explicitly remov
 - [ ] **Dialog-Driven Probing System:** The entire system of using `M291` dialogs to guide users through probing parameter selection will be removed in favor of the DWC UI.
 - [ ] **Manual Probing (Jogging Dialogs):** The system of using repeated dialogs to manually jog the machine closer to a surface is obsolete. This will be replaced by standard jogging and a "Set Origin" button in the UI.
 - [ ] **Multi-Axis Probing Moves:** The core probing logic will no longer support simultaneous movement in multiple axes during a single probe command. All probing will be strictly single-axis, so only a single target co-ordinate can be given to the underlying `G6512` macro.
-- [ ] **G8000 Configuration Wizard:** The G-code based, serial configuration wizard will be entirely replaced by a more flexible and user-friendly UI-based settings panel.
+- [x] **G8000 Configuration Wizard:** The G-code based, serial configuration wizard will be entirely replaced by a more flexible and user-friendly UI-based settings panel.
 - [ ] **Backwards Compatibility:** No code will be retained for the purpose of supporting RRF versions prior to 3.6.1 or for compatibility with the previous MillenniumOS implementation.

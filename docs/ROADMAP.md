@@ -103,18 +103,19 @@ This phase bridges Phase 1 and Phase 2 by implementing UI-controlled result mana
     *   Set up a new, clean Vue 2.7 plugin structure within the `ui/` directory.
     *   Design and implement the new **Persistent UI Screen**, including the core **Status Widget** (Tool, WCS, Spindle, etc.) and the **Action Confirmation Widget**.
 
-2.  **UI-Based Configuration (CRITICAL):**
+2.  **UI-Based Configuration (CRITICAL):** ✅
     *   Implement a new "Settings" or "Configuration" view within the UI plugin to replace the `G8000` wizard.
     *   This view will allow direct editing of all settings and include the UI for the probe deflection measurement process.
     *   **Priority:** This configuration UI is essential for defining the user variables that the backend macros require (`nxt-user-vars.g`).
 
-3.  **Probe Deflection Measurement UI:**
+3.  **Probe Deflection Measurement UI:** ✅
     *   Create a dedicated UI component to guide the user through measuring probe deflection automatically.
     *   Include manual deflection input capability for operators who have pre-calculated values.
 
-4.  **Essential Status & Control Panels:**
+4.  **Essential Status & Control Panels:** ⚠️ Partial
     *   Develop core UI panels for machine status, spindle control, and coolant control.
     *   Implement basic WCS management interface.
+    *   **Note:** Machine status panel completed. Spindle/coolant control and WCS management to be implemented in Phase 3.
 
 ---
 

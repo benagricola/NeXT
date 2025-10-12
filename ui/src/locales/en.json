@@ -13,12 +13,35 @@
       "continue": "Continue",
       "cancel": "Cancel",
       "confirm": "Confirm",
-      "close": "Close"
+      "close": "Close",
+      "save": "Save",
+      "reload": "Reload"
     },
     "panels": {
       "status": "Status",
       "configuration": "Configuration",
       "probing": "Probing"
+    },
+    "configuration": {
+      "title": "NeXT Configuration",
+      "features": "Features",
+      "spindle": "Spindle Configuration",
+      "touchProbe": "Touch Probe Configuration",
+      "toolSetter": "Tool Setter Configuration",
+      "coolant": "Coolant Control Configuration",
+      "saveSuccess": "Configuration saved successfully",
+      "saveError": "Failed to save configuration",
+      "loadError": "Failed to load configuration"
+    },
+    "wizards": {
+      "probeDeflection": {
+        "title": "Probe Deflection Measurement Wizard",
+        "setup": "Setup",
+        "dimensions": "Block Dimensions",
+        "measureX": "Measure X",
+        "measureY": "Measure Y",
+        "results": "Results"
+      }
     },
     "messages": {
       "uiReady": "NeXT UI is ready",
