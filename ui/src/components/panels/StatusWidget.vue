@@ -160,9 +160,12 @@ export default BaseComponent.extend({
 </script>
 
 <style scoped>
+:root {
+  --dwc-toolbar-height: 64px;
+}
 .nxt-status-widget {
   position: sticky;
-  top: 64px; /* Account for DWC toolbar */
+  top: var(--dwc-toolbar-height); /* Account for DWC toolbar */
   z-index: 10;
 }
 
