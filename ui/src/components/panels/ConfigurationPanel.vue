@@ -125,7 +125,7 @@
                           @mouseleave="stopDecelerationMeasurement"
                           @touchstart="startDecelerationMeasurement"
                           @touchend="stopDecelerationMeasurement"
-                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null || !nxtGlobals.nxtSpindleAccelSec"
+                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null || nxtGlobals.nxtSpindleAccelSec === null || nxtGlobals.nxtSpindleAccelSec === undefined"
                           :color="measuringDecel ? 'primary' : ''"
                           v-on="on"
                         >
