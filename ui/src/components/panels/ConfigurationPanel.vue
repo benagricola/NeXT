@@ -92,14 +92,19 @@
                         <v-btn
                           icon
                           small
-                          @click="testSpindle"
+                          @mousedown="startSpindleTest"
+                          @mouseup="stopSpindleTest"
+                          @mouseleave="stopSpindleTest"
+                          @touchstart="startSpindleTest"
+                          @touchend="stopSpindleTest"
                           :disabled="uiFrozen || localConfig.nxtSpindleID === null"
+                          :color="spindleTesting ? 'primary' : ''"
                           v-on="on"
                         >
-                          <v-icon small>mdi-test-tube</v-icon>
+                          <v-icon small>{{ spindleTesting ? 'mdi-fan' : 'mdi-test-tube' }}</v-icon>
                         </v-btn>
                       </template>
-                      <span>Test Spindle</span>
+                      <span>{{ spindleTesting ? 'Release to Stop' : 'Hold to Test Spindle' }}</span>
                     </v-tooltip>
                   </template>
                 </v-select>
@@ -527,6 +532,9 @@ export default BaseComponent.extend({
       touchProbeTriggered: false,
       toolSetterTriggered: false,
       
+      // Spindle test state
+      spindleTesting: false,
+      
       // Local configuration state
       localConfig: {
         nxtFeatureTouchProbe: false,
@@ -560,6 +568,23 @@ export default BaseComponent.extend({
         return 'Not configured'
       }
       return `[${this.localConfig.nxtToolSetterPos.map((v: number) => v.toFixed(3)).join(', ')}]`
+    },
+    
+    /**
+     * Get minimum RPM for the selected spindle
+     */
+    selectedSpindleMinRpm(): number {
+      if (this.localConfig.nxtSpindleID === null) return 1000
+      
+      const spindles = this.$store.state.machine.model.spindles || []
+      const spindle = spindles[this.localConfig.nxtSpindleID]
+      
+      if (spindle && spindle.min !== undefined) {
+        return spindle.min
+      }
+      
+      // Default to 1000 RPM if not specified
+      return 1000
     }
   },
   
@@ -658,20 +683,38 @@ export default BaseComponent.extend({
     },
     
     /**
-     * Test spindle by briefly running it
+     * Start spindle test (on button press)
      */
-    async testSpindle() {
-      if (this.localConfig.nxtSpindleID === null) return
+    async startSpindleTest() {
+      if (this.localConfig.nxtSpindleID === null || this.spindleTesting) return
+      
+      this.spindleTesting = true
       
       try {
-        this.showStatus('Testing spindle...', 'info')
-        await this.sendCode(`M3 S1000`)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        await this.sendCode('M5')
-        this.showStatus('Spindle test complete', 'success')
+        const rpm = this.selectedSpindleMinRpm
+        this.showStatus(`Starting spindle at ${rpm} RPM (minimum speed). Release button to stop.`, 'info')
+        await this.sendCode(`M3 S${rpm}`)
       } catch (error) {
-        console.error('NeXT: Spindle test failed', error)
-        this.showStatus('Spindle test failed', 'error')
+        console.error('NeXT: Spindle test start failed', error)
+        this.showStatus('Failed to start spindle', 'error')
+        this.spindleTesting = false
+      }
+    },
+    
+    /**
+     * Stop spindle test (on button release)
+     */
+    async stopSpindleTest() {
+      if (!this.spindleTesting) return
+      
+      this.spindleTesting = false
+      
+      try {
+        await this.sendCode('M5')
+        this.showStatus('Spindle stopped', 'success')
+      } catch (error) {
+        console.error('NeXT: Spindle stop failed', error)
+        this.showStatus('Failed to stop spindle', 'error')
       }
     },
     
