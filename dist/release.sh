@@ -99,10 +99,12 @@ if [[ -f "${WD}/ui/plugin.json" ]]; then
 fi
 
 # Create the final SD card release ZIP
+# Ensure output directory exists
+mkdir -p "$(dirname "${ZIP_PATH}")"
 (
-    cd "sd"
+    cd "${TMP_DIR}/sd"
     zip -r "${ZIP_PATH}" * -x "*.gitkeep"
-)
+) || exit 1
 
 cd "${WD}"
 rm -rf "${TMP_DIR}"
