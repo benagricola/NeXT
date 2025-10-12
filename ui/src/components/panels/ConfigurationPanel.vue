@@ -25,7 +25,7 @@
             <v-row>
               <v-col cols="12">
                 <v-select
-                  :value="nxtGlobals.nxtSpindleID"
+                  :value="globals.nxtSpindleID"
                   :items="availableSpindles"
                   item-text="name"
                   item-value="id"
@@ -53,7 +53,7 @@
                           @mouseleave="stopSpindleTest"
                           @touchstart="startSpindleTest"
                           @touchend="stopSpindleTest"
-                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null"
+                          :disabled="uiFrozen || globals.nxtSpindleID === null"
                           :color="spindleTesting ? 'primary' : ''"
                           v-on="on"
                         >
@@ -69,7 +69,7 @@
             <v-row>
               <v-col cols="12" md="6">
                 <v-text-field
-                  :value="nxtGlobals.nxtSpindleAccelSec"
+                  :value="globals.nxtSpindleAccelSec"
                   label="Acceleration Time (s)"
                   type="number"
                   step="0.1"
@@ -89,7 +89,7 @@
                           @mouseleave="stopAccelerationMeasurement"
                           @touchstart="startAccelerationMeasurement"
                           @touchend="stopAccelerationMeasurement"
-                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null"
+                          :disabled="uiFrozen || globals.nxtSpindleID === null"
                           :color="measuringAccel ? 'primary' : ''"
                           v-on="on"
                         >
@@ -105,7 +105,7 @@
               </v-col>
               <v-col cols="12" md="6">
                 <v-text-field
-                  :value="nxtGlobals.nxtSpindleDecelSec"
+                  :value="globals.nxtSpindleDecelSec"
                   label="Deceleration Time (s)"
                   type="number"
                   step="0.1"
@@ -125,7 +125,7 @@
                           @mouseleave="stopDecelerationMeasurement"
                           @touchstart="startDecelerationMeasurement"
                           @touchend="stopDecelerationMeasurement"
-                          :disabled="uiFrozen || nxtGlobals.nxtSpindleID === null || nxtGlobals.nxtSpindleAccelSec === null || nxtGlobals.nxtSpindleAccelSec === undefined"
+                          :disabled="uiFrozen || globals.nxtSpindleID === null || globals.nxtSpindleAccelSec === null || globals.nxtSpindleAccelSec === undefined"
                           :color="measuringDecel ? 'primary' : ''"
                           v-on="on"
                         >
@@ -162,16 +162,16 @@
             <v-row>
               <v-col cols="12">
                 <v-select
-                  v-model="nxtGlobals.nxtTouchProbeID"
+                  v-model="globals.nxtTouchProbeID"
                   :items="availableProbes"
                   item-text="name"
                   item-value="id"
                   label="Touch Probe Sensor *"
                   :disabled="uiFrozen"
-                  @change="updateVariable('nxtTouchProbeID', nxtGlobals.nxtTouchProbeID)"
+                  @change="updateVariable('nxtTouchProbeID', globals.nxtTouchProbeID)"
                   hint="Required - Select configured probe"
                   persistent-hint
-                  :error="nxtGlobals.nxtTouchProbeID === null"
+                  :error="globals.nxtTouchProbeID === null"
                   clearable
                 >
                   <template v-slot:item="{ item }">
@@ -182,7 +182,7 @@
                   </template>
                   <template v-slot:append-outer>
                     <v-chip
-                      v-if="nxtGlobals.nxtTouchProbeID !== null"
+                      v-if="globals.nxtTouchProbeID !== null"
                       small
                       :color="touchProbeTriggered ? 'success' : 'grey'"
                       @click="testTouchProbe"
@@ -197,28 +197,28 @@
             <v-row>
               <v-col cols="12" md="6">
                 <v-text-field
-                  v-model.number="nxtGlobals.nxtProbeTipRadius"
+                  v-model.number="globals.nxtProbeTipRadius"
                   label="Probe Tip Radius (mm) *"
                   type="number"
                   step="0.001"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtProbeTipRadius', nxtGlobals.nxtProbeTipRadius)"
+                  @blur="updateVariable('nxtProbeTipRadius', globals.nxtProbeTipRadius)"
                   hint="Required - For horizontal compensation"
                   persistent-hint
-                  :error="nxtGlobals.nxtProbeTipRadius === null || nxtGlobals.nxtProbeTipRadius === 0"
+                  :error="globals.nxtProbeTipRadius === null || globals.nxtProbeTipRadius === 0"
                 />
               </v-col>
               <v-col cols="12" md="6">
                 <v-text-field
-                  v-model.number="nxtGlobals.nxtProbeDeflection"
+                  v-model.number="globals.nxtProbeDeflection"
                   label="Probe Deflection (mm) *"
                   type="number"
                   step="0.001"
                   :disabled="uiFrozen"
-                  @blur="updateVariable('nxtProbeDeflection', nxtGlobals.nxtProbeDeflection)"
-                  hint="Required - Measured deflection value"
+                  @blur="updateVariable('nxtProbeDeflection', globals.nxtProbeDeflection)"
+                  hint="Required - Measured deflection value (0 if not measured)"
                   persistent-hint
-                  :error="nxtGlobals.nxtProbeDeflection === null || nxtGlobals.nxtProbeDeflection === 0"
+                  :error="globals.nxtProbeDeflection === null"
                 >
                   <template v-slot:append-outer>
                     <v-tooltip top>
@@ -245,7 +245,7 @@
               <v-col cols="12">
                 <v-divider class="mb-4" />
                 <v-switch
-                  :input-value="nxtGlobals.nxtFeatureTouchProbe"
+                  :input-value="globals.nxtFeatureTouchProbe"
                   label="Enable Touch Probe Feature"
                   :disabled="uiFrozen || !touchProbeRequirementsMet"
                   @change="updateFeature('nxtFeatureTouchProbe', $event)"
@@ -283,16 +283,16 @@
             <v-row>
               <v-col cols="12">
                 <v-select
-                  v-model="nxtGlobals.nxtToolSetterID"
+                  v-model="globals.nxtToolSetterID"
                   :items="availableProbes"
                   item-text="name"
                   item-value="id"
                   label="Tool Setter Sensor *"
                   :disabled="uiFrozen"
-                  @change="updateVariable('nxtToolSetterID', nxtGlobals.nxtToolSetterID)"
+                  @change="updateVariable('nxtToolSetterID', globals.nxtToolSetterID)"
                   hint="Required - Select configured probe"
                   persistent-hint
-                  :error="nxtGlobals.nxtToolSetterID === null"
+                  :error="globals.nxtToolSetterID === null"
                   clearable
                 >
                   <template v-slot:item="{ item }">
@@ -303,7 +303,7 @@
                   </template>
                   <template v-slot:append-outer>
                     <v-chip
-                      v-if="nxtGlobals.nxtToolSetterID !== null"
+                      v-if="globals.nxtToolSetterID !== null"
                       small
                       :color="toolSetterTriggered ? 'success' : 'grey'"
                       @click="testToolSetter"
@@ -323,7 +323,7 @@
                   readonly
                   hint="Required - Position in machine coordinates"
                   persistent-hint
-                  :error="!nxtGlobals.nxtToolSetterPos || !Array.isArray(nxtGlobals.nxtToolSetterPos) || nxtGlobals.nxtToolSetterPos.length !== 3"
+                  :error="!globals.nxtToolSetterPos || !Array.isArray(globals.nxtToolSetterPos) || globals.nxtToolSetterPos.length !== 3"
                 >
                   <template v-slot:append>
                     <v-tooltip top>
@@ -358,7 +358,7 @@
               <v-col cols="12">
                 <v-divider class="mb-4" />
                 <v-switch
-                  :input-value="nxtGlobals.nxtFeatureToolSetter"
+                  :input-value="globals.nxtFeatureToolSetter"
                   label="Enable Tool Setter Feature"
                   :disabled="uiFrozen || !toolSetterRequirementsMet"
                   @change="updateFeature('nxtFeatureToolSetter', $event)"
@@ -396,13 +396,13 @@
             <v-row>
               <v-col cols="12" md="4">
                 <v-select
-                  v-model="nxtGlobals.nxtCoolantAirID"
+                  v-model="globals.nxtCoolantAirID"
                   :items="availableGpOutputs"
                   item-text="name"
                   item-value="id"
                   label="Air Blast Output"
                   :disabled="uiFrozen"
-                  @change="updateVariable('nxtCoolantAirID', nxtGlobals.nxtCoolantAirID)"
+                  @change="updateVariable('nxtCoolantAirID', globals.nxtCoolantAirID)"
                   hint="Select GP Output port"
                   persistent-hint
                   clearable
@@ -416,13 +416,13 @@
               </v-col>
               <v-col cols="12" md="4">
                 <v-select
-                  v-model="nxtGlobals.nxtCoolantMistID"
+                  v-model="globals.nxtCoolantMistID"
                   :items="availableGpOutputs"
                   item-text="name"
                   item-value="id"
                   label="Mist Coolant Output"
                   :disabled="uiFrozen"
-                  @change="updateVariable('nxtCoolantMistID', nxtGlobals.nxtCoolantMistID)"
+                  @change="updateVariable('nxtCoolantMistID', globals.nxtCoolantMistID)"
                   hint="Select GP Output port"
                   persistent-hint
                   clearable
@@ -436,13 +436,13 @@
               </v-col>
               <v-col cols="12" md="4">
                 <v-select
-                  v-model="nxtGlobals.nxtCoolantFloodID"
+                  v-model="globals.nxtCoolantFloodID"
                   :items="availableGpOutputs"
                   item-text="name"
                   item-value="id"
                   label="Flood Coolant Output"
                   :disabled="uiFrozen"
-                  @change="updateVariable('nxtCoolantFloodID', nxtGlobals.nxtCoolantFloodID)"
+                  @change="updateVariable('nxtCoolantFloodID', globals.nxtCoolantFloodID)"
                   hint="Select GP Output port"
                   persistent-hint
                   clearable
@@ -461,7 +461,7 @@
               <v-col cols="12">
                 <v-divider class="mb-4" />
                 <v-switch
-                  :input-value="nxtGlobals.nxtFeatureCoolantControl"
+                  :input-value="globals.nxtFeatureCoolantControl"
                   label="Enable Coolant Control Feature"
                   :disabled="uiFrozen || !coolantControlRequirementsMet"
                   @change="updateFeature('nxtFeatureCoolantControl', $event)"
@@ -608,20 +608,20 @@ export default BaseComponent.extend({
   
   computed: {
     formatToolSetterPos(): string {
-      if (!this.nxtGlobals.nxtToolSetterPos || !Array.isArray(this.nxtGlobals.nxtToolSetterPos)) {
+      if (!this.globals.nxtToolSetterPos || !Array.isArray(this.globals.nxtToolSetterPos)) {
         return 'Not configured'
       }
-      return `[${this.nxtGlobals.nxtToolSetterPos.map((v: number) => v.toFixed(3)).join(', ')}]`
+      return `[${this.globals.nxtToolSetterPos.map((v: number) => v.toFixed(3)).join(', ')}]`
     },
     
     /**
      * Get minimum RPM for the selected spindle
      */
     selectedSpindleMinRpm(): number {
-      if (this.nxtGlobals.nxtSpindleID === null) return 1000
+      if (this.globals.nxtSpindleID === null) return 1000
       
       const spindles = this.$store.state.machine.model.spindles || []
-      const spindle = spindles[this.nxtGlobals.nxtSpindleID]
+      const spindle = spindles[this.globals.nxtSpindleID]
       
       if (spindle && spindle.min !== undefined) {
         return spindle.min
@@ -635,10 +635,10 @@ export default BaseComponent.extend({
      * Get maximum RPM for the selected spindle
      */
     selectedSpindleMaxRpm(): number {
-      if (this.nxtGlobals.nxtSpindleID === null) return 10000
+      if (this.globals.nxtSpindleID === null) return 10000
       
       const spindles = this.$store.state.machine.model.spindles || []
-      const spindle = spindles[this.nxtGlobals.nxtSpindleID]
+      const spindle = spindles[this.globals.nxtSpindleID]
       
       if (spindle && spindle.max !== undefined) {
         return spindle.max
@@ -652,11 +652,11 @@ export default BaseComponent.extend({
      * Check if touch probe requirements are met
      */
     touchProbeRequirementsMet(): boolean {
-      const g = this.nxtGlobals
+      const g = this.globals
       return (
         g.nxtTouchProbeID !== null &&
         g.nxtProbeTipRadius !== null && g.nxtProbeTipRadius !== 0 &&
-        g.nxtProbeDeflection !== null && g.nxtProbeDeflection !== 0
+        g.nxtProbeDeflection !== null
       )
     },
     
@@ -668,9 +668,9 @@ export default BaseComponent.extend({
         return 'All requirements met - feature can be enabled'
       }
       const missing = []
-      if (this.nxtGlobals.nxtTouchProbeID === null) missing.push('Probe Sensor')
-      if (this.nxtGlobals.nxtProbeTipRadius === null || this.nxtGlobals.nxtProbeTipRadius === 0) missing.push('Tip Radius')
-      if (this.nxtGlobals.nxtProbeDeflection === null || this.nxtGlobals.nxtProbeDeflection === 0) missing.push('Deflection')
+      if (this.globals.nxtTouchProbeID === null) missing.push('Probe Sensor')
+      if (this.globals.nxtProbeTipRadius === null || this.globals.nxtProbeTipRadius === 0) missing.push('Tip Radius')
+      if (this.globals.nxtProbeDeflection === null) missing.push('Deflection')
       return `Required: ${missing.join(', ')}`
     },
     
@@ -678,7 +678,7 @@ export default BaseComponent.extend({
      * Check if tool setter requirements are met
      */
     toolSetterRequirementsMet(): boolean {
-      const g = this.nxtGlobals
+      const g = this.globals
       return (
         g.nxtToolSetterID !== null &&
         g.nxtToolSetterPos !== null &&
@@ -695,8 +695,8 @@ export default BaseComponent.extend({
         return 'All requirements met - feature can be enabled'
       }
       const missing = []
-      if (this.nxtGlobals.nxtToolSetterID === null) missing.push('Tool Setter Sensor')
-      if (!this.nxtGlobals.nxtToolSetterPos || !Array.isArray(this.nxtGlobals.nxtToolSetterPos) || this.nxtGlobals.nxtToolSetterPos.length !== 3) {
+      if (this.globals.nxtToolSetterID === null) missing.push('Tool Setter Sensor')
+      if (!this.globals.nxtToolSetterPos || !Array.isArray(this.globals.nxtToolSetterPos) || this.globals.nxtToolSetterPos.length !== 3) {
         missing.push('Position')
       }
       return `Required: ${missing.join(', ')}`
@@ -706,7 +706,7 @@ export default BaseComponent.extend({
      * Check if coolant control requirements are met
      */
     coolantControlRequirementsMet(): boolean {
-      const g = this.nxtGlobals
+      const g = this.globals
       // At least one coolant output must be configured
       return (
         g.nxtCoolantAirID !== null ||
@@ -786,7 +786,7 @@ export default BaseComponent.extend({
     async saveConfiguration() {
       this.saving = true
       try {
-        const g = this.nxtGlobals
+        const g = this.globals
         const filePath = '/sys/nxt-user-vars.g'
         
         // Build configuration file content
@@ -844,7 +844,7 @@ export default BaseComponent.extend({
      * Start spindle test (on button press)
      */
     async startSpindleTest() {
-      if (this.nxtGlobals.nxtSpindleID === null || this.spindleTesting) return
+      if (this.globals.nxtSpindleID === null || this.spindleTesting) return
       
       this.spindleTesting = true
       
@@ -881,7 +881,7 @@ export default BaseComponent.extend({
      * User holds button until spindle reaches full speed
      */
     async startAccelerationMeasurement() {
-      if (this.nxtGlobals.nxtSpindleID === null || this.measuringAccel) return
+      if (this.globals.nxtSpindleID === null || this.measuringAccel) return
       
       this.measuringAccel = true
       
@@ -928,13 +928,13 @@ export default BaseComponent.extend({
      * Uses measured acceleration time to spin up, then user holds until stopped
      */
     async startDecelerationMeasurement() {
-      if (this.nxtGlobals.nxtSpindleID === null || this.measuringDecel) return
+      if (this.globals.nxtSpindleID === null || this.measuringDecel) return
       
       this.measuringDecel = true
       
       try {
         const maxRpm = this.selectedSpindleMaxRpm
-        const accelTime = this.nxtGlobals.nxtSpindleAccelSec || 0
+        const accelTime = this.globals.nxtSpindleAccelSec || 0
         
         // Start spindle
         this.showStatus(`Starting spindle at ${maxRpm} RPM. Waiting ${accelTime}s for spin-up...`, 'info')
@@ -980,12 +980,12 @@ export default BaseComponent.extend({
      * Test touch probe by checking if it's triggered
      */
     async testTouchProbe() {
-      if (this.nxtGlobals.nxtTouchProbeID === null) return
+      if (this.globals.nxtTouchProbeID === null) return
       
       try {
         // Check probe state from sensors
         const probes = this.$store.state.machine.model.sensors?.probes || []
-        const probe = probes[this.nxtGlobals.nxtTouchProbeID]
+        const probe = probes[this.globals.nxtTouchProbeID]
         
         if (probe) {
           this.touchProbeTriggered = probe.triggered || false
@@ -1004,12 +1004,12 @@ export default BaseComponent.extend({
      * Test tool setter by checking if it's triggered
      */
     async testToolSetter() {
-      if (this.nxtGlobals.nxtToolSetterID === null) return
+      if (this.globals.nxtToolSetterID === null) return
       
       try {
         // Check probe state from sensors
         const probes = this.$store.state.machine.model.sensors?.probes || []
-        const probe = probes[this.nxtGlobals.nxtToolSetterID]
+        const probe = probes[this.globals.nxtToolSetterID]
         
         if (probe) {
           this.toolSetterTriggered = probe.triggered || false
@@ -1046,7 +1046,7 @@ export default BaseComponent.extend({
         ]
         
         await this.sendCode(`set global.nxtToolSetterPos = {${pos.join(', ')}}`)
-        this.nxtGlobals.nxtToolSetterPos = pos
+        this.globals.nxtToolSetterPos = pos
         this.showStatus('Tool setter position set to current position', 'success')
       } catch (error) {
         console.error('NeXT: Failed to set tool setter position', error)
@@ -1065,7 +1065,7 @@ export default BaseComponent.extend({
           this.toolSetterPosEdit.z
         ]
         await this.sendCode(`set global.nxtToolSetterPos = {${pos.join(', ')}}`)
-        this.nxtGlobals.nxtToolSetterPos = pos
+        this.globals.nxtToolSetterPos = pos
         this.showToolSetterPosDialog = false
         this.showStatus('Tool setter position updated', 'success')
       } catch (error) {
@@ -1085,11 +1085,11 @@ export default BaseComponent.extend({
   
   watch: {
     showToolSetterPosDialog(val: boolean) {
-      if (val && this.nxtGlobals.nxtToolSetterPos && Array.isArray(this.nxtGlobals.nxtToolSetterPos)) {
+      if (val && this.globals.nxtToolSetterPos && Array.isArray(this.globals.nxtToolSetterPos)) {
         // Initialize edit values from current position
-        this.toolSetterPosEdit.x = this.nxtGlobals.nxtToolSetterPos[0] || 0
-        this.toolSetterPosEdit.y = this.nxtGlobals.nxtToolSetterPos[1] || 0
-        this.toolSetterPosEdit.z = this.nxtGlobals.nxtToolSetterPos[2] || 0
+        this.toolSetterPosEdit.x = this.globals.nxtToolSetterPos[0] || 0
+        this.toolSetterPosEdit.y = this.globals.nxtToolSetterPos[1] || 0
+        this.toolSetterPosEdit.z = this.globals.nxtToolSetterPos[2] || 0
       }
     }
   }

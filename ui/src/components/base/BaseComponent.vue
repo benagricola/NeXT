@@ -102,9 +102,9 @@ export default Vue.extend({
     },
 
     /**
-     * Get NeXT global variables from RRF object model
+     * Get global variables from RRF object model
      */
-    nxtGlobals(): Record<string, any> {
+    globals(): Record<string, any> {
       return this.$store.state.machine.model.global || {}
     },
 
@@ -112,7 +112,7 @@ export default Vue.extend({
      * Check if NeXT system is loaded and ready
      */
     nxtReady(): boolean {
-      return this.nxtGlobals.nxtLoaded === true && this.nxtGlobals.nxtUiReady === true
+      return this.globals.nxtLoaded === true && this.globals.nxtUiReady === true
     },
 
     /**

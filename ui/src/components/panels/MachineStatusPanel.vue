@@ -18,8 +18,8 @@
                     <v-list-item-title>Backend Loaded</v-list-item-title>
                   </v-list-item-content>
                   <v-list-item-action>
-                    <v-icon :color="nxtGlobals.nxtLoaded ? 'success' : 'error'">
-                      {{ nxtGlobals.nxtLoaded ? 'mdi-check' : 'mdi-close' }}
+                    <v-icon :color="globals.nxtLoaded ? 'success' : 'error'">
+                      {{ globals.nxtLoaded ? 'mdi-check' : 'mdi-close' }}
                     </v-icon>
                   </v-list-item-action>
                 </v-list-item>
@@ -29,16 +29,16 @@
                     <v-list-item-title>UI Ready</v-list-item-title>
                   </v-list-item-content>
                   <v-list-item-action>
-                    <v-icon :color="nxtGlobals.nxtUiReady ? 'success' : 'error'">
-                      {{ nxtGlobals.nxtUiReady ? 'mdi-check' : 'mdi-close' }}
+                    <v-icon :color="globals.nxtUiReady ? 'success' : 'error'">
+                      {{ globals.nxtUiReady ? 'mdi-check' : 'mdi-close' }}
                     </v-icon>
                   </v-list-item-action>
                 </v-list-item>
 
-                <v-list-item v-if="nxtGlobals.nxtError">
+                <v-list-item v-if="globals.nxtError">
                   <v-list-item-content>
                     <v-list-item-title class="error--text">
-                      Last Error: {{ nxtGlobals.nxtError }}
+                      Last Error: {{ globals.nxtError }}
                     </v-list-item-title>
                   </v-list-item-content>
                 </v-list-item>
@@ -88,7 +88,7 @@
                 <v-col cols="6" sm="4">
                   <div class="feature-status">
                     <v-icon 
-                      :color="nxtGlobals.nxtFeatureTouchProbe ? 'success' : 'grey'"
+                      :color="globals.nxtFeatureTouchProbe ? 'success' : 'grey'"
                       left
                     >
                       mdi-target
@@ -100,7 +100,7 @@
                 <v-col cols="6" sm="4">
                   <div class="feature-status">
                     <v-icon 
-                      :color="nxtGlobals.nxtFeatureToolSetter ? 'success' : 'grey'"
+                      :color="globals.nxtFeatureToolSetter ? 'success' : 'grey'"
                       left
                     >
                       mdi-wrench
@@ -112,7 +112,7 @@
                 <v-col cols="6" sm="4">
                   <div class="feature-status">
                     <v-icon 
-                      :color="nxtGlobals.nxtFeatureCoolantControl ? 'success' : 'grey'"
+                      :color="globals.nxtFeatureCoolantControl ? 'success' : 'grey'"
                       left
                     >
                       mdi-water

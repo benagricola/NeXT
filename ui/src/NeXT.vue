@@ -26,7 +26,7 @@
             >
               <div class="d-flex align-center">
                 <v-progress-circular
-                  v-if="!nxtGlobals.nxtLoaded"
+                  v-if="!globals.nxtLoaded"
                   indeterminate
                   size="20"
                   width="2"
@@ -34,10 +34,10 @@
                 />
                 <div>
                   <div class="font-weight-bold">
-                    {{ nxtGlobals.nxtLoaded ? 'UI Initializing...' : 'NeXT System Loading...' }}
+                    {{ globals.nxtLoaded ? 'UI Initializing...' : 'NeXT System Loading...' }}
                   </div>
                   <div class="text-caption">
-                    {{ nxtGlobals.nxtLoaded ? 'UI components are starting up' : 'Backend macros are initializing' }}
+                    {{ globals.nxtLoaded ? 'UI components are starting up' : 'Backend macros are initializing' }}
                   </div>
                 </div>
               </div>
