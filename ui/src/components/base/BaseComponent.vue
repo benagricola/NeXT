@@ -120,22 +120,25 @@ export default Vue.extend({
      */
     availableSpindles(): Array<{ id: number, name: string }> {
       const spindles = this.$store.state.machine.model.spindles || []
-      return spindles.map((spindle: any, index: number) => ({
+      return spindles.map((_: any, index: number) => ({
         id: index,
-        name: spindle.name || `Spindle ${index}`
+        name: `Spindle ${index}`
       })).filter((s: any) => s !== null)
     },
 
     /**
      * Get available probes from RRF configuration
+     * Only returns probes with type 5-8 (touch probes)
      */
-    availableProbes(): Array<{ id: number, name: string, type: string }> {
+    availableProbes(): Array<{ id: number, name: string, type: number }> {
       const probes = this.$store.state.machine.model.sensors?.probes || []
-      return probes.map((probe: any, index: number) => ({
-        id: index,
-        name: `Probe ${index}`,
-        type: probe?.type || 'unknown'
-      })).filter((p: any) => p !== null)
+      return probes
+        .map((probe: any, index: number) => ({
+          id: index,
+          name: `Probe ${index}`,
+          type: probe?.type || 0
+        }))
+        .filter((p: any) => p.type >= 5 && p.type <= 8)
     },
 
     /**
