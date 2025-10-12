@@ -11,52 +11,8 @@
         Changes are saved immediately to the object model. Use "Save Configuration" to persist to nxt-user-vars.g
       </v-alert>
 
-      <!-- Feature Toggles -->
+      <!-- Configuration Sections -->
       <v-expansion-panels v-model="openPanels" multiple class="mb-4">
-        <!-- Features Section -->
-        <v-expansion-panel>
-          <v-expansion-panel-header>
-            <div>
-              <v-icon left>mdi-toggle-switch</v-icon>
-              <strong>Features</strong>
-            </div>
-          </v-expansion-panel-header>
-          <v-expansion-panel-content>
-            <v-row>
-              <v-col cols="12" sm="4">
-                <v-switch
-                  :input-value="nxtGlobals.nxtFeatureTouchProbe"
-                  label="Touch Probe"
-                  :disabled="uiFrozen"
-                  @change="updateFeature('nxtFeatureTouchProbe', $event)"
-                  hide-details
-                  class="mt-0"
-                />
-              </v-col>
-              <v-col cols="12" sm="4">
-                <v-switch
-                  :input-value="nxtGlobals.nxtFeatureToolSetter"
-                  label="Tool Setter"
-                  :disabled="uiFrozen"
-                  @change="updateFeature('nxtFeatureToolSetter', $event)"
-                  hide-details
-                  class="mt-0"
-                />
-              </v-col>
-              <v-col cols="12" sm="4">
-                <v-switch
-                  :input-value="nxtGlobals.nxtFeatureCoolantControl"
-                  label="Coolant Control"
-                  :disabled="uiFrozen"
-                  @change="updateFeature('nxtFeatureCoolantControl', $event)"
-                  hide-details
-                  class="mt-0"
-                />
-              </v-col>
-            </v-row>
-          </v-expansion-panel-content>
-        </v-expansion-panel>
-
         <!-- Spindle Configuration -->
         <v-expansion-panel>
           <v-expansion-panel-header>
@@ -193,9 +149,16 @@
             <div>
               <v-icon left>mdi-target</v-icon>
               <strong>Touch Probe Configuration</strong>
+              <v-spacer />
+              <v-icon v-if="touchProbeRequirementsMet" small color="success" class="mr-2">mdi-check-circle</v-icon>
+              <v-icon v-else small color="warning" class="mr-2">mdi-alert-circle</v-icon>
             </div>
           </v-expansion-panel-header>
           <v-expansion-panel-content>
+            <v-alert v-if="!touchProbeRequirementsMet" type="warning" dense outlined class="mb-4">
+              <div class="text-caption">{{ touchProbeRequirementsMessage }}</div>
+            </v-alert>
+            
             <v-row>
               <v-col cols="12">
                 <v-select
@@ -203,11 +166,12 @@
                   :items="availableProbes"
                   item-text="name"
                   item-value="id"
-                  label="Touch Probe Sensor"
+                  label="Touch Probe Sensor *"
                   :disabled="uiFrozen"
                   @change="updateVariable('nxtTouchProbeID', nxtGlobals.nxtTouchProbeID)"
-                  hint="Select configured probe"
+                  hint="Required - Select configured probe"
                   persistent-hint
+                  :error="nxtGlobals.nxtTouchProbeID === null"
                   clearable
                 >
                   <template v-slot:item="{ item }">
@@ -234,25 +198,27 @@
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="nxtGlobals.nxtProbeTipRadius"
-                  label="Probe Tip Radius (mm)"
+                  label="Probe Tip Radius (mm) *"
                   type="number"
                   step="0.001"
                   :disabled="uiFrozen"
                   @blur="updateVariable('nxtProbeTipRadius', nxtGlobals.nxtProbeTipRadius)"
-                  hint="For horizontal compensation"
+                  hint="Required - For horizontal compensation"
                   persistent-hint
+                  :error="nxtGlobals.nxtProbeTipRadius === null || nxtGlobals.nxtProbeTipRadius === 0"
                 />
               </v-col>
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="nxtGlobals.nxtProbeDeflection"
-                  label="Probe Deflection (mm)"
+                  label="Probe Deflection (mm) *"
                   type="number"
                   step="0.001"
                   :disabled="uiFrozen"
                   @blur="updateVariable('nxtProbeDeflection', nxtGlobals.nxtProbeDeflection)"
-                  hint="Measured deflection value"
+                  hint="Required - Measured deflection value"
                   persistent-hint
+                  :error="nxtGlobals.nxtProbeDeflection === null || nxtGlobals.nxtProbeDeflection === 0"
                 >
                   <template v-slot:append-outer>
                     <v-tooltip top>
@@ -261,7 +227,7 @@
                           icon
                           small
                           @click="navigateToCalibration"
-                          :disabled="uiFrozen || !nxtGlobals.nxtFeatureTouchProbe"
+                          :disabled="uiFrozen"
                           v-on="on"
                         >
                           <v-icon small>mdi-ruler</v-icon>
@@ -273,6 +239,28 @@
                 </v-text-field>
               </v-col>
             </v-row>
+            
+            <!-- Feature Toggle -->
+            <v-row class="mt-4">
+              <v-col cols="12">
+                <v-divider class="mb-4" />
+                <v-switch
+                  :input-value="nxtGlobals.nxtFeatureTouchProbe"
+                  label="Enable Touch Probe Feature"
+                  :disabled="uiFrozen || !touchProbeRequirementsMet"
+                  @change="updateFeature('nxtFeatureTouchProbe', $event)"
+                  :hint="touchProbeRequirementsMessage"
+                  persistent-hint
+                  class="mt-0"
+                >
+                  <template v-slot:prepend>
+                    <v-icon :color="touchProbeRequirementsMet ? 'success' : 'warning'">
+                      {{ touchProbeRequirementsMet ? 'mdi-check-circle' : 'mdi-alert-circle' }}
+                    </v-icon>
+                  </template>
+                </v-switch>
+              </v-col>
+            </v-row>
           </v-expansion-panel-content>
         </v-expansion-panel>
 
@@ -282,9 +270,16 @@
             <div>
               <v-icon left>mdi-wrench</v-icon>
               <strong>Tool Setter Configuration</strong>
+              <v-spacer />
+              <v-icon v-if="toolSetterRequirementsMet" small color="success" class="mr-2">mdi-check-circle</v-icon>
+              <v-icon v-else small color="warning" class="mr-2">mdi-alert-circle</v-icon>
             </div>
           </v-expansion-panel-header>
           <v-expansion-panel-content>
+            <v-alert v-if="!toolSetterRequirementsMet" type="warning" dense outlined class="mb-4">
+              <div class="text-caption">{{ toolSetterRequirementsMessage }}</div>
+            </v-alert>
+            
             <v-row>
               <v-col cols="12">
                 <v-select
@@ -292,11 +287,12 @@
                   :items="availableProbes"
                   item-text="name"
                   item-value="id"
-                  label="Tool Setter Sensor"
+                  label="Tool Setter Sensor *"
                   :disabled="uiFrozen"
                   @change="updateVariable('nxtToolSetterID', nxtGlobals.nxtToolSetterID)"
-                  hint="Select configured probe"
+                  hint="Required - Select configured probe"
                   persistent-hint
+                  :error="nxtGlobals.nxtToolSetterID === null"
                   clearable
                 >
                   <template v-slot:item="{ item }">
@@ -323,10 +319,11 @@
               <v-col cols="12">
                 <v-text-field
                   :value="formatToolSetterPos"
-                  label="Tool Setter Position [X, Y, Z]"
+                  label="Tool Setter Position [X, Y, Z] *"
                   readonly
-                  hint="Position in machine coordinates"
+                  hint="Required - Position in machine coordinates"
                   persistent-hint
+                  :error="!nxtGlobals.nxtToolSetterPos || !Array.isArray(nxtGlobals.nxtToolSetterPos) || nxtGlobals.nxtToolSetterPos.length !== 3"
                 >
                   <template v-slot:append>
                     <v-tooltip top>
@@ -355,6 +352,28 @@
                 </v-text-field>
               </v-col>
             </v-row>
+            
+            <!-- Feature Toggle -->
+            <v-row class="mt-4">
+              <v-col cols="12">
+                <v-divider class="mb-4" />
+                <v-switch
+                  :input-value="nxtGlobals.nxtFeatureToolSetter"
+                  label="Enable Tool Setter Feature"
+                  :disabled="uiFrozen || !toolSetterRequirementsMet"
+                  @change="updateFeature('nxtFeatureToolSetter', $event)"
+                  :hint="toolSetterRequirementsMessage"
+                  persistent-hint
+                  class="mt-0"
+                >
+                  <template v-slot:prepend>
+                    <v-icon :color="toolSetterRequirementsMet ? 'success' : 'warning'">
+                      {{ toolSetterRequirementsMet ? 'mdi-check-circle' : 'mdi-alert-circle' }}
+                    </v-icon>
+                  </template>
+                </v-switch>
+              </v-col>
+            </v-row>
           </v-expansion-panel-content>
         </v-expansion-panel>
 
@@ -364,9 +383,16 @@
             <div>
               <v-icon left>mdi-water</v-icon>
               <strong>Coolant Control Configuration</strong>
+              <v-spacer />
+              <v-icon v-if="coolantControlRequirementsMet" small color="success" class="mr-2">mdi-check-circle</v-icon>
+              <v-icon v-else small color="warning" class="mr-2">mdi-alert-circle</v-icon>
             </div>
           </v-expansion-panel-header>
           <v-expansion-panel-content>
+            <v-alert v-if="!coolantControlRequirementsMet" type="warning" dense outlined class="mb-4">
+              <div class="text-caption">{{ coolantControlRequirementsMessage }}</div>
+            </v-alert>
+            
             <v-row>
               <v-col cols="12" md="4">
                 <v-select
@@ -427,6 +453,28 @@
                     </v-list-item-content>
                   </template>
                 </v-select>
+              </v-col>
+            </v-row>
+            
+            <!-- Feature Toggle -->
+            <v-row class="mt-4">
+              <v-col cols="12">
+                <v-divider class="mb-4" />
+                <v-switch
+                  :input-value="nxtGlobals.nxtFeatureCoolantControl"
+                  label="Enable Coolant Control Feature"
+                  :disabled="uiFrozen || !coolantControlRequirementsMet"
+                  @change="updateFeature('nxtFeatureCoolantControl', $event)"
+                  :hint="coolantControlRequirementsMessage"
+                  persistent-hint
+                  class="mt-0"
+                >
+                  <template v-slot:prepend>
+                    <v-icon :color="coolantControlRequirementsMet ? 'success' : 'warning'">
+                      {{ coolantControlRequirementsMet ? 'mdi-check-circle' : 'mdi-alert-circle' }}
+                    </v-icon>
+                  </template>
+                </v-switch>
               </v-col>
             </v-row>
           </v-expansion-panel-content>
@@ -598,6 +646,83 @@ export default BaseComponent.extend({
       
       // Default to 10000 RPM if not specified
       return 10000
+    },
+    
+    /**
+     * Check if touch probe requirements are met
+     */
+    touchProbeRequirementsMet(): boolean {
+      const g = this.nxtGlobals
+      return (
+        g.nxtTouchProbeID !== null &&
+        g.nxtProbeTipRadius !== null && g.nxtProbeTipRadius !== 0 &&
+        g.nxtProbeDeflection !== null && g.nxtProbeDeflection !== 0
+      )
+    },
+    
+    /**
+     * Get touch probe requirements message
+     */
+    touchProbeRequirementsMessage(): string {
+      if (this.touchProbeRequirementsMet) {
+        return 'All requirements met - feature can be enabled'
+      }
+      const missing = []
+      if (this.nxtGlobals.nxtTouchProbeID === null) missing.push('Probe Sensor')
+      if (this.nxtGlobals.nxtProbeTipRadius === null || this.nxtGlobals.nxtProbeTipRadius === 0) missing.push('Tip Radius')
+      if (this.nxtGlobals.nxtProbeDeflection === null || this.nxtGlobals.nxtProbeDeflection === 0) missing.push('Deflection')
+      return `Required: ${missing.join(', ')}`
+    },
+    
+    /**
+     * Check if tool setter requirements are met
+     */
+    toolSetterRequirementsMet(): boolean {
+      const g = this.nxtGlobals
+      return (
+        g.nxtToolSetterID !== null &&
+        g.nxtToolSetterPos !== null &&
+        Array.isArray(g.nxtToolSetterPos) &&
+        g.nxtToolSetterPos.length === 3
+      )
+    },
+    
+    /**
+     * Get tool setter requirements message
+     */
+    toolSetterRequirementsMessage(): string {
+      if (this.toolSetterRequirementsMet) {
+        return 'All requirements met - feature can be enabled'
+      }
+      const missing = []
+      if (this.nxtGlobals.nxtToolSetterID === null) missing.push('Tool Setter Sensor')
+      if (!this.nxtGlobals.nxtToolSetterPos || !Array.isArray(this.nxtGlobals.nxtToolSetterPos) || this.nxtGlobals.nxtToolSetterPos.length !== 3) {
+        missing.push('Position')
+      }
+      return `Required: ${missing.join(', ')}`
+    },
+    
+    /**
+     * Check if coolant control requirements are met
+     */
+    coolantControlRequirementsMet(): boolean {
+      const g = this.nxtGlobals
+      // At least one coolant output must be configured
+      return (
+        g.nxtCoolantAirID !== null ||
+        g.nxtCoolantMistID !== null ||
+        g.nxtCoolantFloodID !== null
+      )
+    },
+    
+    /**
+     * Get coolant control requirements message
+     */
+    coolantControlRequirementsMessage(): string {
+      if (this.coolantControlRequirementsMet) {
+        return 'At least one output configured - feature can be enabled'
+      }
+      return 'Required: At least one coolant output (Air, Mist, or Flood)'
     }
   },
   
@@ -607,10 +732,26 @@ export default BaseComponent.extend({
   
   methods: {
     /**
-     * Update a feature flag
+     * Update a feature flag with validation
      */
     async updateFeature(key: string, value: boolean) {
       try {
+        // Validate requirements before enabling
+        if (value) {
+          if (key === 'nxtFeatureTouchProbe' && !this.touchProbeRequirementsMet) {
+            this.showStatus('Cannot enable Touch Probe: ' + this.touchProbeRequirementsMessage, 'error')
+            return
+          }
+          if (key === 'nxtFeatureToolSetter' && !this.toolSetterRequirementsMet) {
+            this.showStatus('Cannot enable Tool Setter: ' + this.toolSetterRequirementsMessage, 'error')
+            return
+          }
+          if (key === 'nxtFeatureCoolantControl' && !this.coolantControlRequirementsMet) {
+            this.showStatus('Cannot enable Coolant Control: ' + this.coolantControlRequirementsMessage, 'error')
+            return
+          }
+        }
+        
         await this.sendCode(`set global.${key} = ${value}`)
         this.showStatus(`${key} ${value ? 'enabled' : 'disabled'}`, 'success')
       } catch (error) {
