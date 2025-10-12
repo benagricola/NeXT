@@ -123,7 +123,7 @@ export default Vue.extend({
       return spindles.map((_: any, index: number) => ({
         id: index,
         name: `Spindle ${index}`
-      })).filter((s: any) => s !== null)
+      }))
     },
 
     /**
