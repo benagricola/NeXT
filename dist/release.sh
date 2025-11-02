@@ -10,10 +10,14 @@ DWC_REPO_PATH="${2:-${WD}/DuetWebControl}"
 echo "Building NeXT release ${ZIP_NAME} for ${COMMIT_ID}..."
 
 # Make stub folder-structure
-mkdir -p "${TMP_DIR}/sd/sys"
+# This also creates the sys directory
+mkdir -p "${TMP_DIR}/sd/sys/nxt"
 
 # Copy all macros to sys/ for system functionality (G/M-codes)
 ${SYNC_CMD} macros/system/* macros/probing/* macros/tooling/* macros/spindle/* macros/coolant/* macros/utilities/* "${TMP_DIR}/sd/sys/"
+
+# Copy all daemon scripts to sys/nxt
+${SYNC_CMD} macros/daemon/* "${TMP_DIR}/sd/sys/nxt/"
 
 [[ -f "${ZIP_PATH}" ]] && rm "${ZIP_PATH}"
 
