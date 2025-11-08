@@ -165,6 +165,26 @@ The Stock Preparation UI provides a guided interface for generating facing opera
 - **Validation:** Must be positive and sufficient to clear fixtures
 - **Note:** Used for G0 rapid moves between cutting operations
 
+**Finishing Pass** (`finishingPass`)
+- **Type:** Boolean
+- **Default:** `false`
+- **Purpose:** Enables an additional finishing pass after roughing passes complete
+- **Benefits:**
+  - Better surface finish with reduced stepdown
+  - Removes remaining material from previous passes
+  - Can use different feed rates for better quality
+  - Compensates for tool deflection
+- **Note:** Runs after all roughing Z levels complete
+
+**Finishing Pass Height** (`finishingPassHeight`)
+- **Type:** Number (mm)
+- **Range:** 0.01mm - 5mm
+- **Default:** 0.2mm
+- **Purpose:** Amount of material left for finishing pass
+- **Behavior:** Final pass removes this amount from the bottom surface
+- **Validation:** Must be less than stepdown value
+- **Note:** Only active when finishingPass is enabled
+
 ### 2.5 Feed and Speed
 
 **Horizontal Feed Rate** (`feedRateXY`)
@@ -371,15 +391,29 @@ For each toolpath point (x, y):
 
 **Multi-Pass Depth Strategy:**
 ```
-Input: totalDepth, stepdown, zOffset
+Input: totalDepth, stepdown, zOffset, finishingPass, finishingPassHeight
 Output: Array of Z levels
 
-1. Calculate number of Z passes: numPasses = ceil(totalDepth / stepdown)
-2. For each pass i from 0 to numPasses:
-   a. Calculate Z depth = zOffset - min(i * stepdown, totalDepth)
-   b. Generate XY toolpath at this Z level
-   c. Add lead-in at beginning of level (ramp or plunge)
-   d. Add lead-out at end of level if not final pass
+1. If finishingPass is enabled:
+   a. Adjust roughing depth = totalDepth - finishingPassHeight
+   b. Calculate number of roughing passes: numPasses = ceil(roughingDepth / stepdown)
+   c. For each roughing pass i from 0 to numPasses:
+      - Calculate Z depth = zOffset - min(i * stepdown, roughingDepth)
+      - Generate XY toolpath at this Z level
+      - Add lead-in at beginning of level
+      - Add lead-out at end of level if not final roughing pass
+   d. Generate finishing pass:
+      - Z depth = zOffset - totalDepth (final depth)
+      - Generate XY toolpath at finishing depth
+      - Use same pattern as roughing but potentially different feed rate
+
+2. If finishingPass is disabled:
+   a. Calculate number of Z passes: numPasses = ceil(totalDepth / stepdown)
+   b. For each pass i from 0 to numPasses:
+      - Calculate Z depth = zOffset - min(i * stepdown, totalDepth)
+      - Generate XY toolpath at this Z level
+      - Add lead-in at beginning of level
+      - Add lead-out at end of level if not final pass
 ```
 
 **Plunge Strategies:**
@@ -423,9 +457,9 @@ G0 X[startX] Y[startY] ; Rapid to start position
 ```
 
 **Cutting Section:**
-For each Z level:
+For each roughing Z level:
 ```gcode
-; Z Level [i]: [currentZ]mm
+; Roughing Z Level [i]: [currentZ]mm
 G1 Z[currentZ] F[feedRateZ] ; Plunge to depth
 
 ; XY toolpath
@@ -434,7 +468,21 @@ G1 X[x2] Y[y2]
 G1 X[x3] Y[y3]
 ; ... (all toolpath points)
 
-G0 Z[safeZ] ; Retract (if not last level)
+G0 Z[safeZ] ; Retract (if not last roughing level)
+```
+
+**Finishing Pass Section (if enabled):**
+```gcode
+; Finishing Pass: [finalZ]mm
+G1 Z[finalZ] F[feedRateZ] ; Plunge to final depth
+
+; XY toolpath (same pattern as roughing)
+G1 X[x1] Y[y1] F[feedRateXY]
+G1 X[x2] Y[y2]
+G1 X[x3] Y[y3]
+; ... (all toolpath points)
+
+G0 Z[safeZ] ; Final retract
 ```
 
 **Cleanup Section:**
@@ -591,7 +639,9 @@ watch: {
   millingDirection: 'regenerateToolpath',
   stepover: 'regenerateToolpath',
   safeZHeight: 'regenerateToolpath',
-  clearStockExit: 'regenerateToolpath'
+  clearStockExit: 'regenerateToolpath',
+  finishingPass: 'regenerateToolpath',
+  finishingPassHeight: 'regenerateToolpath'
 },
 methods: {
   regenerateToolpath() {
@@ -687,6 +737,9 @@ Cutting Parameters
 │                                         │
 │ [✓] Clear Stock Exit                    │
 │     (Tool exits stock completely)       │
+│                                         │
+│ [✓] Finishing Pass                      │
+│     Finishing Height: [0.2] mm          │
 └─────────────────────────────────────────┘
 ```
 
@@ -720,7 +773,8 @@ Feed and Speed
 │                                         │
 ├─────────────────────────────────────────┤
 │ Statistics:                             │
-│   Total Passes: 15                      │
+│   Roughing Passes: 10                   │
+│   Finishing Pass: Yes (0.2mm)           │
 │   Total Distance: 1,234.5 mm            │
 │   Est. Time: 5 min 23 sec               │
 │   Material Removed: 15.0 cm³            │
@@ -774,6 +828,8 @@ Feed and Speed
 ⚠ Total depth must be positive
 ⚠ Feed rate below recommended minimum (500 mm/min)
 ⚠ Spindle speed above maximum (check your machine)
+⚠ Finishing pass height must be less than stepdown value
+⚠ Finishing pass height must be less than total depth
 ```
 
 **Warnings (non-blocking):**
@@ -784,6 +840,8 @@ Feed and Speed
 ℹ Consider reducing spindle speed for harder materials
 ℹ Clear Stock Exit enabled - verify adequate clearance around stock
 ℹ Clear Stock Exit may increase cycle time significantly
+ℹ Finishing pass enabled - cycle time will increase
+ℹ Finishing pass removes only [X]mm - consider adjusting height
 ```
 
 ### 6.5 Responsive Design
