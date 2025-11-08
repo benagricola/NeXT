@@ -1,0 +1,1190 @@
+# Stock Preparation UI - Implementation Approach
+
+This document details the comprehensive approach for implementing the Stock Preparation UI feature (Issue #34) for NeXT. This feature will enable operators to generate facing toolpaths for stock preparation directly from the DWC UI, with visual preview and direct execution capabilities.
+
+---
+
+## 1. Overview
+
+### Purpose
+The Stock Preparation UI provides a guided interface for generating facing operations to prepare raw stock material before machining. This eliminates the need for external CAM software for simple facing operations and provides immediate feedback through visual toolpath preview.
+
+### Key Capabilities
+- Interactive UI for configuring facing operations
+- Real-time toolpath visualization (SVG or WebGL)
+- Multiple facing pattern support (rectilinear, zigzag, spiral)
+- G-code generation for direct execution or file saving
+- Integration with current tool and WCS settings
+
+---
+
+## 2. Input Parameters
+
+### 2.1 Tool Configuration
+**Tool Radius** (`toolRadius`)
+- **Type:** Number (mm)
+- **Default:** Current tool radius if tool is selected
+- **Range:** 0.1mm - 50mm
+- **Purpose:** Determines stepover calculations and toolpath boundaries
+- **Validation:** 
+  - Must be positive
+  - Should be less than stock dimensions
+  - Warning if no tool selected
+
+### 2.2 Stock Geometry
+
+#### Rectangular Stock
+**Shape Type** (`stockShape`)
+- **Type:** Enum
+- **Values:** `rectangular`, `circular`
+- **Default:** `rectangular`
+
+**X Dimension** (`stockX`)
+- **Type:** Number (mm)
+- **Range:** 1mm - 1000mm
+- **Required:** Yes (for rectangular)
+- **Purpose:** Stock width along X axis
+
+**Y Dimension** (`stockY`)
+- **Type:** Number (mm)
+- **Range:** 1mm - 1000mm
+- **Required:** Yes (for rectangular)
+- **Purpose:** Stock depth along Y axis
+
+**Origin Position** (`originPosition`)
+- **Type:** Enum
+- **Values:** 
+  - `front-left` (X min, Y max)
+  - `front-center` (X center, Y max)
+  - `front-right` (X max, Y max)
+  - `center-left` (X min, Y center)
+  - `center-center` (X center, Y center)
+  - `center-right` (X max, Y center)
+  - `back-left` (X min, Y min)
+  - `back-center` (X center, Y min)
+  - `back-right` (X max, Y min)
+- **Default:** `front-left`
+- **Purpose:** Defines stock coordinate reference point relative to current WCS origin
+
+#### Circular Stock
+**Diameter/Radius** (`stockDiameter`)
+- **Type:** Number (mm)
+- **Range:** 1mm - 500mm
+- **Required:** Yes (for circular)
+- **Purpose:** Circular stock size
+- **Note:** Can input as diameter or radius with toggle
+
+**Origin Constraint** (`circularOrigin`)
+- **Type:** Fixed
+- **Value:** `center-center` (always)
+- **Purpose:** Circular stock must be centered on WCS origin
+
+### 2.3 Facing Pattern
+
+**Pattern Type** (`facingPattern`)
+- **Type:** Enum
+- **Values:** 
+  - `rectilinear` - Parallel passes back and forth
+  - `zigzag` - Continuous alternating direction passes
+  - `spiral` - Spiraling from outside to inside or vice versa
+- **Default:** `zigzag`
+
+**Pattern Angle** (`patternAngle`)
+- **Type:** Number (degrees)
+- **Range:** 0° - 360°
+- **Default:** 0° (aligned with X axis)
+- **Purpose:** Rotates facing pattern relative to stock orientation
+- **Common Values:** 0°, 45°, 90° for different cutting strategies
+
+### 2.4 Cutting Parameters
+
+**Stepover** (`stepover`)
+- **Type:** Number (mm or %)
+- **Range:** 0.1mm - tool diameter
+- **Default:** 75% of tool diameter
+- **Purpose:** Lateral distance between adjacent passes
+- **Note:** Can be specified as absolute mm or percentage of tool diameter
+- **Validation:** Must be less than tool diameter
+
+**Stepdown** (`stepdown`)
+- **Type:** Number (mm)
+- **Range:** 0.01mm - 10mm
+- **Default:** 1mm
+- **Purpose:** Depth of cut per Z level pass
+- **Validation:** Must be positive
+
+**Z Offset** (`zOffset`)
+- **Type:** Number (mm)
+- **Range:** -100mm to +100mm
+- **Default:** 0mm
+- **Purpose:** Starting Z height offset from current WCS Z origin
+- **Note:** Positive values start above origin, negative below
+
+**Total Depth** (`totalDepth`)
+- **Type:** Number (mm)
+- **Range:** 0.01mm - 100mm
+- **Default:** 1mm
+- **Purpose:** Total material to remove (calculated from zOffset)
+- **Validation:** Must be positive
+
+### 2.5 Feed and Speed
+
+**Horizontal Feed Rate** (`feedRateXY`)
+- **Type:** Number (mm/min)
+- **Range:** 1 - 10000 mm/min
+- **Default:** 1000 mm/min
+- **Purpose:** Feed rate for XY cutting moves
+
+**Vertical Feed Rate** (`feedRateZ`)
+- **Type:** Number (mm/min)
+- **Range:** 1 - 5000 mm/min
+- **Default:** 300 mm/min
+- **Purpose:** Feed rate for Z plunge/ramp moves
+
+**Spindle Speed** (`spindleSpeed`)
+- **Type:** Number (RPM)
+- **Range:** 0 - 30000 RPM
+- **Default:** 10000 RPM
+- **Purpose:** Spindle RPM during operation
+
+---
+
+## 3. Toolpath Generation Algorithms
+
+### 3.1 Coordinate System Transformation
+
+All calculations are performed in a normalized coordinate space and transformed to machine coordinates at generation time.
+
+**Stock Coordinate System:**
+- Origin at specified `originPosition`
+- X+ to the right
+- Y+ away from operator (into machine)
+- Z+ upward
+
+**Transformation Pipeline:**
+1. Generate toolpath in stock coordinates (0,0 at origin position)
+2. Apply pattern rotation if `patternAngle` != 0
+3. Translate to current WCS position
+4. Apply tool radius compensation
+5. Generate G-code with absolute coordinates
+
+### 3.2 Rectilinear Pattern
+
+**Algorithm:**
+```
+Input: stockX, stockY, toolRadius, stepover, patternAngle
+Output: Array of toolpath points
+
+1. Calculate effective cutting width = toolRadius * 2 * (stepover / 100)
+2. Calculate number of passes = ceil(stockY / effective cutting width)
+3. Compensate boundaries for tool radius:
+   - xMin = toolRadius
+   - xMax = stockX - toolRadius
+   - yMin = toolRadius
+   - yMax = stockY - toolRadius
+
+4. For each pass i from 0 to numPasses:
+   a. Calculate Y position = yMin + (i * effective cutting width)
+   b. If Y > yMax, clamp to yMax
+   c. If pass is even (i % 2 == 0):
+      - Move from (xMin, Y) to (xMax, Y)
+   d. If pass is odd:
+      - Move from (xMax, Y) to (xMin, Y)
+   e. Add retract move to Z safe height between passes if needed
+
+5. Apply pattern rotation around stock center
+6. Transform to WCS coordinates
+```
+
+**Optimization Considerations:**
+- Minimize retracts by using continuous zigzag motion
+- Maintain consistent climb/conventional milling based on spindle direction
+- Add lead-in/lead-out moves for smoother entry/exit
+
+### 3.3 Zigzag Pattern
+
+The zigzag pattern is similar to rectilinear but ensures continuous motion without retracts between passes.
+
+**Algorithm:**
+```
+Input: stockX, stockY, toolRadius, stepover, patternAngle
+Output: Array of toolpath points
+
+1. Calculate effective cutting width = toolRadius * 2 * (stepover / 100)
+2. Calculate number of passes = ceil(stockY / effective cutting width)
+3. Compensate boundaries for tool radius:
+   - xMin = toolRadius
+   - xMax = stockX - toolRadius
+   - yMin = toolRadius
+   - yMax = stockY - toolRadius
+
+4. Start at (xMin, yMin) - bottom left
+5. For each pass i from 0 to numPasses:
+   a. Calculate Y position = yMin + (i * effective cutting width)
+   b. If Y > yMax, clamp to yMax
+   c. If pass is even:
+      - Cut from current X to xMax at Y
+      - If not last pass, move to (xMax, Y + effective cutting width)
+   d. If pass is odd:
+      - Cut from current X to xMin at Y
+      - If not last pass, move to (xMin, Y + effective cutting width)
+
+6. Apply pattern rotation around stock center
+7. Transform to WCS coordinates
+```
+
+**Key Differences from Rectilinear:**
+- No Z retracts between passes
+- Continuous helical or ramping motion
+- Better for finishing operations
+- More efficient for large areas
+
+### 3.4 Spiral Pattern
+
+Spiral patterns work from outside to inside (or vice versa) in a continuous spiral motion.
+
+**Algorithm (Outside-In):**
+```
+Input: stockX, stockY, toolRadius, stepover, patternAngle, spiralDirection
+Output: Array of toolpath points
+
+1. Calculate effective cutting width = toolRadius * 2 * (stepover / 100)
+2. Initialize boundary rectangle:
+   - xMin = toolRadius
+   - xMax = stockX - toolRadius
+   - yMin = toolRadius
+   - yMax = stockY - toolRadius
+
+3. Current position = (xMin, yMin) - bottom left corner
+
+4. While boundary rectangle has area > 0:
+   a. Move right along bottom edge: (xMin, yMin) to (xMax, yMin)
+   b. Move up along right edge: (xMax, yMin) to (xMax, yMax)
+   c. Move left along top edge: (xMax, yMax) to (xMin, yMax)
+   d. Move down along left edge: (xMin, yMax) to (xMin, yMin + effective cutting width)
+   
+   e. Shrink boundary inward by effective cutting width:
+      - xMin += effective cutting width
+      - xMax -= effective cutting width
+      - yMin += effective cutting width
+      - yMax -= effective cutting width
+   
+   f. If boundary invalid (xMin >= xMax or yMin >= yMax), break
+
+5. For circular stock, clip toolpath to circular boundary
+6. Apply pattern rotation
+7. Transform to WCS coordinates
+```
+
+**Circular Stock Optimization:**
+- Calculate spiral based on radius
+- Use polar coordinates for generation
+- Convert to Cartesian for G-code output
+- Ensure smooth radius reduction per revolution
+
+### 3.5 Circular Stock Considerations
+
+For circular stock, toolpaths must be clipped to stay within the circular boundary:
+
+**Boundary Clipping:**
+```
+For each toolpath point (x, y):
+1. Calculate distance from center: d = sqrt((x - centerX)^2 + (y - centerY)^2)
+2. Calculate max radius: maxR = stockRadius - toolRadius
+3. If d > maxR:
+   a. Calculate angle: θ = atan2(y - centerY, x - centerX)
+   b. Clip to boundary: 
+      - x = centerX + maxR * cos(θ)
+      - y = centerY + maxR * sin(θ)
+```
+
+### 3.6 Z Level Management
+
+**Multi-Pass Depth Strategy:**
+```
+Input: totalDepth, stepdown, zOffset
+Output: Array of Z levels
+
+1. Calculate number of Z passes: numPasses = ceil(totalDepth / stepdown)
+2. For each pass i from 0 to numPasses:
+   a. Calculate Z depth = zOffset - min(i * stepdown, totalDepth)
+   b. Generate XY toolpath at this Z level
+   c. Add lead-in at beginning of level (ramp or plunge)
+   d. Add lead-out at end of level if not final pass
+```
+
+**Plunge Strategies:**
+- **Direct Plunge:** Rapid to XY position, plunge at feedRateZ
+- **Ramp Entry:** Helical or linear ramp into material
+- **Preferred:** Ramp entry for better tool life and finish
+
+---
+
+## 4. G-code Generation
+
+### 4.1 G-code Structure
+
+**Header Section:**
+```gcode
+; NeXT Stock Preparation - Generated Facing Operation
+; Stock: [Rectangular/Circular] [dimensions]
+; Pattern: [pattern type] at [angle]°
+; Tool: T[number] R[radius]mm
+; Feed: XY=[feedRateXY] Z=[feedRateZ] mm/min
+; Spindle: [spindleSpeed] RPM
+
+G21 ; Metric units
+G90 ; Absolute positioning
+G94 ; Feed rate per minute
+```
+
+**Setup Section:**
+```gcode
+; Setup
+G54 ; Use current WCS (or specified WCS)
+T[currentTool] ; Confirm tool selection
+M3.9 S[spindleSpeed] ; Start spindle with safety wrapper
+G4 P2 ; Wait for spindle to reach speed
+```
+
+**Positioning Section:**
+```gcode
+; Position to start
+G0 Z[safeZ] ; Move to safe height
+G0 X[startX] Y[startY] ; Rapid to start position
+```
+
+**Cutting Section:**
+For each Z level:
+```gcode
+; Z Level [i]: [currentZ]mm
+G1 Z[currentZ] F[feedRateZ] ; Plunge to depth
+
+; XY toolpath
+G1 X[x1] Y[y1] F[feedRateXY]
+G1 X[x2] Y[y2]
+G1 X[x3] Y[y3]
+; ... (all toolpath points)
+
+G0 Z[safeZ] ; Retract (if not last level)
+```
+
+**Cleanup Section:**
+```gcode
+; Cleanup
+G0 Z[safeZ] ; Final retract
+M5.9 ; Stop spindle with safety wrapper
+G27 Z1 ; Park machine
+M30 ; Program end
+```
+
+### 4.2 Safety Features
+
+**Pre-Operation Checks:**
+- Verify all axes are homed
+- Confirm tool is selected and radius is known
+- Verify WCS is set and valid
+- Check that stock dimensions fit within machine limits
+- Validate all parameters are within safe ranges
+
+**During Operation:**
+- Use M3.9/M5.9 wrappers for spindle control (includes safety confirmations)
+- Maintain minimum safe Z height between passes
+- Avoid rapid moves while tool is in material
+- Use appropriate feed rates for material type
+
+**Post-Operation:**
+- Always park machine (G27)
+- Stop spindle before program end
+- Provide completion confirmation via M291
+
+### 4.3 G-code Optimization
+
+**Efficiency Improvements:**
+- Minimize Z retracts (use zigzag over rectilinear when possible)
+- Combine adjacent collinear moves
+- Remove redundant positioning moves
+- Use G0 rapids for positioning, G1 for cutting
+- Optimize move order to minimize travel distance
+
+**Arc Support:**
+For spiral patterns and circular stock:
+- Use G2/G3 arc commands where beneficial
+- Fall back to linear interpolation for complex curves
+- Ensure arc center point accuracy
+
+---
+
+## 5. Visualization System
+
+### 5.1 Rendering Technology Choice
+
+**SVG Rendering (Recommended for Phase 1):**
+- **Pros:**
+  - Simple to implement
+  - Good browser support
+  - Easy debugging
+  - Scales perfectly
+  - Low overhead for moderate complexity
+- **Cons:**
+  - Performance degrades with very complex toolpaths (>10k points)
+  - Limited 3D visualization
+
+**WebGL/Three.js (Future Enhancement):**
+- **Pros:**
+  - Excellent performance for complex toolpaths
+  - True 3D visualization
+  - Can show multi-pass Z levels
+  - Interactive rotation/zoom
+- **Cons:**
+  - More complex implementation
+  - Larger dependency footprint
+  - May require fallback for older browsers
+
+**Initial Implementation:** SVG for Phase 1, with architecture designed to support WebGL upgrade in Phase 2.
+
+### 5.2 SVG Visualization Design
+
+**Viewport Setup:**
+- Aspect ratio matches stock dimensions
+- Auto-scaling to fit available UI space
+- Minimum size: 400x400px
+- Maximum size: 800x600px (responsive)
+
+**Visual Elements:**
+
+**Stock Boundary:**
+```svg
+<rect x="0" y="0" width="[stockX]" height="[stockY]" 
+      fill="none" stroke="#888888" stroke-width="2"/>
+<!-- OR for circular: -->
+<circle cx="[centerX]" cy="[centerY]" r="[radius]"
+        fill="none" stroke="#888888" stroke-width="2"/>
+```
+
+**WCS Origin Indicator:**
+```svg
+<g id="origin">
+  <line x1="-10" y1="0" x2="10" y2="0" stroke="red" stroke-width="1"/>
+  <line x1="0" y1="-10" x2="0" y2="10" stroke="green" stroke-width="1"/>
+  <circle cx="0" cy="0" r="3" fill="blue"/>
+</g>
+```
+
+**Toolpath:**
+```svg
+<polyline points="[x1],[y1] [x2],[y2] [x3],[y3]..."
+          fill="none" stroke="#2196F3" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round"/>
+```
+
+**Tool Indicator (current position during simulation):**
+```svg
+<circle cx="[currentX]" cy="[currentY]" r="[toolRadius]"
+        fill="rgba(33, 150, 243, 0.3)" stroke="#2196F3" stroke-width="1"/>
+```
+
+### 5.3 Visualization Features
+
+**Static Preview:**
+- Display complete toolpath for one Z level
+- Show tool boundary compensation
+- Highlight start point (green) and end point (red)
+- Show cutting direction with arrows at regular intervals
+
+**Interactive Features:**
+- Pan: Click and drag to move view
+- Zoom: Scroll wheel or pinch to zoom in/out
+- Reset view button to return to auto-fit
+- Toggle grid overlay for dimension reference
+
+**Animation (Optional Enhancement):**
+- Play/pause button to animate tool movement
+- Speed slider (1x to 10x)
+- Progress indicator showing percentage complete
+- Estimated time display
+
+**Multi-Level View (Future):**
+- Slider to select which Z level to display
+- 3D isometric view showing all Z levels
+- Color coding by Z depth
+
+### 5.4 Real-time Update
+
+**Reactive Rendering:**
+```javascript
+watch: {
+  toolRadius: 'regenerateToolpath',
+  stockX: 'regenerateToolpath',
+  stockY: 'regenerateToolpath',
+  stockShape: 'regenerateToolpath',
+  facingPattern: 'regenerateToolpath',
+  patternAngle: 'regenerateToolpath',
+  stepover: 'regenerateToolpath'
+},
+methods: {
+  regenerateToolpath() {
+    // Debounce to avoid excessive recalculation
+    clearTimeout(this.regenerateTimer);
+    this.regenerateTimer = setTimeout(() => {
+      this.toolpath = this.generateToolpath();
+      this.renderSVG();
+    }, 250);
+  }
+}
+```
+
+**Performance Optimization:**
+- Debounce input changes (250ms delay)
+- Only recalculate affected components
+- Use requestAnimationFrame for smooth animation
+- Limit point density for preview (can be full resolution for actual G-code)
+
+---
+
+## 6. UI/UX Design
+
+### 6.1 Component Structure
+
+**Main Component: `StockPreparationPanel.vue`**
+
+Layout structure:
+```
+┌─────────────────────────────────────────────┐
+│ Stock Preparation                           │
+├─────────────────────────────────────────────┤
+│ [Tab: Setup] [Tab: Preview] [Tab: Generate]│
+├─────────────────────────────────────────────┤
+│                                             │
+│  Tab Content Area                           │
+│                                             │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+### 6.2 Setup Tab
+
+**Section 1: Tool Configuration**
+```
+Tool Configuration
+┌─────────────────────────────────────────┐
+│ Current Tool: T1 - 6mm End Mill        │
+│ Tool Radius: [6.0] mm                   │
+│ [✓] Use current tool radius             │
+└─────────────────────────────────────────┘
+```
+
+**Section 2: Stock Geometry**
+```
+Stock Geometry
+┌─────────────────────────────────────────┐
+│ Shape: ● Rectangular  ○ Circular        │
+│                                         │
+│ [If Rectangular:]                       │
+│   X Dimension: [100.0] mm               │
+│   Y Dimension: [75.0] mm                │
+│   Origin Position: [Front Left ▼]      │
+│                                         │
+│ [If Circular:]                          │
+│   Diameter: [100.0] mm                  │
+│   ● Diameter  ○ Radius                  │
+│   Origin: Center (fixed)                │
+└─────────────────────────────────────────┘
+```
+
+**Section 3: Facing Pattern**
+```
+Facing Pattern
+┌─────────────────────────────────────────┐
+│ Pattern: [Zigzag ▼]                     │
+│   Options: Rectilinear, Zigzag, Spiral  │
+│ Angle: [0]° ═══●═══ [slider 0-360]     │
+└─────────────────────────────────────────┘
+```
+
+**Section 4: Cutting Parameters**
+```
+Cutting Parameters
+┌─────────────────────────────────────────┐
+│ Stepover: [4.5] mm (75%) ═══●═══        │
+│ Stepdown: [1.0] mm                      │
+│ Total Depth: [2.0] mm                   │
+│ Z Offset: [0.0] mm                      │
+└─────────────────────────────────────────┘
+```
+
+**Section 5: Feed and Speed**
+```
+Feed and Speed
+┌─────────────────────────────────────────┐
+│ Horizontal Feed: [1000] mm/min          │
+│ Vertical Feed: [300] mm/min             │
+│ Spindle Speed: [10000] RPM              │
+└─────────────────────────────────────────┘
+```
+
+**Action Buttons:**
+```
+┌─────────────────────────────────────────┐
+│  [Generate Preview →]                   │
+└─────────────────────────────────────────┘
+```
+
+### 6.3 Preview Tab
+
+**Layout:**
+```
+┌─────────────────────────────────────────┐
+│ Toolpath Preview                        │
+├─────────────────────────────────────────┤
+│                                         │
+│       [SVG Visualization Area]          │
+│                                         │
+│                                         │
+├─────────────────────────────────────────┤
+│ Statistics:                             │
+│   Total Passes: 15                      │
+│   Total Distance: 1,234.5 mm            │
+│   Est. Time: 5 min 23 sec               │
+│   Material Removed: 15.0 cm³            │
+├─────────────────────────────────────────┤
+│ View Controls:                          │
+│ [Reset View] [Toggle Grid] [Zoom In]    │
+│ [Zoom Out]                              │
+│                                         │
+│ Z Level: [1] ═══●═══ (of 2 levels)     │
+└─────────────────────────────────────────┘
+```
+
+**Action Buttons:**
+```
+┌─────────────────────────────────────────┐
+│ [← Back to Setup]  [Generate G-code →]  │
+└─────────────────────────────────────────┘
+```
+
+### 6.4 Generate Tab
+
+**G-code Preview:**
+```
+┌─────────────────────────────────────────┐
+│ Generated G-code                        │
+├─────────────────────────────────────────┤
+│ ; NeXT Stock Preparation               │
+│ ; Stock: Rectangular 100x75mm          │
+│ ; Pattern: Zigzag at 0°                │
+│ ; ...                                  │
+│ G21                                    │
+│ G90                                    │
+│ M3.9 S10000                            │
+│ ...                                    │
+│ [Scrollable code area]                 │
+│                                        │
+└─────────────────────────────────────────┘
+```
+
+**File Management:**
+```
+┌─────────────────────────────────────────┐
+│ Filename: [stock-prep-001.gcode]        │
+│ Save Location: [/gcodes/ ▼]            │
+│                                         │
+│ [💾 Save as File]  [▶ Run Immediately] │
+└─────────────────────────────────────────┘
+```
+
+**Action Buttons:**
+```
+┌─────────────────────────────────────────┐
+│ [← Back to Preview]      [Close Panel]  │
+└─────────────────────────────────────────┘
+```
+
+### 6.5 Validation and Error Handling
+
+**Input Validation:**
+- Real-time validation as user types
+- Red border + error message for invalid values
+- Disable "Generate Preview" until all inputs valid
+- Show warning icon next to problematic fields
+
+**Error Messages:**
+```
+⚠ Tool radius exceeds stock dimensions
+⚠ Stepover must be less than tool diameter  
+⚠ Total depth must be positive
+⚠ Feed rate below recommended minimum (500 mm/min)
+⚠ Spindle speed above maximum (check your machine)
+```
+
+**Warnings (non-blocking):**
+```
+ℹ No tool selected - using manual radius
+ℹ Pattern angle is not a multiple of 45°
+ℹ High stepdown may cause excessive tool load
+ℹ Consider reducing spindle speed for harder materials
+```
+
+### 6.6 Responsive Design
+
+**Desktop (>1200px):**
+- Side-by-side layout: Setup on left, Preview on right
+- Full-sized visualization (800px)
+- All controls visible simultaneously
+
+**Tablet (768px - 1200px):**
+- Tabbed interface
+- Visualization scales to 600px
+- Collapsed control groups with expand/collapse
+
+**Mobile (<768px):**
+- Fully stacked vertical layout
+- Visualization scales to screen width
+- Simplified controls with essential parameters only
+- "Advanced" section for additional parameters
+
+---
+
+## 7. Implementation Phases
+
+### Phase 7.1: Backend - Toolpath Generation (Week 1-2)
+
+**Tasks:**
+1. Create toolpath generation utilities in `ui/src/utils/toolpath.ts`
+2. Implement rectilinear pattern generator
+3. Implement zigzag pattern generator
+4. Implement spiral pattern generator
+5. Create coordinate transformation functions
+6. Add circular stock boundary clipping
+7. Implement Z level management
+8. Add comprehensive unit tests for algorithms
+
+**Deliverables:**
+- `toolpath.ts` with all generation functions
+- `toolpath.test.ts` with test coverage
+- Documentation of algorithm implementations
+
+### Phase 7.2: UI Component - Basic Structure (Week 2-3)
+
+**Tasks:**
+1. Create `StockPreparationPanel.vue` component
+2. Implement tabbed interface structure
+3. Create Setup tab with all input fields
+4. Add form validation logic
+5. Integrate with NeXT store for current tool/WCS
+6. Add input field change handlers
+7. Create computed properties for validation state
+
+**Deliverables:**
+- Working Setup tab with all inputs
+- Validation feedback system
+- Integration with machine state
+
+### Phase 7.3: Visualization - SVG Rendering (Week 3-4)
+
+**Tasks:**
+1. Create `ToolpathPreview.vue` component
+2. Implement SVG viewport with auto-scaling
+3. Add stock boundary rendering
+4. Add toolpath rendering
+5. Implement WCS origin indicator
+6. Add zoom and pan controls
+7. Create reset view functionality
+8. Add grid overlay toggle
+
+**Deliverables:**
+- Working Preview tab with SVG visualization
+- Interactive view controls
+- Responsive scaling
+
+### Phase 7.4: G-code Generation (Week 4-5)
+
+**Tasks:**
+1. Create G-code generator in `ui/src/utils/gcode.ts`
+2. Implement header/footer generation
+3. Add setup section generation
+4. Implement cutting move generation from toolpath
+5. Add Z level iteration logic
+6. Implement lead-in/lead-out moves
+7. Add safety features (M3.9/M5.9 wrappers)
+8. Create G-code preview component
+
+**Deliverables:**
+- `gcode.ts` generator utility
+- G-code preview display
+- Complete G-code output with safety features
+
+### Phase 7.5: File Management & Execution (Week 5)
+
+**Tasks:**
+1. Integrate with RRF file upload API
+2. Add filename input and validation
+3. Implement "Save as File" functionality
+4. Implement "Run Immediately" functionality
+5. Add progress feedback during save/run
+6. Create completion dialogs
+7. Add error handling for file operations
+
+**Deliverables:**
+- Working file save functionality
+- Direct execution capability
+- User feedback system
+
+### Phase 7.6: Testing & Refinement (Week 6)
+
+**Tasks:**
+1. End-to-end testing with real machine
+2. Validate generated toolpaths
+3. Test all pattern types and parameters
+4. Verify G-code safety features
+5. Performance testing with complex toolpaths
+6. UI/UX refinement based on user feedback
+7. Documentation updates
+
+**Deliverables:**
+- Tested, production-ready feature
+- Updated documentation
+- User guide additions
+
+---
+
+## 8. Future Enhancements
+
+### Phase 2 Improvements
+
+**Advanced Toolpath Features:**
+- Multiple tools support (roughing + finishing passes)
+- Adaptive stepover based on remaining material
+- Rest machining for areas missed by previous tool
+- Offset finish pass for better surface finish
+- Climb vs conventional milling optimization
+
+**Material Database:**
+- Material type selection (aluminum, steel, plastic, wood, etc.)
+- Automatic feed and speed calculation
+- Tool coating consideration (uncoated, TiN, TiAlN, etc.)
+- Number of flutes input
+- Chip load calculation and recommendation
+
+**Advanced Patterns:**
+- Trochoidal milling for difficult materials
+- Offset spiral (constant engagement)
+- Contour parallel (follow stock shape)
+- Custom pattern import (DXF/SVG)
+
+**3D Visualization:**
+- WebGL/Three.js rendering
+- Multi-level 3D view
+- Interactive rotation/tilt
+- Material removal simulation
+- Tool collision detection visualization
+
+**Measurement Integration:**
+- Auto-detect stock dimensions using probing
+- Verify stock placement before operation
+- Post-operation verification (measure result)
+- Report actual material removed
+
+**Advanced G-code Options:**
+- High-speed machining (G5 or G5.1 for smoothing)
+- Dynamic feed rate adjustment
+- Corner rounding control
+- Arc fitting for smoother motion
+- Lookahead optimization hints
+
+---
+
+## 9. Technical Considerations
+
+### 9.1 Performance
+
+**Target Performance:**
+- Toolpath generation: <500ms for typical operations
+- SVG rendering: <200ms for toolpaths up to 5000 points
+- UI responsiveness: 60fps during input changes
+- G-code generation: <1000ms for complete program
+
+**Optimization Strategies:**
+- Use Web Workers for toolpath generation (offload from UI thread)
+- Implement progressive rendering for complex toolpaths
+- Cache computed toolpaths until parameters change
+- Use virtual scrolling for long G-code preview
+- Debounce input changes to reduce recalculation
+
+### 9.2 Memory Constraints
+
+**Typical Toolpath Complexity:**
+- Simple facing: ~500-2000 points
+- Complex multi-level: ~10,000-50,000 points
+- Memory per point: ~40 bytes (x, y, z, feed, type)
+- Total memory: 400KB - 2MB (acceptable)
+
+**Memory Management:**
+- Release previous toolpath when generating new
+- Use typed arrays for point storage (Float32Array)
+- Implement toolpath simplification for preview
+- Full resolution only for final G-code generation
+
+### 9.3 Browser Compatibility
+
+**Minimum Requirements:**
+- ES6 support (Chrome 51+, Firefox 54+, Safari 10+, Edge 15+)
+- SVG 1.1 support (all modern browsers)
+- Web Workers (for performance)
+- File API (for G-code download)
+
+**Fallback Strategies:**
+- Detect Web Worker support, fallback to main thread
+- SVG preferred, Canvas fallback if needed
+- Progressive enhancement for advanced features
+
+### 9.4 Integration Points
+
+**NeXT Backend Integration:**
+- Read current tool from `global.nxtCurrentTool`
+- Read tool radius from `tools[nxtCurrentTool].offsets[0]` (diameter/2)
+- Read active WCS from `move.workplaceNumber`
+- Send G-code via `store.dispatch('machine/sendCode', code)`
+- Save files via RRF HTTP API: `rr_upload`
+
+**Store Integration:**
+```javascript
+computed: {
+  currentTool() {
+    return this.$store.state.machine.model.tools[this.nxtCurrentTool];
+  },
+  toolRadius() {
+    return this.currentTool?.offsets[0] / 2 || 0;
+  },
+  activeWCS() {
+    return this.$store.state.machine.model.move.workplaceNumber;
+  }
+}
+```
+
+**File Upload:**
+```javascript
+async saveGCodeFile(filename, gcode) {
+  const formData = new FormData();
+  const blob = new Blob([gcode], { type: 'text/plain' });
+  formData.append('file', blob, filename);
+  
+  const response = await fetch(
+    `/rr_upload?name=${encodeURIComponent(`/gcodes/${filename}`)}`,
+    {
+      method: 'POST',
+      body: formData
+    }
+  );
+  
+  return response.ok;
+}
+```
+
+---
+
+## 10. Testing Strategy
+
+### 10.1 Unit Tests
+
+**Toolpath Generation:**
+- Test each pattern type with known inputs
+- Verify boundary compensation
+- Validate coordinate transformations
+- Test circular clipping
+- Verify Z level calculations
+
+**G-code Generation:**
+- Verify correct command syntax
+- Validate move sequences
+- Check safety feature inclusion
+- Test parameter substitution
+
+### 10.2 Integration Tests
+
+**UI Components:**
+- Test input validation
+- Verify reactive updates
+- Test tab navigation
+- Validate error display
+
+**File Operations:**
+- Test file save success/failure
+- Verify G-code upload
+- Test immediate execution
+
+### 10.3 End-to-End Tests
+
+**Manual Testing Checklist:**
+- [ ] Generate rectilinear pattern
+- [ ] Generate zigzag pattern
+- [ ] Generate spiral pattern
+- [ ] Test with rectangular stock
+- [ ] Test with circular stock
+- [ ] Verify all origin positions
+- [ ] Test pattern rotation (0°, 45°, 90°)
+- [ ] Save G-code file
+- [ ] Run G-code immediately
+- [ ] Verify safety features trigger (M3.9/M5.9)
+- [ ] Test with real machine (air cut)
+- [ ] Test with real material (soft material first)
+
+### 10.4 Validation Tests
+
+**Toolpath Accuracy:**
+- Measure actual stock dimensions after facing
+- Verify surface flatness
+- Check corner accuracy
+- Validate material removal amount
+
+**G-code Compliance:**
+- Parse with G-code validator
+- Verify syntax correctness
+- Check coordinate limits
+- Validate move sequences
+
+---
+
+## 11. Documentation Requirements
+
+### 11.1 User Documentation
+
+**Quick Start Guide:**
+- How to access Stock Preparation panel
+- Basic parameter setup
+- Generating and previewing toolpaths
+- Running a facing operation
+
+**Parameter Reference:**
+- Detailed explanation of each input
+- Recommended values for common scenarios
+- Pattern type comparison and selection guide
+- Feed and speed guidelines
+
+**Troubleshooting:**
+- Common error messages and solutions
+- Performance issues and fixes
+- Visualization problems
+- G-code execution issues
+
+### 11.2 Developer Documentation
+
+**Architecture Overview:**
+- Component structure
+- Data flow diagram
+- Algorithm implementations
+- Integration points
+
+**API Reference:**
+- Toolpath generation functions
+- G-code generator API
+- Component props and events
+- Store integration methods
+
+**Contributing Guide:**
+- How to add new pattern types
+- Testing requirements
+- Code style guidelines
+- Pull request process
+
+---
+
+## 12. Success Criteria
+
+### Minimum Viable Product (MVP)
+
+- [ ] All input fields functional with validation
+- [ ] Rectilinear and zigzag patterns implemented
+- [ ] SVG preview displays toolpath accurately
+- [ ] G-code generation produces valid output
+- [ ] File save functionality works
+- [ ] Run immediately functionality works
+- [ ] Safety features (M3.9/M5.9) included
+- [ ] Basic error handling implemented
+- [ ] Responsive UI works on desktop
+- [ ] Documentation created
+
+### Full Feature Set
+
+- [ ] All three pattern types (rectilinear, zigzag, spiral)
+- [ ] Both stock shapes (rectangular, circular)
+- [ ] All origin positions supported
+- [ ] Pattern rotation works correctly
+- [ ] Interactive visualization (zoom, pan)
+- [ ] Statistics display (time, distance, etc.)
+- [ ] Multi-level Z preview
+- [ ] Mobile-responsive design
+- [ ] Comprehensive testing completed
+- [ ] Performance targets met
+
+### Quality Benchmarks
+
+- [ ] Zero critical bugs
+- [ ] All unit tests passing (>90% coverage)
+- [ ] Integration tests passing
+- [ ] End-to-end testing with real machine successful
+- [ ] User feedback positive
+- [ ] Documentation complete and clear
+- [ ] Performance within targets
+- [ ] Code review approved
+
+---
+
+## 13. Risk Assessment
+
+### Technical Risks
+
+**Toolpath Generation Complexity:**
+- **Risk:** Algorithms may be more complex than anticipated
+- **Mitigation:** Start with simple patterns, iterate to complex
+- **Fallback:** Reduce pattern options in MVP
+
+**Performance Issues:**
+- **Risk:** Complex toolpaths may cause UI lag
+- **Mitigation:** Use Web Workers, implement progressive rendering
+- **Fallback:** Limit toolpath complexity, simplify preview
+
+**Browser Compatibility:**
+- **Risk:** Older browsers may not support required features
+- **Mitigation:** Use polyfills, provide fallbacks
+- **Fallback:** Require modern browser, document requirements
+
+### Integration Risks
+
+**RRF API Changes:**
+- **Risk:** File upload API may change or be unavailable
+- **Mitigation:** Abstract API calls, implement adapter pattern
+- **Fallback:** Manual G-code copy/paste option
+
+**Store State Management:**
+- **Risk:** Machine state may not be available or accurate
+- **Mitigation:** Validate all state reads, provide manual overrides
+- **Fallback:** Manual input for all parameters
+
+### User Experience Risks
+
+**Complexity Overload:**
+- **Risk:** Too many parameters may confuse users
+- **Mitigation:** Provide presets, sane defaults, progressive disclosure
+- **Fallback:** Simplified UI with "Advanced" section
+
+**Preview Accuracy:**
+- **Risk:** Preview may not match actual machine behavior
+- **Mitigation:** Extensive testing, clear disclaimers
+- **Fallback:** Provide warning about preview limitations
+
+---
+
+## Conclusion
+
+The Stock Preparation UI represents a significant enhancement to NeXT, providing operators with a powerful, integrated tool for common facing operations. By following this comprehensive implementation approach, we can deliver a feature that is:
+
+1. **User-Friendly:** Intuitive interface with visual feedback
+2. **Powerful:** Flexible pattern types and parameter control
+3. **Safe:** Integrated safety features and validation
+4. **Performant:** Optimized for responsive UI and fast generation
+5. **Extensible:** Architecture supports future enhancements
+
+The phased implementation approach ensures steady progress with testable milestones, while the detailed technical specifications provide clear guidance for development. The success criteria and risk assessment help manage expectations and provide contingency plans.
+
+This feature will significantly improve the NeXT user experience and reduce dependency on external CAM software for basic stock preparation operations.
