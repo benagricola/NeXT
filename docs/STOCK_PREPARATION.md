@@ -127,6 +127,23 @@ The Stock Preparation UI provides a guided interface for generating facing opera
 - **Purpose:** Total material to remove (calculated from zOffset)
 - **Validation:** Must be positive
 
+**Clear Stock Exit** (`clearStockExit`)
+- **Type:** Boolean
+- **Default:** `false`
+- **Purpose:** Controls whether tool completely exits stock area during direction changes and stepdowns
+- **Behavior:**
+  - When `true`: Tool moves outside stock boundary by full tool diameter + 1mm clearance
+  - When `false`: Tool stays within stock boundary (moves to tool radius from edge)
+- **Benefits:** 
+  - Cleaner surface finish when enabled
+  - Direction changes and stepdowns occur without stock contact
+  - Reduces marking from tool engagement/disengagement
+  - Prevents witness marks at pass boundaries
+- **Considerations:**
+  - Increases cycle time due to additional travel moves
+  - Requires adequate clearance around stock
+  - May trigger protective boundaries if stock near machine limits
+
 ### 2.5 Feed and Speed
 
 **Horizontal Feed Rate** (`feedRateXY`)
@@ -172,16 +189,22 @@ All calculations are performed in a normalized coordinate space and transformed 
 
 **Algorithm:**
 ```
-Input: stockX, stockY, toolRadius, stepover, patternAngle
+Input: stockX, stockY, toolRadius, stepover, patternAngle, clearStockExit
 Output: Array of toolpath points
 
 1. Calculate effective cutting width = toolRadius * 2 * (stepover / 100)
 2. Calculate number of passes = ceil(stockY / effective cutting width)
 3. Compensate boundaries for tool radius:
-   - xMin = toolRadius
-   - xMax = stockX - toolRadius
-   - yMin = toolRadius
-   - yMax = stockY - toolRadius
+   - If clearStockExit is true:
+     - xMin = -(toolRadius * 2 + 1)  // Exit stock by full diameter + 1mm
+     - xMax = stockX + (toolRadius * 2 + 1)
+     - yMin = -(toolRadius * 2 + 1)
+     - yMax = stockY + (toolRadius * 2 + 1)
+   - If clearStockExit is false:
+     - xMin = toolRadius  // Standard tool center compensation
+     - xMax = stockX - toolRadius
+     - yMin = toolRadius
+     - yMax = stockY - toolRadius
 
 4. For each pass i from 0 to numPasses:
    a. Calculate Y position = yMin + (i * effective cutting width)
@@ -200,6 +223,8 @@ Output: Array of toolpath points
 - Minimize retracts by using continuous zigzag motion
 - Maintain consistent climb/conventional milling based on spindle direction
 - Add lead-in/lead-out moves for smoother entry/exit
+- When clearStockExit is true, ensure adequate clearance around stock
+- Use rapid moves (G0) for moves outside stock boundary
 
 ### 3.3 Zigzag Pattern
 
@@ -210,13 +235,24 @@ The zigzag pattern is similar to rectilinear but ensures continuous motion witho
 Input: stockX, stockY, toolRadius, stepover, patternAngle
 Output: Array of toolpath points
 
+**Algorithm:**
+```
+Input: stockX, stockY, toolRadius, stepover, patternAngle, clearStockExit
+Output: Array of toolpath points
+
 1. Calculate effective cutting width = toolRadius * 2 * (stepover / 100)
 2. Calculate number of passes = ceil(stockY / effective cutting width)
 3. Compensate boundaries for tool radius:
-   - xMin = toolRadius
-   - xMax = stockX - toolRadius
-   - yMin = toolRadius
-   - yMax = stockY - toolRadius
+   - If clearStockExit is true:
+     - xMin = -(toolRadius * 2 + 1)
+     - xMax = stockX + (toolRadius * 2 + 1)
+     - yMin = -(toolRadius * 2 + 1)
+     - yMax = stockY + (toolRadius * 2 + 1)
+   - If clearStockExit is false:
+     - xMin = toolRadius
+     - xMax = stockX - toolRadius
+     - yMin = toolRadius
+     - yMax = stockY - toolRadius
 
 4. Start at (xMin, yMin) - bottom left
 5. For each pass i from 0 to numPasses:
@@ -238,6 +274,7 @@ Output: Array of toolpath points
 - Continuous helical or ramping motion
 - Better for finishing operations
 - More efficient for large areas
+- When clearStockExit is true, step-over movements occur completely outside stock
 
 ### 3.4 Spiral Pattern
 
@@ -245,15 +282,21 @@ Spiral patterns work from outside to inside (or vice versa) in a continuous spir
 
 **Algorithm (Outside-In):**
 ```
-Input: stockX, stockY, toolRadius, stepover, patternAngle, spiralDirection
+Input: stockX, stockY, toolRadius, stepover, patternAngle, spiralDirection, clearStockExit
 Output: Array of toolpath points
 
 1. Calculate effective cutting width = toolRadius * 2 * (stepover / 100)
 2. Initialize boundary rectangle:
-   - xMin = toolRadius
-   - xMax = stockX - toolRadius
-   - yMin = toolRadius
-   - yMax = stockY - toolRadius
+   - If clearStockExit is true:
+     - xMin = -(toolRadius * 2 + 1)
+     - xMax = stockX + (toolRadius * 2 + 1)
+     - yMin = -(toolRadius * 2 + 1)
+     - yMax = stockY + (toolRadius * 2 + 1)
+   - If clearStockExit is false:
+     - xMin = toolRadius
+     - xMax = stockX - toolRadius
+     - yMin = toolRadius
+     - yMax = stockY - toolRadius
 
 3. Current position = (xMin, yMin) - bottom left corner
 
@@ -281,6 +324,7 @@ Output: Array of toolpath points
 - Use polar coordinates for generation
 - Convert to Cartesian for G-code output
 - Ensure smooth radius reduction per revolution
+- When clearStockExit is true, start spiral outside stock diameter
 
 ### 3.5 Circular Stock Considerations
 
@@ -520,7 +564,8 @@ watch: {
   stockShape: 'regenerateToolpath',
   facingPattern: 'regenerateToolpath',
   patternAngle: 'regenerateToolpath',
-  stepover: 'regenerateToolpath'
+  stepover: 'regenerateToolpath',
+  clearStockExit: 'regenerateToolpath'
 },
 methods: {
   regenerateToolpath() {
@@ -610,6 +655,9 @@ Cutting Parameters
 │ Stepdown: [1.0] mm                      │
 │ Total Depth: [2.0] mm                   │
 │ Z Offset: [0.0] mm                      │
+│                                         │
+│ [✓] Clear Stock Exit                    │
+│     (Tool exits stock completely)       │
 └─────────────────────────────────────────┘
 ```
 
@@ -705,6 +753,8 @@ Feed and Speed
 ℹ Pattern angle is not a multiple of 45°
 ℹ High stepdown may cause excessive tool load
 ℹ Consider reducing spindle speed for harder materials
+ℹ Clear Stock Exit enabled - verify adequate clearance around stock
+ℹ Clear Stock Exit may increase cycle time significantly
 ```
 
 ### 6.5 Responsive Design
