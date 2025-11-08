@@ -23,9 +23,10 @@ The Stock Preparation UI provides a guided interface for generating facing opera
 ### 2.1 Tool Configuration
 **Tool Radius** (`toolRadius`)
 - **Type:** Number (mm)
-- **Default:** Current tool radius if tool is selected
+- **Default:** Current tool radius from `global.nxtToolRadius[nxtCurrentTool]` if tool is selected
 - **Range:** 0.1mm - 50mm
 - **Purpose:** Determines stepover calculations and toolpath boundaries
+- **Source:** Read from NeXT's tool radius vector (RRF does not store tool radius)
 - **Validation:** 
   - Must be positive
   - Should be less than stock dimensions
@@ -1102,8 +1103,9 @@ Feed and Speed
 
 **NeXT Backend Integration:**
 - Read current tool from `global.nxtCurrentTool`
-- Read tool radius from `global.nxtToolTable[nxtCurrentTool].radius` (NeXT's tool table)
-- **Note:** RRF does not store tool radius. NeXT uses `global.nxtToolTable` to track additional tool properties not stored by RRF
+- Read tool radius from `global.nxtToolRadius[nxtCurrentTool]` (indexed vector)
+- **Note:** RRF does not store tool radius. NeXT uses `global.nxtToolRadius` vector to track tool radius for each tool
+- **Example:** `set global.nxtToolRadius[state.currentTool] = radius`
 - Read active WCS from `move.workplaceNumber`
 - Read spindle configuration from `spindles[global.nxtSpindleID]`
 - Read axis feed rate limits from `move.axes[].maxFeedrate`
@@ -1112,11 +1114,11 @@ Feed and Speed
 
 **Object Model Queries:**
 ```javascript
-// Get current tool and radius from NeXT tool table
+// Get current tool and radius from NeXT tool radius vector
 const currentToolNum = this.$store.state.machine.model.global.nxtCurrentTool;
-const toolTable = this.$store.state.machine.model.global.nxtToolTable;
-const toolRadius = toolTable && toolTable[currentToolNum] 
-  ? toolTable[currentToolNum].radius 
+const toolRadiusVector = this.$store.state.machine.model.global.nxtToolRadius;
+const toolRadius = toolRadiusVector && toolRadiusVector[currentToolNum] 
+  ? toolRadiusVector[currentToolNum]
   : null;
 
 // Get spindle min/max speeds
