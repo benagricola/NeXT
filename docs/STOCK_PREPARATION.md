@@ -186,6 +186,20 @@ The Stock Preparation UI provides a guided interface for generating facing opera
 - **Validation:** Must be less than stepdown value
 - **Note:** Only active when finishingPass is enabled
 
+**Finishing Pass Offset** (`finishingPassOffset`)
+- **Type:** Number (mm)
+- **Range:** -2mm to +2mm
+- **Default:** 0mm
+- **Purpose:** XY offset for finishing pass toolpath
+- **Behavior:** Shifts the finishing pass toolpath inward (negative) or outward (positive)
+- **Benefits:**
+  - Compensates for tool wear or deflection
+  - Fine-tunes final dimensions
+  - Improves surface finish on edges
+  - Accounts for spring pass effect
+- **Validation:** Total offset must not exceed stock boundaries
+- **Note:** Only active when finishingPass is enabled
+
 ### 2.5 Feed and Speed
 
 **Horizontal Feed Rate** (`feedRateXY`)
@@ -392,7 +406,7 @@ For each toolpath point (x, y):
 
 **Multi-Pass Depth Strategy:**
 ```
-Input: totalDepth, stepdown, zOffset, safeZHeight, finishingPass, finishingPassHeight
+Input: totalDepth, stepdown, zOffset, safeZHeight, finishingPass, finishingPassHeight, finishingPassOffset
 Output: Array of Z levels with retract heights
 
 1. If finishingPass is enabled:
@@ -407,7 +421,8 @@ Output: Array of Z levels with retract heights
    d. Generate finishing pass:
       - Z depth = zOffset - totalDepth (final depth)
       - Calculate safe Z = Z depth + safeZHeight
-      - Generate XY toolpath at finishing depth
+      - Generate XY toolpath at finishing depth with finishingPassOffset applied
+      - Apply offset: shift all XY coordinates by finishingPassOffset (inward/outward)
       - Use same pattern as roughing but potentially different feed rate
 
 2. If finishingPass is disabled:
@@ -488,13 +503,14 @@ G0 Z[currentZ + safeZHeight] ; Retract to safe height relative to current depth
 **Finishing Pass Section (if enabled):**
 ```gcode
 ; Finishing Pass: [finalZ]mm (Safe Z: [finalZ + safeZHeight]mm)
+; Offset: [finishingPassOffset]mm
 G1 Z[finalZ] F[feedRateZ] ; Plunge to final depth
 
-; XY toolpath (same pattern as roughing)
-G1 X[x1] Y[y1] F[feedRateXY]
-G1 X[x2] Y[y2]
-G1 X[x3] Y[y3]
-; ... (all toolpath points)
+; XY toolpath (with offset applied if finishingPassOffset != 0)
+G1 X[x1 + offset] Y[y1 + offset] F[feedRateXY]
+G1 X[x2 + offset] Y[y2 + offset]
+G1 X[x3 + offset] Y[y3 + offset]
+; ... (all toolpath points with offset)
 
 G0 Z[finalZ + safeZHeight] ; Retract to safe height
 ```
@@ -663,7 +679,8 @@ watch: {
   safeZHeight: 'regenerateToolpath',
   clearStockExit: 'regenerateToolpath',
   finishingPass: 'regenerateToolpath',
-  finishingPassHeight: 'regenerateToolpath'
+  finishingPassHeight: 'regenerateToolpath',
+  finishingPassOffset: 'regenerateToolpath'
 },
 methods: {
   regenerateToolpath() {
@@ -762,6 +779,7 @@ Cutting Parameters
 │                                         │
 │ [✓] Finishing Pass                      │
 │     Finishing Height: [0.2] mm          │
+│     Finishing Offset: [0.0] mm          │
 └─────────────────────────────────────────┘
 ```
 
@@ -869,19 +887,28 @@ Feed and Speed
 
 ### 6.5 Responsive Design
 
-**Desktop (>1200px):**
+**Note:** Follow Duet Web Control's Vuetify breakpoints for consistency with the existing UI.
+
+**Vuetify Breakpoints (DWC Standard):**
+- **xs:** <600px (extra small / mobile)
+- **sm:** 600px - 960px (small / tablet portrait)
+- **md:** 960px - 1264px (medium / tablet landscape)
+- **lg:** 1264px - 1904px (large / desktop)
+- **xl:** >1904px (extra large / wide desktop)
+
+**Large Screens (lg and up: ≥1264px):**
 - Side-by-side layout: Setup on left, Preview on right
-- Full-sized visualization (800px)
+- Full-sized visualization
 - All controls visible simultaneously
 - G-code preview collapsible to save space
 
-**Tablet (768px - 1200px):**
+**Medium Screens (md: 960px - 1264px):**
 - Two-step interface (tabs/buttons to switch between steps)
-- Visualization scales to 600px
+- Visualization scales proportionally
 - Collapsed control groups with expand/collapse
 - G-code preview collapsed by default
 
-**Mobile (<768px):**
+**Small Screens (sm and down: <960px):**
 - Fully stacked vertical layout
 - Visualization scales to screen width
 - Simplified controls with essential parameters only
@@ -968,14 +995,10 @@ Feed and Speed
 2. Add filename input and validation
 3. Implement "Save as File" functionality
 4. Implement "Run Immediately" functionality
-5. Add progress feedback during save/run
-6. Create completion dialogs
-7. Add error handling for file operations
+5. Add error handling for file operations
+6. Echo completion message to DWC console log
 
-**Deliverables:**
-- Working file save functionality
-- Direct execution capability
-- User feedback system
+**Note:** Progress tracking during execution is handled by RRF's job view - no separate progress indicator needed.
 
 ### 7.6: Testing & Refinement
 
@@ -1000,11 +1023,9 @@ Feed and Speed
 ### Future Enhancements
 
 **Advanced Toolpath Features:**
-- Multiple tools support (roughing + finishing passes)
+- Multiple tools support (roughing + finishing passes with different tools)
 - Adaptive stepover based on remaining material
 - Rest machining for areas missed by previous tool
-- Offset finish pass for better surface finish
-- Climb vs conventional milling optimization
 
 **Material Database:**
 - Material type selection (aluminum, steel, plastic, wood, etc.)
@@ -1015,16 +1036,7 @@ Feed and Speed
 
 **Advanced Patterns:**
 - Trochoidal milling for difficult materials
-- Offset spiral (constant engagement)
-- Contour parallel (follow stock shape)
-- Custom pattern import (DXF/SVG)
-
-**3D Visualization:**
-- WebGL/Three.js rendering
-- Multi-level 3D view
-- Interactive rotation/tilt
-- Material removal simulation
-- Tool collision detection visualization
+- Adaptive clearing strategies
 
 **Measurement Integration:**
 - Auto-detect stock dimensions using probing
@@ -1052,11 +1064,12 @@ Feed and Speed
 - G-code generation: <1000ms for complete program
 
 **Optimization Strategies:**
-- Use Web Workers for toolpath generation (offload from UI thread)
 - Implement progressive rendering for complex toolpaths
 - Cache computed toolpaths until parameters change
 - Use virtual scrolling for long G-code preview
 - Debounce input changes to reduce recalculation
+
+**Note on Web Workers:** Only consider if DWC already uses them for heavy computation. Otherwise, keep toolpath generation in the UI thread for simplicity.
 
 ### 9.2 Memory Constraints
 
@@ -1089,7 +1102,8 @@ Feed and Speed
 
 **NeXT Backend Integration:**
 - Read current tool from `global.nxtCurrentTool`
-- Read tool radius from `tools[nxtCurrentTool].offsets[0]` (diameter/2)
+- Read tool radius from `global.nxtToolTable[nxtCurrentTool].radius` (NeXT's tool table)
+- **Note:** RRF does not store tool radius. NeXT uses `global.nxtToolTable` to track additional tool properties not stored by RRF
 - Read active WCS from `move.workplaceNumber`
 - Read spindle configuration from `spindles[global.nxtSpindleID]`
 - Read axis feed rate limits from `move.axes[].maxFeedrate`
@@ -1098,6 +1112,13 @@ Feed and Speed
 
 **Object Model Queries:**
 ```javascript
+// Get current tool and radius from NeXT tool table
+const currentToolNum = this.$store.state.machine.model.global.nxtCurrentTool;
+const toolTable = this.$store.state.machine.model.global.nxtToolTable;
+const toolRadius = toolTable && toolTable[currentToolNum] 
+  ? toolTable[currentToolNum].radius 
+  : null;
+
 // Get spindle min/max speeds
 const spindleId = this.$store.state.machine.model.global.nxtSpindleID;
 const spindle = this.$store.state.machine.model.spindles[spindleId];
