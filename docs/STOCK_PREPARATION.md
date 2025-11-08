@@ -553,16 +553,16 @@ Layout structure:
 ┌─────────────────────────────────────────────┐
 │ Stock Preparation                           │
 ├─────────────────────────────────────────────┤
-│ [Tab: Setup] [Tab: Preview] [Tab: Generate]│
+│ [Step 1: Setup] [Step 2: Preview & Run]    │
 ├─────────────────────────────────────────────┤
 │                                             │
-│  Tab Content Area                           │
+│  Step Content Area                          │
 │                                             │
 │                                             │
 └─────────────────────────────────────────────┘
 ```
 
-### 6.2 Setup Tab
+### 6.2 Step 1: Setup
 
 **Section 1: Tool Configuration**
 ```
@@ -626,11 +626,11 @@ Feed and Speed
 **Action Buttons:**
 ```
 ┌─────────────────────────────────────────┐
-│  [Generate Preview →]                   │
+│  [Generate Preview & G-code →]          │
 └─────────────────────────────────────────┘
 ```
 
-### 6.3 Preview Tab
+### 6.3 Step 2: Preview & Run
 
 **Layout:**
 ```
@@ -653,39 +653,21 @@ Feed and Speed
 │ [Zoom Out]                              │
 │                                         │
 │ Z Level: [1] ═══●═══ (of 2 levels)     │
-└─────────────────────────────────────────┘
-```
-
-**Action Buttons:**
-```
-┌─────────────────────────────────────────┐
-│ [← Back to Setup]  [Generate G-code →]  │
-└─────────────────────────────────────────┘
-```
-
-### 6.4 Generate Tab
-
-**G-code Preview:**
-```
-┌─────────────────────────────────────────┐
-│ Generated G-code                        │
 ├─────────────────────────────────────────┤
-│ ; NeXT Stock Preparation               │
-│ ; Stock: Rectangular 100x75mm          │
-│ ; Pattern: Zigzag at 0°                │
-│ ; ...                                  │
-│ G21                                    │
-│ G90                                    │
-│ M3.9 S10000                            │
-│ ...                                    │
-│ [Scrollable code area]                 │
-│                                        │
-└─────────────────────────────────────────┘
-```
-
-**File Management:**
-```
-┌─────────────────────────────────────────┐
+│ G-code Preview (expandable):            │
+│ ▼ Show G-code (1,234 lines)            │
+│ ┌─────────────────────────────────────┐ │
+│ │ ; NeXT Stock Preparation           │ │
+│ │ ; Stock: Rectangular 100x75mm      │ │
+│ │ ; Pattern: Zigzag at 0°            │ │
+│ │ G21                                │ │
+│ │ G90                                │ │
+│ │ M3.9 S10000                        │ │
+│ │ ...                                │ │
+│ │ [Scrollable code area]             │ │
+│ └─────────────────────────────────────┘ │
+├─────────────────────────────────────────┤
+│ File Management:                        │
 │ Filename: [stock-prep-001.gcode]        │
 │ Save Location: [/gcodes/ ▼]            │
 │                                         │
@@ -696,11 +678,11 @@ Feed and Speed
 **Action Buttons:**
 ```
 ┌─────────────────────────────────────────┐
-│ [← Back to Preview]      [Close Panel]  │
+│ [← Back to Setup]         [Close Panel] │
 └─────────────────────────────────────────┘
 ```
 
-### 6.5 Validation and Error Handling
+### 6.4 Validation and Error Handling
 
 **Input Validation:**
 - Real-time validation as user types
@@ -725,23 +707,26 @@ Feed and Speed
 ℹ Consider reducing spindle speed for harder materials
 ```
 
-### 6.6 Responsive Design
+### 6.5 Responsive Design
 
 **Desktop (>1200px):**
 - Side-by-side layout: Setup on left, Preview on right
 - Full-sized visualization (800px)
 - All controls visible simultaneously
+- G-code preview collapsible to save space
 
 **Tablet (768px - 1200px):**
-- Tabbed interface
+- Two-step interface (tabs/buttons to switch between steps)
 - Visualization scales to 600px
 - Collapsed control groups with expand/collapse
+- G-code preview collapsed by default
 
 **Mobile (<768px):**
 - Fully stacked vertical layout
 - Visualization scales to screen width
 - Simplified controls with essential parameters only
 - "Advanced" section for additional parameters
+- G-code preview hidden by default with show/hide button
 
 ---
 
@@ -768,15 +753,15 @@ Feed and Speed
 
 **Tasks:**
 1. Create `StockPreparationPanel.vue` component
-2. Implement tabbed interface structure
-3. Create Setup tab with all input fields
+2. Implement two-step interface structure (Setup and Preview/Run steps)
+3. Create Setup step with all input fields
 4. Add form validation logic
 5. Integrate with NeXT store for current tool/WCS
 6. Add input field change handlers
 7. Create computed properties for validation state
 
 **Deliverables:**
-- Working Setup tab with all inputs
+- Working Setup step with all inputs
 - Validation feedback system
 - Integration with machine state
 
@@ -791,11 +776,13 @@ Feed and Speed
 6. Add zoom and pan controls
 7. Create reset view functionality
 8. Add grid overlay toggle
+9. Integrate G-code preview with collapsible display
 
 **Deliverables:**
-- Working Preview tab with SVG visualization
+- Working Preview & Run step with SVG visualization
 - Interactive view controls
 - Responsive scaling
+- Collapsible G-code display
 
 ### Phase 7.4: G-code Generation (Week 4-5)
 
@@ -1005,7 +992,7 @@ async saveGCodeFile(filename, gcode) {
 **UI Components:**
 - Test input validation
 - Verify reactive updates
-- Test tab navigation
+- Test step navigation (Setup to Preview & Run)
 - Validate error display
 
 **File Operations:**
