@@ -57,6 +57,7 @@
             <v-tabs v-model="activeTab" grow>
               <v-tab>{{ $t('NeXT.panels.status') }}</v-tab>
               <v-tab>{{ $t('NeXT.panels.configuration') }}</v-tab>
+              <v-tab>{{ $t('NeXT.panels.stockPreparation') }}</v-tab>
               <v-tab>{{ $t('NeXT.panels.probing') }}</v-tab>
             </v-tabs>
 
@@ -72,6 +73,13 @@
               <v-tab-item>
                 <div class="pa-4">
                   <nxt-configuration-panel />
+                </div>
+              </v-tab-item>
+
+              <!-- Stock Preparation Tab -->
+              <v-tab-item>
+                <div class="pa-4">
+                  <nxt-stock-preparation-panel />
                 </div>
               </v-tab-item>
 
