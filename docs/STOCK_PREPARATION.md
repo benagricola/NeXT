@@ -96,6 +96,18 @@ The Stock Preparation UI provides a guided interface for generating facing opera
 - **Purpose:** Rotates facing pattern relative to stock orientation
 - **Common Values:** 0°, 45°, 90° for different cutting strategies
 
+**Milling Direction** (`millingDirection`)
+- **Type:** Enum
+- **Values:**
+  - `climb` - Tool rotates in direction of feed (recommended for most materials)
+  - `conventional` - Tool rotates opposite to feed direction
+- **Default:** `climb`
+- **Purpose:** Controls cutting direction relative to tool rotation
+- **Benefits:**
+  - **Climb milling:** Better surface finish, reduced tool wear, less heat buildup
+  - **Conventional milling:** Better for machines with backlash, more forgiving for soft materials
+- **Note:** Toolpath direction will be reversed based on spindle rotation direction (CW/CCW) to maintain selected milling type
+
 ### 2.4 Cutting Parameters
 
 **Stepover** (`stepover`)
@@ -144,25 +156,38 @@ The Stock Preparation UI provides a guided interface for generating facing opera
   - Requires adequate clearance around stock
   - May trigger protective boundaries if stock near machine limits
 
+**Safe Z Height** (`safeZHeight`)
+- **Type:** Number (mm)
+- **Range:** 0mm - 100mm above stock top surface
+- **Default:** 5mm
+- **Purpose:** Z height for rapid moves and retracts between passes
+- **Behavior:** Height above stock top surface (zOffset + safeZHeight)
+- **Validation:** Must be positive and sufficient to clear fixtures
+- **Note:** Used for G0 rapid moves between cutting operations
+
 ### 2.5 Feed and Speed
 
 **Horizontal Feed Rate** (`feedRateXY`)
 - **Type:** Number (mm/min)
-- **Range:** 1 - 10000 mm/min
-- **Default:** 1000 mm/min
+- **Range:** Dynamic - read from `move.axes[].maxFeedrate` in object model
+- **Default:** 1000 mm/min (or minimum of axis max feed rates)
 - **Purpose:** Feed rate for XY cutting moves
+- **Validation:** Must not exceed minimum of X and Y axis maximum feed rates
 
 **Vertical Feed Rate** (`feedRateZ`)
 - **Type:** Number (mm/min)
-- **Range:** 1 - 5000 mm/min
-- **Default:** 300 mm/min
+- **Range:** Dynamic - read from `move.axes[2].maxFeedrate` in object model (Z axis)
+- **Default:** 300 mm/min (or 50% of Z axis max feed rate)
 - **Purpose:** Feed rate for Z plunge/ramp moves
+- **Validation:** Must not exceed Z axis maximum feed rate
 
 **Spindle Speed** (`spindleSpeed`)
 - **Type:** Number (RPM)
-- **Range:** 0 - 30000 RPM
-- **Default:** 10000 RPM
+- **Range:** Dynamic - read from `spindles[nxtSpindleID].min` to `spindles[nxtSpindleID].max` in object model
+- **Default:** 10000 RPM (or midpoint of spindle range)
 - **Purpose:** Spindle RPM during operation
+- **Validation:** Must be within configured spindle's min/max range
+- **Note:** Range determined by `global.nxtSpindleID` setting
 
 ---
 
@@ -221,7 +246,7 @@ Output: Array of toolpath points
 
 **Optimization Considerations:**
 - Minimize retracts by using continuous zigzag motion
-- Maintain consistent climb/conventional milling based on spindle direction
+- Maintain selected climb/conventional milling by adjusting toolpath direction based on spindle rotation
 - Add lead-in/lead-out moves for smoother entry/exit
 - When clearStockExit is true, ensure adequate clearance around stock
 - Use rapid moves (G0) for moves outside stock boundary
@@ -358,9 +383,9 @@ Output: Array of Z levels
 ```
 
 **Plunge Strategies:**
-- **Direct Plunge:** Rapid to XY position, plunge at feedRateZ
-- **Ramp Entry:** Helical or linear ramp into material
-- **Preferred:** Ramp entry for better tool life and finish
+- **Ramp Entry (over stock):** Linear or helical ramp into material when starting position is over stock
+- **Direct Plunge (at edge):** Rapid to Z safe height, then rapid to cutting depth at feedRateZ when starting at stock edge
+- **Preferred:** Ramp entry when possible for better tool life and finish; direct plunge when starting position is outside stock
 
 ---
 
@@ -387,8 +412,7 @@ G94 ; Feed rate per minute
 ; Setup
 G54 ; Use current WCS (or specified WCS)
 T[currentTool] ; Confirm tool selection
-M3.9 S[spindleSpeed] ; Start spindle with safety wrapper
-G4 P2 ; Wait for spindle to reach speed
+M3.9 S[spindleSpeed] ; Start spindle with safety wrapper (handles acceleration wait)
 ```
 
 **Positioning Section:**
@@ -419,7 +443,7 @@ G0 Z[safeZ] ; Retract (if not last level)
 G0 Z[safeZ] ; Final retract
 M5.9 ; Stop spindle with safety wrapper
 G27 Z1 ; Park machine
-M30 ; Program end
+; Program ends automatically at end of file
 ```
 
 ### 4.2 Safety Features
@@ -564,7 +588,9 @@ watch: {
   stockShape: 'regenerateToolpath',
   facingPattern: 'regenerateToolpath',
   patternAngle: 'regenerateToolpath',
+  millingDirection: 'regenerateToolpath',
   stepover: 'regenerateToolpath',
+  safeZHeight: 'regenerateToolpath',
   clearStockExit: 'regenerateToolpath'
 },
 methods: {
@@ -644,6 +670,8 @@ Facing Pattern
 │ Pattern: [Zigzag ▼]                     │
 │   Options: Rectilinear, Zigzag, Spiral  │
 │ Angle: [0]° ═══●═══ [slider 0-360]     │
+│                                         │
+│ Milling: ● Climb  ○ Conventional        │
 └─────────────────────────────────────────┘
 ```
 
@@ -655,6 +683,7 @@ Cutting Parameters
 │ Stepdown: [1.0] mm                      │
 │ Total Depth: [2.0] mm                   │
 │ Z Offset: [0.0] mm                      │
+│ Safe Z Height: [5.0] mm                 │
 │                                         │
 │ [✓] Clear Stock Exit                    │
 │     (Tool exits stock completely)       │
@@ -981,8 +1010,27 @@ Feed and Speed
 - Read current tool from `global.nxtCurrentTool`
 - Read tool radius from `tools[nxtCurrentTool].offsets[0]` (diameter/2)
 - Read active WCS from `move.workplaceNumber`
+- Read spindle configuration from `spindles[global.nxtSpindleID]`
+- Read axis feed rate limits from `move.axes[].maxFeedrate`
 - Send G-code via `store.dispatch('machine/sendCode', code)`
 - Save files via RRF HTTP API: `rr_upload`
+
+**Object Model Queries:**
+```javascript
+// Get spindle min/max speeds
+const spindleId = this.$store.state.machine.model.global.nxtSpindleID;
+const spindle = this.$store.state.machine.model.spindles[spindleId];
+const minSpeed = spindle.min || 0;
+const maxSpeed = spindle.max || 30000;
+
+// Get axis feed rate limits
+const axes = this.$store.state.machine.model.move.axes;
+const maxFeedXY = Math.min(axes[0].maxFeedrate, axes[1].maxFeedrate);
+const maxFeedZ = axes[2].maxFeedrate;
+
+// Get spindle rotation direction
+const spindleDirection = spindle.current < 0 ? 'CCW' : 'CW';
+```
 
 **Store Integration:**
 ```javascript
