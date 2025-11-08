@@ -158,12 +158,13 @@ The Stock Preparation UI provides a guided interface for generating facing opera
 
 **Safe Z Height** (`safeZHeight`)
 - **Type:** Number (mm)
-- **Range:** 0mm - 100mm above stock top surface
+- **Range:** 0mm - 100mm above current cutting depth
 - **Default:** 5mm
-- **Purpose:** Z height for rapid moves and retracts between passes
-- **Behavior:** Height above stock top surface (zOffset + safeZHeight)
-- **Validation:** Must be positive and sufficient to clear fixtures
-- **Note:** Used for G0 rapid moves between cutting operations
+- **Purpose:** Clearance height for rapid moves and retracts between passes
+- **Behavior:** Height above current cutting depth (currentZ + safeZHeight)
+- **Note:** Relative to current Z level - lowers as tool steps down to avoid large retractions
+- **Example:** At -10mm depth, safe Z = -10mm + 5mm = -5mm (not back to stock top)
+- **Validation:** Must be positive and sufficient to clear fixtures at all depths
 
 **Finishing Pass** (`finishingPass`)
 - **Type:** Boolean
@@ -391,19 +392,21 @@ For each toolpath point (x, y):
 
 **Multi-Pass Depth Strategy:**
 ```
-Input: totalDepth, stepdown, zOffset, finishingPass, finishingPassHeight
-Output: Array of Z levels
+Input: totalDepth, stepdown, zOffset, safeZHeight, finishingPass, finishingPassHeight
+Output: Array of Z levels with retract heights
 
 1. If finishingPass is enabled:
    a. Adjust roughing depth = totalDepth - finishingPassHeight
    b. Calculate number of roughing passes: numPasses = ceil(roughingDepth / stepdown)
    c. For each roughing pass i from 0 to numPasses:
       - Calculate Z depth = zOffset - min(i * stepdown, roughingDepth)
+      - Calculate safe Z for this level = Z depth + safeZHeight (relative to cutting depth)
       - Generate XY toolpath at this Z level
       - Add lead-in at beginning of level
-      - Add lead-out at end of level if not final roughing pass
+      - Add lead-out and retract to safe Z if not final roughing pass
    d. Generate finishing pass:
       - Z depth = zOffset - totalDepth (final depth)
+      - Calculate safe Z = Z depth + safeZHeight
       - Generate XY toolpath at finishing depth
       - Use same pattern as roughing but potentially different feed rate
 
@@ -411,10 +414,21 @@ Output: Array of Z levels
    a. Calculate number of Z passes: numPasses = ceil(totalDepth / stepdown)
    b. For each pass i from 0 to numPasses:
       - Calculate Z depth = zOffset - min(i * stepdown, totalDepth)
+      - Calculate safe Z for this level = Z depth + safeZHeight (relative to cutting depth)
       - Generate XY toolpath at this Z level
       - Add lead-in at beginning of level
-      - Add lead-out at end of level if not final pass
+      - Add lead-out and retract to safe Z if not final pass
 ```
+
+**Safe Z Height Behavior:**
+- Safe Z is calculated relative to current cutting depth: `safeZ = currentCuttingZ + safeZHeight`
+- As tool steps down, retract height lowers proportionally
+- Example with 5mm safe height:
+  - Pass 1 at Z=-1mm: Retract to Z=-1+5 = +4mm
+  - Pass 2 at Z=-2mm: Retract to Z=-2+5 = +3mm
+  - Pass 3 at Z=-3mm: Retract to Z=-3+5 = +2mm
+- Avoids unnecessary large retractions when cutting deep
+- Maintains constant clearance above cutting surface
 
 **Plunge Strategies:**
 - **Ramp Entry (over stock):** Linear or helical ramp into material when starting position is over stock
@@ -452,14 +466,14 @@ M3.9 S[spindleSpeed] ; Start spindle with safety wrapper (handles acceleration w
 **Positioning Section:**
 ```gcode
 ; Position to start
-G0 Z[safeZ] ; Move to safe height
+G0 Z[zOffset + safeZHeight] ; Move to safe height above stock top
 G0 X[startX] Y[startY] ; Rapid to start position
 ```
 
 **Cutting Section:**
 For each roughing Z level:
 ```gcode
-; Roughing Z Level [i]: [currentZ]mm
+; Roughing Z Level [i]: [currentZ]mm (Safe Z: [currentZ + safeZHeight]mm)
 G1 Z[currentZ] F[feedRateZ] ; Plunge to depth
 
 ; XY toolpath
@@ -468,12 +482,12 @@ G1 X[x2] Y[y2]
 G1 X[x3] Y[y3]
 ; ... (all toolpath points)
 
-G0 Z[safeZ] ; Retract (if not last roughing level)
+G0 Z[currentZ + safeZHeight] ; Retract to safe height relative to current depth
 ```
 
 **Finishing Pass Section (if enabled):**
 ```gcode
-; Finishing Pass: [finalZ]mm
+; Finishing Pass: [finalZ]mm (Safe Z: [finalZ + safeZHeight]mm)
 G1 Z[finalZ] F[feedRateZ] ; Plunge to final depth
 
 ; XY toolpath (same pattern as roughing)
@@ -482,17 +496,25 @@ G1 X[x2] Y[y2]
 G1 X[x3] Y[y3]
 ; ... (all toolpath points)
 
-G0 Z[safeZ] ; Final retract
+G0 Z[finalZ + safeZHeight] ; Retract to safe height
 ```
 
 **Cleanup Section:**
 ```gcode
 ; Cleanup
-G0 Z[safeZ] ; Final retract
+G0 Z[zOffset + safeZHeight] ; Final retract to safe height above stock top
 M5.9 ; Stop spindle with safety wrapper
 G27 Z1 ; Park machine
 ; Program ends automatically at end of file
 ```
+
+**Note on Safe Z Heights:**
+- During cutting: Safe Z is relative to each cutting depth (currentZ + safeZHeight)
+- At cleanup: Safe Z returns to stock top reference (zOffset + safeZHeight)
+- Example with zOffset=0, safeZHeight=5mm:
+  - Level 1 at Z=-1mm: Retract to -1+5 = +4mm
+  - Level 2 at Z=-2mm: Retract to -2+5 = +3mm
+  - Final cleanup: Retract to 0+5 = +5mm
 
 ### 4.2 Safety Features
 
@@ -842,6 +864,7 @@ Feed and Speed
 ℹ Clear Stock Exit may increase cycle time significantly
 ℹ Finishing pass enabled - cycle time will increase
 ℹ Finishing pass removes only [X]mm - consider adjusting height
+ℹ Safe Z height is relative to cutting depth - retracts lower as tool steps down
 ```
 
 ### 6.5 Responsive Design
