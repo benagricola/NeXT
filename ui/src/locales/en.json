@@ -20,7 +20,9 @@
     "panels": {
       "status": "Status",
       "configuration": "Configuration",
-      "probing": "Probing"
+      "probing": "Probing",
+      "probeResults": "Probe Results",
+      "probingCycles": "Probing Cycles"
     },
     "configuration": {
       "title": "NeXT Configuration",
@@ -41,6 +43,21 @@
         "measureX": "Measure X",
         "measureY": "Measure Y",
         "results": "Results"
+      }
+    },
+    "probing": {
+      "cycles": {
+        "title": "Probing Cycles",
+        "selectCycle": "Select a probing cycle",
+        "execute": "Execute Cycle",
+        "storeResultIn": "Store Result In"
+      },
+      "results": {
+        "title": "Probe Results Table",
+        "pushToWcs": "Push to WCS",
+        "averageResults": "Average Results",
+        "clearAll": "Clear All",
+        "clear": "Clear"
       }
     },
     "messages": {

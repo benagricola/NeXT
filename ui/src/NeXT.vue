@@ -78,10 +78,14 @@
               <!-- Probing Tab -->
               <v-tab-item>
                 <div class="pa-4">
-                  <v-alert type="info" outlined>
-                    <v-icon left>mdi-target</v-icon>
-                    Probing UI will be implemented in Phase 3
-                  </v-alert>
+                  <v-row>
+                    <v-col cols="12">
+                      <nxt-probing-cycles-panel />
+                    </v-col>
+                    <v-col cols="12">
+                      <nxt-probe-results-panel />
+                    </v-col>
+                  </v-row>
                 </div>
               </v-tab-item>
             </v-tabs-items>
