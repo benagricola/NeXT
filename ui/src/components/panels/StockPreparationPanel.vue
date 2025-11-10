@@ -14,39 +14,18 @@
     </v-card-title>
 
     <v-card-text>
-      <!-- Step Navigation -->
-      <v-stepper v-model="currentStep" flat non-linear class="elevation-0">
-        <v-stepper-header>
-          <v-stepper-step
-            :complete="currentStep > 1"
-            step="1"
-            editable
-          >
-            Setup
-          </v-stepper-step>
-
-          <v-divider />
-
-          <v-stepper-step
-            :complete="currentStep > 2"
-            step="2"
-            :editable="isSetupValid"
-          >
-            Preview & Run
-          </v-stepper-step>
-        </v-stepper-header>
-
-        <v-stepper-items>
-          <!-- Step 1: Setup -->
-          <v-stepper-content step="1">
-            <v-form ref="setupForm" v-model="formValid">
-              <!-- Tool Configuration -->
-              <v-card flat class="mb-4">
-                <v-card-subtitle class="font-weight-bold">
-                  <v-icon left small>mdi-tools</v-icon>
-                  Tool Configuration
-                </v-card-subtitle>
-                <v-card-text>
+      <!-- Two-column layout: Settings on left, Preview on right -->
+      <v-row>
+        <!-- Left Column: Setup/Settings -->
+        <v-col cols="12" md="6">
+          <v-form ref="setupForm" v-model="formValid">
+            <!-- Tool Configuration -->
+            <v-card flat class="mb-4">
+              <v-card-subtitle class="font-weight-bold">
+                <v-icon left small>mdi-tools</v-icon>
+                Tool Configuration
+              </v-card-subtitle>
+              <v-card-text>
                   <v-row>
                     <v-col cols="12">
                       <v-alert
@@ -356,19 +335,27 @@
                     @click="generatePreview"
                   >
                     Generate Preview & G-code
-                    <v-icon right>mdi-arrow-right</v-icon>
+                    <v-icon right>mdi-refresh</v-icon>
                   </v-btn>
                 </v-col>
               </v-row>
             </v-form>
-          </v-stepper-content>
+          </v-col>
 
-          <!-- Step 2: Preview & Run -->
-          <v-stepper-content step="2">
+          <!-- Right Column: Preview & Run -->
+          <v-col cols="12" md="6">
             <v-card flat>
-              <v-card-subtitle class="font-weight-bold">
+              <v-card-subtitle class="font-weight-bold d-flex align-center">
                 <v-icon left small>mdi-eye</v-icon>
                 Toolpath Preview
+                <v-spacer />
+                <v-checkbox
+                  v-model="showDirectionArrows"
+                  label="Show Direction Arrows"
+                  dense
+                  hide-details
+                  class="mt-0"
+                />
               </v-card-subtitle>
               <v-card-text>
                 <!-- SVG Visualization -->
@@ -394,6 +381,7 @@
                         fill="none"
                         stroke="#888888"
                         stroke-width="2"
+                        stroke-dasharray="5,5"
                       />
                     </g>
                     <g v-if="stockShape === 'circular'">
@@ -405,6 +393,7 @@
                         fill="none"
                         stroke="#888888"
                         stroke-width="2"
+                        stroke-dasharray="5,5"
                       />
                     </g>
 
@@ -417,8 +406,9 @@
 
                     <!-- Toolpath layers (all Z levels) -->
                     <g v-for="(layer, index) in svgToolpathLayers" :key="index">
+                      <!-- Cutting moves -->
                       <path
-                        :d="layer.path"
+                        :d="layer.cuttingPath"
                         fill="none"
                         :stroke="layer.color"
                         :stroke-opacity="layer.opacity"
@@ -426,6 +416,26 @@
                         stroke-linecap="round"
                         stroke-linejoin="round"
                       />
+                      <!-- Rapid moves -->
+                      <path
+                        v-if="layer.rapidPath"
+                        :d="layer.rapidPath"
+                        fill="none"
+                        stroke="red"
+                        :stroke-opacity="layer.opacity * 0.5"
+                        stroke-width="1"
+                        stroke-dasharray="3,3"
+                      />
+                      <!-- Direction arrows -->
+                      <g v-if="showDirectionArrows">
+                        <polygon
+                          v-for="(arrow, arrowIndex) in layer.arrows"
+                          :key="`arrow-${index}-${arrowIndex}`"
+                          :points="arrow.points"
+                          :fill="layer.color"
+                          :fill-opacity="layer.opacity * 0.7"
+                        />
+                      </g>
                     </g>
                   </svg>
                 </div>
@@ -526,31 +536,11 @@
                 </v-card>
               </v-card-text>
             </v-card>
-
-            <!-- Step Actions -->
-            <v-row class="mt-4">
-              <v-col cols="12" class="d-flex justify-space-between">
-                <v-btn
-                  text
-                  @click="currentStep = 1"
-                >
-                  <v-icon left>mdi-arrow-left</v-icon>
-                  Back to Setup
-                </v-btn>
-                <v-btn
-                  text
-                  @click="$emit('close')"
-                >
-                  Close Panel
-                </v-btn>
-              </v-col>
-            </v-row>
-          </v-stepper-content>
-        </v-stepper-items>
-      </v-stepper>
-    </v-card-text>
-  </v-card>
-</template>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+  </template>
 
 <script lang="ts">
 import BaseComponent from '../base/BaseComponent.vue'
@@ -567,7 +557,6 @@ export default BaseComponent.extend({
   
   data() {
     return {
-      currentStep: 1,
       formValid: false,
       
       // Tool Configuration
@@ -602,7 +591,7 @@ export default BaseComponent.extend({
       millingDirection: 'climb' as 'climb' | 'conventional',
       
       // Cutting Parameters
-      stepover: 75,
+      stepover: 30,
       stepdown: 1.0,
       totalDepth: 2.0,
       zOffset: 0.0,
@@ -640,7 +629,8 @@ export default BaseComponent.extend({
       previewWidth: 600,
       previewHeight: 450,
       svgScale: 1,
-      svgZScale: 3  // Z axis scale factor for isometric view
+      svgZScale: 3,  // Z axis scale factor for isometric view
+      showDirectionArrows: false  // Option to show direction arrows on path
     }
   },
   
@@ -746,10 +736,22 @@ export default BaseComponent.extend({
       `
     },
     
-    svgToolpathLayers(): Array<{ path: string; color: string; opacity: number }> {
+    svgToolpathLayers(): Array<{ 
+      cuttingPath: string; 
+      rapidPath: string; 
+      color: string; 
+      opacity: number;
+      arrows: Array<{ points: string }>;
+    }> {
       if (this.generatedToolpath.length === 0) return []
       
-      const layers: Array<{ path: string; color: string; opacity: number }> = []
+      const layers: Array<{ 
+        cuttingPath: string; 
+        rapidPath: string; 
+        color: string; 
+        opacity: number;
+        arrows: Array<{ points: string }>;
+      }> = []
       
       // Process each Z level
       for (let levelIndex = 0; levelIndex < this.generatedToolpath.length; levelIndex++) {
@@ -766,33 +768,92 @@ export default BaseComponent.extend({
         // Opacity decreases with depth to show layering
         const opacity = 1.0 - depthRatio * 0.3
         
-        // Build path string with isometric projection
-        let path = ''
-        let firstPoint = true
+        // Build separate paths for cutting and rapid moves
+        let cuttingPath = ''
+        let rapidPath = ''
+        let firstCuttingPoint = true
+        let firstRapidPoint = true
+        const arrows: Array<{ points: string }> = []
         
-        for (const point of level) {
-          if (point.type === 'rapid') continue  // Skip rapid moves in visualization
+        let prevPoint: any = null
+        let prevX = 0
+        let prevY = 0
+        let lastDirection = { dx: 0, dy: 0 }
+        
+        for (let i = 0; i < level.length; i++) {
+          const point = level[i]
           
           // Apply isometric transformation
           // For isometric: x' = x, y' = y - z * scale
           const x = (point.x * this.svgScale) + this.svgOriginX
           const y = (point.y * this.svgScale) + this.svgOriginY - (Math.abs(point.z - this.zOffset) * this.svgZScale)
           
-          if (firstPoint) {
-            path += `M ${x} ${y} `
-            firstPoint = false
-          } else {
-            if (point.type === 'arc') {
-              // For arcs, we'll approximate with line segments for now in SVG
-              path += `L ${x} ${y} `
+          if (point.type === 'rapid') {
+            // Rapid move - add to rapid path
+            if (firstRapidPoint) {
+              rapidPath += `M ${x} ${y} `
+              firstRapidPoint = false
             } else {
-              path += `L ${x} ${y} `
+              rapidPath += `L ${x} ${y} `
+            }
+          } else {
+            // Cutting move - add to cutting path
+            if (firstCuttingPoint) {
+              cuttingPath += `M ${x} ${y} `
+              firstCuttingPoint = false
+            } else {
+              cuttingPath += `L ${x} ${y} `
+              
+              // Check for direction change (for arrow placement)
+              if (prevPoint && prevPoint.type !== 'rapid') {
+                const dx = x - prevX
+                const dy = y - prevY
+                const distance = Math.sqrt(dx * dx + dy * dy)
+                
+                if (distance > 0) {
+                  const currentDirection = { dx: dx / distance, dy: dy / distance }
+                  
+                  // Check if direction changed significantly (dot product < 0.9)
+                  const dotProduct = currentDirection.dx * lastDirection.dx + currentDirection.dy * lastDirection.dy
+                  
+                  if (lastDirection.dx !== 0 || lastDirection.dy !== 0) {
+                    if (dotProduct < 0.9 && distance > 10) {
+                      // Direction changed - place arrow a few mm into the line
+                      const arrowDist = Math.min(5, distance * 0.3)
+                      const arrowX = prevX + currentDirection.dx * arrowDist
+                      const arrowY = prevY + currentDirection.dy * arrowDist
+                      
+                      // Create arrow triangle pointing in direction of travel
+                      const arrowSize = 4
+                      const perpX = -currentDirection.dy
+                      const perpY = currentDirection.dx
+                      
+                      const tipX = arrowX + currentDirection.dx * arrowSize
+                      const tipY = arrowY + currentDirection.dy * arrowSize
+                      const baseX1 = arrowX + perpX * arrowSize * 0.5
+                      const baseY1 = arrowY + perpY * arrowSize * 0.5
+                      const baseX2 = arrowX - perpX * arrowSize * 0.5
+                      const baseY2 = arrowY - perpY * arrowSize * 0.5
+                      
+                      arrows.push({
+                        points: `${tipX},${tipY} ${baseX1},${baseY1} ${baseX2},${baseY2}`
+                      })
+                    }
+                  }
+                  
+                  lastDirection = currentDirection
+                }
+              }
             }
           }
+          
+          prevPoint = point
+          prevX = x
+          prevY = y
         }
         
-        if (path) {
-          layers.push({ path, color, opacity })
+        if (cuttingPath || rapidPath) {
+          layers.push({ cuttingPath, rapidPath, color, opacity, arrows })
         }
       }
       
@@ -941,9 +1002,6 @@ export default BaseComponent.extend({
         
         // Update SVG scale
         this.calculateSvgScale()
-        
-        // Move to preview step
-        this.currentStep = 2
       } catch (error) {
         console.error('Error generating toolpath:', error)
         alert('Error generating toolpath: ' + error)

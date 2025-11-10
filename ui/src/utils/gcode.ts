@@ -103,6 +103,9 @@ function generateCuttingMoves(
     lines.push(`; Offset: ${formatNumber(finishingOffset)}mm`)
   }
   
+  let lastCommandType: string | null = null
+  let lastFeedRate: number | null = null
+  
   for (const point of points) {
     let x = point.x
     let y = point.y
@@ -114,18 +117,48 @@ function generateCuttingMoves(
       y += finishingOffset
     }
     
+    let currentCommand = ''
+    let needsFeedRate = false
+    
     if (point.type === 'rapid') {
+      currentCommand = 'G0'
+      // G0 doesn't use feed rate, but track command type change
+      if (lastCommandType !== 'G0') {
+        lastCommandType = 'G0'
+        lastFeedRate = null  // Reset feed rate tracking on command type change
+      }
       lines.push(`G0 X${formatNumber(x)} Y${formatNumber(y)} Z${formatNumber(point.z)}`)
     } else if (point.type === 'arc') {
       // Arc interpolation (G2 for CW, G3 for CCW)
-      const gCode = point.clockwise ? 'G2' : 'G3'
-      const feedPart = point.feedRate > 0 ? ` F${formatNumber(point.feedRate, 0)}` : ''
+      currentCommand = point.clockwise ? 'G2' : 'G3'
       const iParam = point.i !== undefined ? ` I${formatNumber(point.i)}` : ''
       const jParam = point.j !== undefined ? ` J${formatNumber(point.j)}` : ''
-      lines.push(`${gCode} X${formatNumber(x)} Y${formatNumber(y)} Z${formatNumber(point.z)}${iParam}${jParam}${feedPart}`)
+      
+      // Only output feed rate if command type changed or feed rate changed
+      let feedPart = ''
+      if (lastCommandType !== currentCommand || lastFeedRate !== point.feedRate) {
+        if (point.feedRate > 0) {
+          feedPart = ` F${formatNumber(point.feedRate, 0)}`
+          lastFeedRate = point.feedRate
+        }
+      }
+      lastCommandType = currentCommand
+      
+      lines.push(`${currentCommand} X${formatNumber(x)} Y${formatNumber(y)} Z${formatNumber(point.z)}${iParam}${jParam}${feedPart}`)
     } else {
       // Linear interpolation (G1)
-      const feedPart = point.feedRate > 0 ? ` F${formatNumber(point.feedRate, 0)}` : ''
+      currentCommand = 'G1'
+      
+      // Only output feed rate if command type changed or feed rate changed
+      let feedPart = ''
+      if (lastCommandType !== currentCommand || lastFeedRate !== point.feedRate) {
+        if (point.feedRate > 0) {
+          feedPart = ` F${formatNumber(point.feedRate, 0)}`
+          lastFeedRate = point.feedRate
+        }
+      }
+      lastCommandType = currentCommand
+      
       lines.push(`G1 X${formatNumber(x)} Y${formatNumber(y)} Z${formatNumber(point.z)}${feedPart}`)
     }
   }
