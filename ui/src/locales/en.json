@@ -1,21 +1,50 @@
 {
-  "NeXT": {
-    "name": "NeXT",
-    "title": "NeXT - Next-Gen Extended Tooling",
+  "language": "English",
+  "name": "NeXT",
+  "title": "NeXT - Next-Gen Extended Tooling",
+  "status": {
+    "tool": "Tool",
+    "wcs": "WCS",
+    "spindle": "Spindle",
+    "coolant": "Coolant",
+    "position": "Position"
+  },
+  "actions": {
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "save": "Save",
+    "reload": "Reload"
+  },
+  "panels": {
     "status": {
+      "caption": "Status",
+      "workplace": "Workplace",
       "tool": "Tool",
-      "wcs": "WCS",
+      "none": "None",
+      "disabled": "Disabled",
+      "toolRadius": "Tool Radius",
+      "toolOffset": "Tool Z Offset",
       "spindle": "Spindle",
-      "coolant": "Coolant",
-      "position": "Position"
+      "spindleRPM": "Spindle RPM",
+      "spindleForward": "Running (Forward)",
+      "spindleReverse": "Running (Reverse)",
+      "spindleStopped": "Stopped",
+      "spindleUnconfigured": "Not Configured",
+      "touchProbe": "Touch Probe",
+      "toolsetter": "Tool Setter",
+      "rotation": "Rotation",
+      "probeTriggered": "Triggered ({0})",
+      "probeNotTriggered": "Ready ({0})",
+      "disconnected": "Machine disconnected - status unavailable",
+      "workplaceValid": "{0} - All axes set",
+      "workplacePartial": "{0} - Some axes not set",
+      "workplaceInvalid": "{0} - Not configured"
     },
-    "actions": {
-      "continue": "Continue",
-      "cancel": "Cancel",
-      "confirm": "Confirm",
-      "close": "Close",
-      "save": "Save",
-      "reload": "Reload"
+    "spindleControl": {
+      "caption": "Spindle Control",
+      "placeholder": "Spindle control panel will be implemented in a future phase"
     },
     "panels": {
       "status": "Status",
@@ -47,7 +76,11 @@
     "messages": {
       "uiReady": "NeXT UI is ready",
       "loading": "Loading...",
-      "error": "Error"
+      "error": "Error",
+      "restartRequired": "Machine Restart Required",
+      "restartMessage": "NeXT variables have not been loaded. The machine needs to be restarted to load the NeXT system.",
+      "restartButton": "Restart Machine (M999)",
+      "restartWarning": "This will restart the entire machine. Ensure the machine is in a safe state before proceeding."
     }
   }
 }

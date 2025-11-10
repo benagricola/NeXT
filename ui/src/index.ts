@@ -23,7 +23,7 @@ import './components/overrides'
 import en from './locales/en.json'
 
 // Register plugin localization
-registerPluginLocalization('NeXT', 'en', en)
+registerPluginLocalization('next', 'en', en)
 
 // Register plugin-specific data in the machine cache
 registerPluginData('NeXT', PluginDataType.machineCache, 'nxtUiState', {
@@ -40,7 +40,7 @@ registerRoute(NeXT, {
   Control: {
     NeXT: {
       icon: 'mdi-wrench',
-      caption: 'NeXT.title',
+      caption: 'plugins.next.name',
       path: '/NeXT'
     }
   }
