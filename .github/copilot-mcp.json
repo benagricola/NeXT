@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ],
+      "description": "Playwright MCP server for browser automation, UI testing, and screenshot capture",
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "~/.cache/ms-playwright"
+      }
+    }
+  },
+  "initializeActions": [
+    {
+      "type": "workflow",
+      "workflowFile": ".github/workflows/copilot-setup-steps.yml"
+    }
+  ]
+}
