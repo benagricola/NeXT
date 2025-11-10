@@ -20,6 +20,7 @@
     "panels": {
       "status": "Status",
       "configuration": "Configuration",
+      "stockPreparation": "Stock Preparation",
       "probing": "Probing"
     },
     "configuration": {
