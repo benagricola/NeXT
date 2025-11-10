@@ -116,7 +116,15 @@ function generateCuttingMoves(
     
     if (point.type === 'rapid') {
       lines.push(`G0 X${formatNumber(x)} Y${formatNumber(y)} Z${formatNumber(point.z)}`)
+    } else if (point.type === 'arc') {
+      // Arc interpolation (G2 for CW, G3 for CCW)
+      const gCode = point.clockwise ? 'G2' : 'G3'
+      const feedPart = point.feedRate > 0 ? ` F${formatNumber(point.feedRate, 0)}` : ''
+      const iParam = point.i !== undefined ? ` I${formatNumber(point.i)}` : ''
+      const jParam = point.j !== undefined ? ` J${formatNumber(point.j)}` : ''
+      lines.push(`${gCode} X${formatNumber(x)} Y${formatNumber(y)} Z${formatNumber(point.z)}${iParam}${jParam}${feedPart}`)
     } else {
+      // Linear interpolation (G1)
       const feedPart = point.feedRate > 0 ? ` F${formatNumber(point.feedRate, 0)}` : ''
       lines.push(`G1 X${formatNumber(x)} Y${formatNumber(y)} Z${formatNumber(point.z)}${feedPart}`)
     }

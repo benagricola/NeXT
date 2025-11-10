@@ -379,26 +379,34 @@
                     :height="previewHeight"
                     class="toolpath-preview"
                   >
-                    <!-- Stock boundary -->
-                    <rect
-                      v-if="stockShape === 'rectangular'"
-                      :x="0"
-                      :y="0"
-                      :width="svgStockX"
-                      :height="svgStockY"
-                      fill="none"
-                      stroke="#888888"
-                      stroke-width="2"
-                    />
-                    <circle
-                      v-if="stockShape === 'circular'"
-                      :cx="svgCenterX"
-                      :cy="svgCenterY"
-                      :r="svgRadius"
-                      fill="none"
-                      stroke="#888888"
-                      stroke-width="2"
-                    />
+                    <!-- Define gradient for depth -->
+                    <defs>
+                      <linearGradient id="depthGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+                      </linearGradient>
+                    </defs>
+                    
+                    <!-- Stock boundary (isometric) -->
+                    <g v-if="stockShape === 'rectangular'">
+                      <path
+                        :d="svgStockBoundaryPath"
+                        fill="none"
+                        stroke="#888888"
+                        stroke-width="2"
+                      />
+                    </g>
+                    <g v-if="stockShape === 'circular'">
+                      <ellipse
+                        :cx="svgCenterX"
+                        :cy="svgCenterY - totalDepth * svgZScale * 0.5"
+                        :rx="svgRadius"
+                        :ry="svgRadius * 0.5"
+                        fill="none"
+                        stroke="#888888"
+                        stroke-width="2"
+                      />
+                    </g>
 
                     <!-- WCS Origin indicator -->
                     <g :transform="`translate(${svgOriginX}, ${svgOriginY})`">
@@ -407,16 +415,18 @@
                       <circle cx="0" cy="0" r="3" fill="blue" />
                     </g>
 
-                    <!-- Toolpath -->
-                    <polyline
-                      v-if="svgToolpathPoints"
-                      :points="svgToolpathPoints"
-                      fill="none"
-                      stroke="#2196F3"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
+                    <!-- Toolpath layers (all Z levels) -->
+                    <g v-for="(layer, index) in svgToolpathLayers" :key="index">
+                      <path
+                        :d="layer.path"
+                        fill="none"
+                        :stroke="layer.color"
+                        :stroke-opacity="layer.opacity"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </g>
                   </svg>
                 </div>
 
@@ -600,7 +610,7 @@ export default BaseComponent.extend({
       clearStockExit: false,
       finishingPass: false,
       finishingPassHeight: 0.2,
-      finishingPassOffset: 0.0,
+      finishingPassOffset: 1.5,  // Default to half of default tool radius (3.0mm)
       
       // Feed and Speed
       feedRateXY: 1000,
@@ -629,7 +639,8 @@ export default BaseComponent.extend({
       // SVG Preview
       previewWidth: 600,
       previewHeight: 450,
-      svgScale: 1
+      svgScale: 1,
+      svgZScale: 3  // Z axis scale factor for isometric view
     }
   },
   
@@ -706,27 +717,109 @@ export default BaseComponent.extend({
       return 0
     },
     
+    svgStockBoundaryPath(): string {
+      if (this.stockShape !== 'rectangular') return ''
+      
+      // Create isometric box representation
+      const x = 0
+      const y = 0
+      const w = this.svgStockX
+      const h = this.svgStockY
+      const d = this.totalDepth * this.svgZScale
+      
+      // Isometric transformation: shift Y by Z depth
+      return `
+        M ${x} ${y}
+        L ${x + w} ${y}
+        L ${x + w} ${y + h}
+        L ${x} ${y + h}
+        Z
+        M ${x} ${y - d}
+        L ${x + w} ${y - d}
+        L ${x + w} ${y + h - d}
+        L ${x} ${y + h - d}
+        Z
+        M ${x} ${y} L ${x} ${y - d}
+        M ${x + w} ${y} L ${x + w} ${y - d}
+        M ${x + w} ${y + h} L ${x + w} ${y + h - d}
+        M ${x} ${y + h} L ${x} ${y + h - d}
+      `
+    },
+    
+    svgToolpathLayers(): Array<{ path: string; color: string; opacity: number }> {
+      if (this.generatedToolpath.length === 0) return []
+      
+      const layers: Array<{ path: string; color: string; opacity: number }> = []
+      
+      // Process each Z level
+      for (let levelIndex = 0; levelIndex < this.generatedToolpath.length; levelIndex++) {
+        const level = this.generatedToolpath[levelIndex]
+        if (!level || level.length === 0) continue
+        
+        // Calculate color based on depth (gradient from green to blue)
+        const depthRatio = levelIndex / Math.max(1, this.generatedToolpath.length - 1)
+        const r = Math.round(76 - depthRatio * 44)  // 76 -> 32 (green to blue)
+        const g = Math.round(175 - depthRatio * 25)  // 175 -> 150
+        const b = Math.round(80 + depthRatio * 163)  // 80 -> 243
+        const color = `rgb(${r}, ${g}, ${b})`
+        
+        // Opacity decreases with depth to show layering
+        const opacity = 1.0 - depthRatio * 0.3
+        
+        // Build path string with isometric projection
+        let path = ''
+        let firstPoint = true
+        
+        for (const point of level) {
+          if (point.type === 'rapid') continue  // Skip rapid moves in visualization
+          
+          // Apply isometric transformation
+          // For isometric: x' = x, y' = y - z * scale
+          const x = (point.x * this.svgScale) + this.svgOriginX
+          const y = (point.y * this.svgScale) + this.svgOriginY - (Math.abs(point.z - this.zOffset) * this.svgZScale)
+          
+          if (firstPoint) {
+            path += `M ${x} ${y} `
+            firstPoint = false
+          } else {
+            if (point.type === 'arc') {
+              // For arcs, we'll approximate with line segments for now in SVG
+              path += `L ${x} ${y} `
+            } else {
+              path += `L ${x} ${y} `
+            }
+          }
+        }
+        
+        if (path) {
+          layers.push({ path, color, opacity })
+        }
+      }
+      
+      return layers
+    },
+    
     svgToolpathPoints(): string {
-      if (this.generatedToolpath.length === 0) return ''
-      
-      // Get first Z level for preview
-      const firstLevel = this.generatedToolpath[0]
-      if (!firstLevel || firstLevel.length === 0) return ''
-      
-      return firstLevel
-        .filter(p => p.type === 'linear')
-        .map(p => {
-          const x = (p.x * this.svgScale) + this.svgOriginX
-          const y = (p.y * this.svgScale) + this.svgOriginY
-          return `${x},${y}`
-        })
-        .join(' ')
+      // Deprecated - keeping for compatibility but not used anymore
+      return ''
+    }
+  },
+  
+  watch: {
+    toolRadius(newRadius: number) {
+      // Update finishing pass offset to half of tool radius when tool radius changes
+      // Only update if user hasn't manually changed it from the default
+      if (this.finishingPassOffset === 0.0 || this.finishingPassOffset === 1.5) {
+        this.finishingPassOffset = newRadius / 2
+      }
     }
   },
   
   mounted() {
     this.initializeFromMachineState()
     this.calculateSvgScale()
+    // Set initial finishing pass offset to half of tool radius
+    this.finishingPassOffset = this.toolRadius / 2
   },
   
   methods: {
