@@ -11,11 +11,5 @@
         "PLAYWRIGHT_BROWSERS_PATH": "~/.cache/ms-playwright"
       }
     }
-  },
-  "initializeActions": [
-    {
-      "type": "workflow",
-      "workflowFile": ".github/workflows/copilot-setup-steps.yml"
-    }
-  ]
+  }
 }
