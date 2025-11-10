@@ -606,67 +606,45 @@ export function generateSpiralPattern(
       type: 'linear'
     })
     
-    // Spiral inward using smooth arcs
-    // For a true spiral, we create a series of arc segments that spiral from outside to inside
-    // The radius decreases linearly with angle
+    // Spiral inward using smooth path
+    // For a facing spiral, we create a smooth inward spiral path
+    // The radius decreases linearly with angle (Archimedean spiral)
     
     // Number of complete revolutions based on stepover
-    const totalInwardDistance = initialRadius
-    const spiralCircumference = 2 * Math.PI * initialRadius  // Approximate
+    const totalInwardDistance = initialRadius - cutting.toolRadius
     const numRevolutions = totalInwardDistance / effectiveWidth
     const totalAngle = numRevolutions * 2 * Math.PI
     
-    // Generate spiral path with arc segments
-    // Use small arc segments (e.g., 45 degrees each) for smooth spiral
-    const segmentAngle = Math.PI / 4  // 45 degrees per segment
-    const numSegments = Math.ceil(totalAngle / segmentAngle)
-    const radiusDecrement = effectiveWidth / (2 * Math.PI)  // Radius change per radian
+    // Generate spiral path with small angular steps for smooth motion
+    // Use 10-degree increments for smooth appearance
+    const angleStep = (10 * Math.PI) / 180  // 10 degrees per step
+    const numSteps = Math.ceil(totalAngle / angleStep)
+    const radiusDecrement = totalInwardDistance / numSteps
     
     let currentAngle = pattern.angle * Math.PI / 180  // Start angle from pattern angle
     let currentRadius = initialRadius
     
-    for (let seg = 0; seg < numSegments; seg++) {
+    for (let step = 0; step < numSteps; step++) {
       if (currentRadius <= cutting.toolRadius) break
       
-      // Calculate current position
-      const x1 = centerX + currentRadius * Math.cos(currentAngle)
-      const y1 = centerY + currentRadius * Math.sin(currentAngle)
-      
-      // Calculate next angle and radius
-      const nextAngle = currentAngle + segmentAngle
-      currentRadius -= radiusDecrement * segmentAngle
+      currentAngle += angleStep
+      currentRadius -= radiusDecrement
       
       if (currentRadius < cutting.toolRadius) {
         currentRadius = cutting.toolRadius
       }
       
-      // Calculate next position
-      const x2 = centerX + currentRadius * Math.cos(nextAngle)
-      const y2 = centerY + currentRadius * Math.sin(nextAngle)
-      
-      // Calculate arc center offset from current position
-      // For a spiral, we approximate with arc segments
-      // The center point is perpendicular to the current position
-      const midAngle = currentAngle + segmentAngle / 2
-      const midRadius = currentRadius + radiusDecrement * segmentAngle / 2
-      const arcCenterX = centerX + midRadius * Math.cos(midAngle)
-      const arcCenterY = centerY + midRadius * Math.sin(midAngle)
-      
-      const i = arcCenterX - x1
-      const j = arcCenterY - y1
+      // Calculate position on spiral
+      const x = centerX + currentRadius * Math.cos(currentAngle)
+      const y = centerY + currentRadius * Math.sin(currentAngle)
       
       levelPasses.push({
-        x: x2,
-        y: y2,
+        x,
+        y,
         z: zLevel.depth,
         feedRate: feeds.xy,
-        type: 'arc',
-        i,
-        j,
-        clockwise: false  // CCW for inward spiral
+        type: 'linear'
       })
-      
-      currentAngle = nextAngle
     }
     
     // Final retract for this Z level
