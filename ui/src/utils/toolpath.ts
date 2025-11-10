@@ -384,8 +384,8 @@ export function generateRectilinearPattern(
       // Retract at end of pass
       if (i < numPasses - 1) {
         levelPasses.push({
-          x: end.x,
-          y: end.y,
+          x: clippedEnd.x,
+          y: clippedEnd.y,
           z: zLevel.depth + cutting.safeZHeight,
           feedRate: 0,
           type: 'rapid'
@@ -609,11 +609,6 @@ export function generateSpiralPattern(
     // Spiral inward using smooth arcs
     // For a true spiral, we create a series of arc segments that spiral from outside to inside
     // The radius decreases linearly with angle
-    
-    // Calculate initial and final radii
-    const initialWidth = xMax - xMin
-    const initialHeight = yMax - yMin
-    const initialRadius = Math.min(initialWidth, initialHeight) / 2
     
     // Number of complete revolutions based on stepover
     const totalInwardDistance = initialRadius
