@@ -1,0 +1,41 @@
+name: Copilot Setup Steps
+
+# This workflow ensures Chrome and Playwright are installed for Copilot agent sessions
+# It runs when triggered by Copilot Workspace to prepare the environment for UI testing
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - copilot/**
+
+jobs:
+  setup-chrome:
+    name: Setup Chrome and Playwright for UI Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Run Chrome MCP setup script
+        run: |
+          bash .github/scripts/setup-chrome-mcp.sh
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Setup complete
+        run: |
+          echo "✅ Chrome and Playwright setup completed successfully"
+          echo "✅ Ready for UI testing and screenshots"
+          echo "✅ MCP server can now use Playwright tools"
