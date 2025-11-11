@@ -69,25 +69,44 @@ jobs:
             echo "Creating initial imports.ts file..."
             mkdir -p src/plugins
             cat > src/plugins/imports.ts << 'EOF'
-          // Auto-generated plugin imports
-          // This file is automatically maintained by the build system
+          /**
+           * DO NOT MODIFY THIS FILE! IT IS AUTO-GENERATED ON COMPILATION!
+          */
+          import { initCollection } from "@duet3d/objectmodel";
+          import DwcPlugin from "./DwcPlugin";
 
-          import NeXT from './NeXT'
-
-          export default [
-            NeXT
-          ]
+          export default initCollection(DwcPlugin, [
+              {
+                  id: "NeXT",
+                  name: "NeXT - Next-Gen Extended Tooling",
+                  author: "NeXT Development Team",
+                  version: "dev",
+                  loadDwcResources: () => import(
+                      /* webpackChunkName: "NeXT" */
+                      "./NeXT/index"
+                  )
+              },
+          ]);
           EOF
           fi
 
           # Verify NeXT is referenced in imports.ts
-          if ! grep -q "NeXT" src/plugins/imports.ts; then
+          if ! grep -q '"NeXT"' src/plugins/imports.ts; then
             echo "Error: NeXT not found in imports.ts"
             cat src/plugins/imports.ts
             exit 1
           fi
 
+          # Verify the format is correct (using initCollection)
+          if ! grep -q "initCollection" src/plugins/imports.ts; then
+            echo "Warning: imports.ts may not have correct format"
+            echo "Expected initCollection format, found:"
+            cat src/plugins/imports.ts
+          fi
+
           echo "✓ NeXT is properly configured in imports.ts"
+          echo ""
+          echo "=== Current imports.ts ==="
           cat src/plugins/imports.ts
 
       - name: Install JavaScript dependencies
