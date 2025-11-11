@@ -4,19 +4,19 @@
 This guide explains how to develop the NeXT UI plugin within the DuetWebControl workspace. The NeXT UI is a Vue 2.7 plugin that integrates with DuetWebControl v3.6.1 to provide CNC-specific functionality for RepRapFirmware.
 
 ## Instructions for AI Agents
-If you are an AI Agent or running in a CI/CD environment, there is a high chance you already have access to a running instance of DuetWebControl with the NeXT plugin installed (although potentially not activated).
+If you are an AI Agent or running in a CI/CD environment, there is a high chance you already have access to a running instance of DuetWebControl. You will need to make sure NeXT is available and built in to the running DWC server, by running `node add-next.js`.
 
-You can follow these instructions from [Accessing the NeXT Plugin](#accessing-the-next-plugin), with the development server running at http://localhost:8080 - with server logs available at /tmp/dev-server.log
+You can then follow these instructions from [Accessing the NeXT Plugin](#accessing-the-next-plugin), with the development server running at http://localhost:8080 - with server logs available at /tmp/dev-server.log
 
-If you are not able to access the DWC instance at that address, or the server log file does not exist, please assume that this did not run for some reason and start from [Start the Development Server](#1-start-the-development-server). The NeXT repository and the DuetWebControl repository are siblings inside the GitHub workspace directory and the NeXT plugin will already be symlinked into the plugins directory.
+If you are not able to access the DWC instance at that address, please assume that it did not run for some reason and start from [Start the Development Server](#1-start-the-development-server). The NeXT repository and the DuetWebControl repository are siblings inside the GitHub workspace directory.
 
 ## Workspace Structure
 
 The NeXT repository contains the UI plugin source code, which is **symlinked** into the DuetWebControl repository for development:
 
-- **NeXT UI Source**: `/home/ben/Documents/CAD/Millennium Milo/Repos/NeXT/ui/`
-- **DWC Plugin Location**: `/home/ben/Documents/RRF/DuetWebControl/src/plugins/NeXT` (symlink to NeXT UI source)
-- **DWC Repository**: `/home/ben/Documents/RRF/DuetWebControl/`
+- **NeXT UI Source**: `NeXT/ui/`
+- **DWC Repository**: `DuetWebControl/`
+- **DWC Plugin Location**: `DuetWebControl/src/plugins/NeXT` (symlink to NeXT UI source, may need creating)
 
 ### Important Files
 
@@ -51,7 +51,7 @@ The DuetWebControl dev server must be started from the **DWC repository root**.
 This MUST be run in a background terminal so it can stay running.
 
 ```bash
-cd /home/ben/Documents/RRF/DuetWebControl
+cd DuetWebControl
 npm run dev 
 ```
 
@@ -68,16 +68,6 @@ DONE  Compiled successfully in 56000ms
 
   App running at:
   - Local:   http://localhost:8080/
-```
-
-### 3. Check Server Status if the URL is not accessible
-
-```bash
-# Check if the dev server is running
-pgrep -af "vue-cli-service serve"
-
-# View terminal output
-# (Use the terminal ID from when you started the server)
 ```
 
 ## Accessing the NeXT Plugin
@@ -120,7 +110,7 @@ If the plugin is already enabled (you can see "NeXT" in the sidebar):
 
 ### Making Changes
 
-1. Edit files in `/home/ben/Documents/CAD/Millennium Milo/Repos/NeXT/ui/src/`
+1. Edit files in `NeXT/ui/src/`
 2. Save the file
 3. Webpack will automatically detect changes and rebuild
 4. Monitor the background terminal output to check for any errors and confirm the files have updated
@@ -133,7 +123,7 @@ If the plugin is already enabled (you can see "NeXT" in the sidebar):
 All NeXT UI code is TypeScript. When you see compilation errors:
 
 1. Check the terminal output for error details
-2. Read the RRF Object Model types in `/home/ben/Documents/RRF/DuetWebControl/node_modules/@duet3d/objectmodel/dist/`
+2. Read the RRF Object Model types in `DuetWebControl/node_modules/@duet3d/objectmodel/dist/`
 3. Fix type errors in the affected files
 4. The dev server will automatically recompile
 
@@ -173,51 +163,16 @@ The UI can also be developed while **disconnected** from a CNC machine:
 - The "Machine Restart Required" banner is expected when disconnected
 - This is useful for UI layout and styling work that doesn't require live machine data
 
-## Critical Development Fixes Applied
-
-### 1. Symlink Support in Plugin Discovery
-
-**Problem**: DWC's `auto-imports-plugin.js` used `file.isDirectory()` which returns `false` for symlinks.
-
-**Fix**: Modified `/home/ben/Documents/RRF/DuetWebControl/webpack/lib/auto-imports-plugin.js`:
-```javascript
-// Check if it's a directory or a symlink pointing to a directory
-const pluginPath = `src/plugins/${file.name}`;
-const isDir = file.isDirectory() || (file.isSymbolicLink() && fs.statSync(pluginPath).isDirectory());
-
-if (!isDir || fs.existsSync(`${pluginPath}/blacklist`)) {
-    continue;
-}
-```
-
 ### 2. Plugin Entry Point
 
-**Problem**: DWC's plugin system expects an `index.js` or `index.ts` at the plugin root.
-
-**Fix**: Created `/home/ben/Documents/CAD/Millennium Milo/Repos/NeXT/ui/index.ts`:
-```typescript
-/**
- * NeXT Plugin Entry Point (Root Level)
- */
-export { default } from './src/index'
-```
-
-### 3. BaseComponent.vue Type Fixes
-
-Fixed multiple TypeScript errors related to RRF object model usage:
-
-1. **Visible Axes**: Changed from `settings.displayedAxes` to `axes.filter(axis => axis.visible)`
-2. **Workspace Number**: Changed from `move.currentWorkplace` to `move.workplaceNumber`
-3. **Position Calculation**: Simplified to use `axis.userPosition` (already includes offsets)
-4. **GPIO Outputs**: Returns default array since `sensors.gpOut` doesn't exist in object model
-5. **Type Indexing**: Changed return type to `{[key: string]: Axis}` for flexibility
+DWC's plugin system expects an `index.js` or `index.ts` at the plugin root.
 
 ## Troubleshooting
 
 ### Plugin Not Appearing in Plugins List
 
-1. Check if symlink exists: `ls -la /home/ben/Documents/RRF/DuetWebControl/src/plugins/NeXT`
-2. Verify `imports.ts` includes NeXT: `grep -A5 "NeXT" /home/ben/Documents/RRF/DuetWebControl/src/plugins/imports.ts`
+1. Check if symlink exists: `ls -la DuetWebControl/src/plugins/NeXT`
+2. Verify `imports.ts` includes NeXT: `grep -A5 "NeXT" DuetWebControl/src/plugins/imports.ts`
 3. Restart dev server if needed
 
 ### Compilation Errors
@@ -279,9 +234,6 @@ Fixed multiple TypeScript errors related to RRF object model usage:
 ## Stopping the Development Server
 
 ```bash
-# Find the process
-pgrep -af "vue-cli-service serve"
-
 # Kill it
 pkill -f "npm run dev"
 ```
@@ -289,7 +241,7 @@ pkill -f "npm run dev"
 ## Additional Resources
 
 - **RRF Object Model Docs**: https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
-- **DWC Plugin Development**: Check `/home/ben/Documents/RRF/DuetWebControl/src/plugins/` for examples
+- **DWC Plugin Development**: Check `DuetWebControl/src/plugins/` for examples
 - **Vue 2.7 Docs**: https://v2.vuejs.org/
 - **Vuetify 2.x Docs**: https://v2.vuetifyjs.com/
 
@@ -297,7 +249,7 @@ pkill -f "npm run dev"
 
 ```bash
 # Start dev server (from DWC directory)
-cd /home/ben/Documents/RRF/DuetWebControl && npm run dev 
+cd DuetWebControl && npm run dev 
 
 # Check dev server status
 pgrep -af "vue-cli-service serve"
@@ -306,20 +258,20 @@ pgrep -af "vue-cli-service serve"
 pkill -f "npm run dev"
 
 # View plugin imports
-cat /home/ben/Documents/RRF/DuetWebControl/src/plugins/imports.ts | grep -A7 NeXT
+cat DuetWebControl/src/plugins/imports.ts | grep -A7 NeXT
 
 # Check compilation errors
 # (Monitor the terminal where npm run dev is running)
 
 # Edit NeXT UI source
-cd /home/ben/Documents/CAD/Millennium\ Milo/Repos/NeXT/ui/src/
+cd NeXT/ui/src/
 ```
 
 ## Summary
 
 To start developing the NeXT UI:
 
-1. `cd /home/ben/Documents/RRF/DuetWebControl && npm run dev`
+1. `cd DuetWebControl && npm run dev`
 2. Wait ~60 seconds for compilation
 3. Open `http://localhost:8080/` in browser
 4. **First time only**: If "NeXT" not in sidebar, cancel connect dialog → Settings → Plugins → Start "NeXT"
