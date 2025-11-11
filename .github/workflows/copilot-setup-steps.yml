@@ -80,10 +80,43 @@ jobs:
           else
             echo "Adding NeXT plugin to imports.ts..."
             
-            # Create a TypeScript script to properly parse and modify the file
-            cat > add-next-plugin.ts << 'EOF'
-          import * as ts from "typescript";
-          import * as fs from "fs";
+            # Use Node.js to properly insert the NeXT entry before the closing ]);
+            node << 'NODESCRIPT'
+          const fs = require("fs");
+          const content = fs.readFileSync("src/plugins/imports.ts", "utf8");
+          
+          // Define the NeXT plugin entry with proper indentation to match existing format
+          const nextEntry = `    {
+              id: "NeXT",
+              name: "NeXT - Next-Gen Extended Tooling",
+              author: "NeXT Development Team",
+              version: "dev",
+              loadDwcResources: () => import(
+                  /* webpackChunkName: "NeXT" */
+                  "./NeXT/index"
+              )
+          },`;
+          
+          // Find the closing ]); and insert NeXT entry before it
+          // Use a regex to match the closing bracket with proper indentation
+          const updatedContent = content.replace(
+            /^(\]);)$/m,
+            nextEntry + "\n$1"
+          );
+          
+          if (updatedContent === content) {
+            console.error("Error: Could not find closing ]); in imports.ts");
+            process.exit(1);
+          }
+          
+          fs.writeFileSync("src/plugins/imports.ts", updatedContent);
+          console.log("✓ Added NeXT plugin to imports.ts");
+          NODESCRIPT
+          fi
+
+          echo ""
+          echo "=== Current imports.ts ==="
+          cat src/plugins/imports.ts
 
           const sourceFile = ts.createSourceFile(
             "imports.ts",
