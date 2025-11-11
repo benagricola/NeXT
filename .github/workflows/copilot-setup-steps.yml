@@ -1,0 +1,192 @@
+name: "Copilot Setup Steps"
+
+# Automatically run the setup steps when they are changed to allow for
+# easy validation, and allow manual testing through the repository's
+# "Actions" tab
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called `copilot-setup-steps` or it will not be
+  # picked up by Copilot.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    # Set the permissions to the lowest permissions possible needed
+    # for your steps. Copilot will be given its own token for its
+    # operations.
+    permissions:
+      # We need contents: read to clone both repositories
+      contents: read
+
+    # You can define any steps you want, and they will run before
+    # the agent starts. If you do not check out your code, Copilot
+    # will do this for you.
+    steps:
+      - name: Checkout NeXT
+        uses: actions/checkout@v4
+        with:
+          path: NeXT
+
+      - name: Checkout DuetWebControl
+        uses: actions/checkout@v4
+        with:
+          repository: Duet3D/DuetWebControl
+          ref: v3.7-dev
+          path: DuetWebControl
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: DuetWebControl/package-lock.json
+
+      - name: Create symlink for NeXT UI plugin
+        run: |
+          # Create the plugins directory if it doesn't exist
+          mkdir -p DuetWebControl/src/plugins
+
+          # Create symlink from NeXT/ui to plugins/NeXT
+          ln -s "${GITHUB_WORKSPACE}/NeXT/ui" \
+            "${GITHUB_WORKSPACE}/DuetWebControl/src/plugins/NeXT"
+
+          # Verify symlink was created correctly
+          ls -la DuetWebControl/src/plugins/NeXT
+
+      - name: Verify NeXT in plugin imports
+        run: |
+          cd DuetWebControl
+
+          # Check if imports.ts exists
+          if [ ! -f "src/plugins/imports.ts" ]; then
+            echo "Creating initial imports.ts file..."
+            mkdir -p src/plugins
+            cat > src/plugins/imports.ts << 'EOF'
+          /**
+           * DO NOT MODIFY THIS FILE! IT IS AUTO-GENERATED ON COMPILATION!
+          */
+          import { initCollection } from "@duet3d/objectmodel";
+          import DwcPlugin from "./DwcPlugin";
+
+          export default initCollection(DwcPlugin, [
+              {
+                  id: "NeXT",
+                  name: "NeXT - Next-Gen Extended Tooling",
+                  author: "NeXT Development Team",
+                  version: "dev",
+                  loadDwcResources: () => import(
+                      /* webpackChunkName: "NeXT" */
+                      "./NeXT/index"
+                  )
+              },
+          ]);
+          EOF
+          fi
+
+          # Verify NeXT is referenced in imports.ts
+          if ! grep -q '"NeXT"' src/plugins/imports.ts; then
+            echo "Error: NeXT not found in imports.ts"
+            cat src/plugins/imports.ts
+            exit 1
+          fi
+
+          # Verify the format is correct (using initCollection)
+          if ! grep -q "initCollection" src/plugins/imports.ts; then
+            echo "Warning: imports.ts may not have correct format"
+            echo "Expected initCollection format, found:"
+            cat src/plugins/imports.ts
+          fi
+
+          echo "✓ NeXT is properly configured in imports.ts"
+          echo ""
+          echo "=== Current imports.ts ==="
+          cat src/plugins/imports.ts
+
+      - name: Install JavaScript dependencies
+        run: |
+          cd DuetWebControl
+          npm ci
+
+      - name: Start development server
+        run: |
+          cd DuetWebControl
+          echo "Starting development server..."
+          echo "This may take 50-60 seconds for initial compilation..."
+
+          # Start dev server in background and capture output
+          npm run dev > /tmp/dev-server.log 2>&1 &
+          DEV_SERVER_PID=$!
+          echo "Dev server started with PID: ${DEV_SERVER_PID}"
+
+          # Wait for compilation to complete (max 120 seconds)
+          echo "Waiting for compilation to complete..."
+          TIMEOUT=120
+          ELAPSED=0
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if grep -q "DONE.*Compiled successfully" /tmp/dev-server.log; then
+              echo "✓ Development server compiled successfully!"
+
+              # Extract the URL from the logs
+              SERVER_URL=$(grep -oP "http://localhost:\d+" \
+                /tmp/dev-server.log | head -1)
+              if [ -n "$SERVER_URL" ]; then
+                echo "✓ Server running at: ${SERVER_URL}"
+              fi
+
+              # Show last few lines of output
+              echo ""
+              echo "=== Last few lines of dev server output ==="
+              tail -10 /tmp/dev-server.log
+              exit 0
+            fi
+
+            if grep -qi "error\|failed" /tmp/dev-server.log; then
+              echo "✗ Development server encountered errors:"
+              echo ""
+              cat /tmp/dev-server.log
+              echo ""
+              echo "The dev server failed to start properly."
+              echo "Agent should investigate and fix these errors."
+              exit 1
+            fi
+
+            sleep 5
+            ELAPSED=$((ELAPSED + 5))
+            echo "  Waiting... (${ELAPSED}s / ${TIMEOUT}s)"
+          done
+
+          # Timeout reached
+          echo "⚠ Development server compilation timed out"
+          echo "Last 50 lines of output:"
+          tail -50 /tmp/dev-server.log
+          echo ""
+          echo "The dev server may still be compiling."
+          echo "Agent can check logs or restart manually."
+          exit 1
+
+      - name: Verify setup completion
+        if: success()
+        run: |
+          echo ""
+          echo "=== Setup Summary ==="
+          echo "✓ NeXT: ${GITHUB_WORKSPACE}/NeXT"
+          echo "✓ DuetWebControl: ${GITHUB_WORKSPACE}/DuetWebControl"
+          echo "✓ Symlink: plugins/NeXT -> NeXT/ui"
+          echo "✓ NeXT plugin registered in imports.ts"
+          echo "✓ Node.js dependencies installed"
+          echo "✓ Development server started and compiled"
+          echo ""
+          echo "Development environment is ready!"
+          echo "Copilot agents can now:"
+          echo "  - Edit files in NeXT/ui/src/"
+          echo "  - Changes will hot-reload automatically"
+          echo "  - Access dev server at http://localhost:8080/"
+          echo "  - Dev server is running in the background"
