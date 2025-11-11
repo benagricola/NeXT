@@ -80,25 +80,22 @@ jobs:
           else
             echo "Adding NeXT plugin to imports.ts..."
             
-            # Use Node.js to properly insert the NeXT entry before the closing ]);
-            node << 'NODESCRIPT'
+            # Create a Node.js script to insert the NeXT entry
+            cat > add-next.js << 'ENDJS'
           const fs = require("fs");
           const content = fs.readFileSync("src/plugins/imports.ts", "utf8");
           
-          // Define the NeXT plugin entry with proper indentation to match existing format
           const nextEntry = `    {
               id: "NeXT",
               name: "NeXT - Next-Gen Extended Tooling",
               author: "NeXT Development Team",
-              version: "%%NXT_VERSION%%",
+              version: "auto",
               loadDwcResources: () => import(
                   /* webpackChunkName: "NeXT" */
                   "./NeXT/index"
               )
           },`;
           
-          // Find the closing ]); and insert NeXT entry before it
-          // Escape the brackets and parentheses properly
           const updatedContent = content.replace(
             /^(\]\);)$/m,
             nextEntry + "\n$1"
@@ -111,87 +108,10 @@ jobs:
           
           fs.writeFileSync("src/plugins/imports.ts", updatedContent);
           console.log("✓ Added NeXT plugin to imports.ts");
-          NODESCRIPT
-          fi
-
-          echo ""
-          echo "=== Current imports.ts ==="
-          cat src/plugins/imports.ts
-
-          const sourceFile = ts.createSourceFile(
-            "imports.ts",
-            fs.readFileSync("src/plugins/imports.ts", "utf8"),
-            ts.ScriptTarget.Latest,
-            true
-          );
-
-          const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-
-          // Create the NeXT plugin entry
-          const nextPluginEntry = ts.factory.createObjectLiteralExpression([
-            ts.factory.createPropertyAssignment("id", ts.factory.createStringLiteral("NeXT")),
-            ts.factory.createPropertyAssignment("name", ts.factory.createStringLiteral("NeXT - Next-Gen Extended Tooling")),
-            ts.factory.createPropertyAssignment("author", ts.factory.createStringLiteral("NeXT Development Team")),
-            ts.factory.createPropertyAssignment("version", ts.factory.createStringLiteral("dev")),
-            ts.factory.createPropertyAssignment(
-              "loadDwcResources",
-              ts.factory.createArrowFunction(
-                undefined,
-                undefined,
-                [],
-                undefined,
-                ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                ts.factory.createCallExpression(
-                  ts.factory.createIdentifier("import"),
-                  undefined,
-                  [ts.factory.createStringLiteral("./NeXT/index")]
-                )
-              )
-            )
-          ], true);
-
-          // Transform the source file to add the NeXT entry
-          const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
-            return (sourceFile) => {
-              const visitor = (node: ts.Node): ts.Node => {
-                // Find the array literal inside initCollection call
-                if (ts.isCallExpression(node) && 
-                    ts.isIdentifier(node.expression) && 
-                    node.expression.text === "initCollection" &&
-                    node.arguments.length >= 2 &&
-                    ts.isArrayLiteralExpression(node.arguments[1])) {
-                  
-                  const arrayLiteral = node.arguments[1];
-                  const newElements = [...arrayLiteral.elements, nextPluginEntry];
-                  
-                  return ts.factory.updateCallExpression(
-                    node,
-                    node.expression,
-                    node.typeArguments,
-                    [
-                      node.arguments[0],
-                      ts.factory.createArrayLiteralExpression(newElements, true)
-                    ]
-                  );
-                }
-                return ts.visitEachChild(node, visitor, context);
-              };
-              return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
-            };
-          };
-
-          const result = ts.transform(sourceFile, [transformer]);
-          const transformedSourceFile = result.transformed[0];
-          const output = printer.printFile(transformedSourceFile);
-
-          fs.writeFileSync("src/plugins/imports.ts", output);
-          console.log("✓ Added NeXT plugin to imports.ts");
-          EOF
-
-            # Run the TypeScript script using npx tsx from the DuetWebControl directory
-            # This way it can access the local node_modules with TypeScript installed
-            npx tsx add-next-plugin.ts
-            rm add-next-plugin.ts
+          ENDJS
+            
+            node add-next.js
+            rm add-next.js
           fi
 
           echo ""
