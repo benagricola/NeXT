@@ -29,36 +29,40 @@ jobs:
     # the agent starts. If you do not check out your code, Copilot
     # will do this for you.
     steps:
-      
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          path: NeXT
+
       - name: Checkout DuetWebControl
         uses: actions/checkout@v5
         with:
           repository: Duet3D/DuetWebControl
           ref: v3.7-dev
-          path: ../DuetWebControl
+          path: DuetWebControl
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: ../DuetWebControl/package-lock.json
+          cache-dependency-path: DuetWebControl/package-lock.json
 
       - name: Create symlink for NeXT UI plugin
         run: |
           # Create the plugins directory if it doesn't exist
-          mkdir -p "${GITHUB_WORKSPACE}/../DuetWebControl/src/plugins"
+          mkdir -p DuetWebControl/src/plugins
 
-          # Create symlink - both are siblings
-          ln -s "${GITHUB_WORKSPACE}/ui" \
-            "${GITHUB_WORKSPACE}/../DuetWebControl/src/plugins/NeXT"
+          # Create symlink from NeXT/ui to plugins/NeXT
+          ln -s "${GITHUB_WORKSPACE}/NeXT/ui" \
+            "${GITHUB_WORKSPACE}/DuetWebControl/src/plugins/NeXT"
 
           # Verify symlink was created correctly
-          ls -la "${GITHUB_WORKSPACE}/../DuetWebControl/src/plugins/NeXT"
+          ls -la DuetWebControl/src/plugins/NeXT
 
       - name: Verify NeXT in plugin imports
         run: |
-          cd "${GITHUB_WORKSPACE}/../DuetWebControl"
+          cd DuetWebControl
 
           # Check if imports.ts exists
           if [ ! -f "src/plugins/imports.ts" ]; then
@@ -115,12 +119,12 @@ jobs:
 
       - name: Install JavaScript dependencies
         run: |
-          cd "${GITHUB_WORKSPACE}/../DuetWebControl"
+          cd DuetWebControl
           npm ci
 
       - name: Start development server
         run: |
-          cd "${GITHUB_WORKSPACE}/../DuetWebControl"
+          cd DuetWebControl
           echo "Starting development server..."
           echo "This may take 50-60 seconds for initial compilation..."
 
@@ -181,10 +185,9 @@ jobs:
         run: |
           echo ""
           echo "=== Setup Summary ==="
-          echo "✓ NeXT: ${GITHUB_WORKSPACE} (checked out by Copilot)"
-          echo "✓ DuetWebControl: ${GITHUB_WORKSPACE}/../DuetWebControl"
-          echo "✓ Both repos are siblings (not nested)"
-          echo "✓ Symlink: ../DuetWebControl/src/plugins/NeXT -> ui/"
+          echo "✓ NeXT: ${GITHUB_WORKSPACE}/NeXT"
+          echo "✓ DuetWebControl: ${GITHUB_WORKSPACE}/DuetWebControl"
+          echo "✓ Symlink: plugins/NeXT -> NeXT/ui"
           echo "✓ NeXT plugin registered in imports.ts"
           echo "✓ Node.js dependencies installed"
           echo "✓ Development server started and compiled"
