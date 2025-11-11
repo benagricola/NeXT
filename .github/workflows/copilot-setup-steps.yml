@@ -81,7 +81,7 @@ jobs:
             echo "Adding NeXT plugin to imports.ts..."
             
             # Create a TypeScript script to properly parse and modify the file
-            cat > /tmp/add-next-plugin.ts << 'EOF'
+            cat > add-next-plugin.ts << 'EOF'
           import * as ts from "typescript";
           import * as fs from "fs";
 
@@ -155,8 +155,10 @@ jobs:
           console.log("✓ Added NeXT plugin to imports.ts");
           EOF
 
-            # Run the TypeScript script using tsx (TypeScript executor)
-            npx tsx /tmp/add-next-plugin.ts
+            # Run the TypeScript script using npx tsx from the DuetWebControl directory
+            # This way it can access the local node_modules with TypeScript installed
+            npx tsx add-next-plugin.ts
+            rm add-next-plugin.ts
           fi
 
           echo ""
