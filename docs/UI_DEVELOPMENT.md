@@ -3,6 +3,13 @@
 ## Overview
 This guide explains how to develop the NeXT UI plugin within the DuetWebControl workspace. The NeXT UI is a Vue 2.7 plugin that integrates with DuetWebControl v3.6.1 to provide CNC-specific functionality for RepRapFirmware.
 
+## Instructions for AI Agents
+If you are an AI Agent or running in a CI/CD environment, there is a high chance you already have access to a running instance of DuetWebControl with the NeXT plugin installed (although potentially not activated).
+
+You can follow these instructions from [Accessing the NeXT Plugin](#accessing-the-next-plugin), with the development server running at http://localhost:8080 - with server logs available at /tmp/dev-server.log
+
+If you are not able to access the DWC instance at that address, or the server log file does not exist, please assume that this did not run for some reason and start from [Start the Development Server](#1-start-the-development-server). The NeXT repository and the DuetWebControl repository are siblings inside the GitHub workspace directory and the NeXT plugin will already be symlinked into the plugins directory.
+
 ## Workspace Structure
 
 The NeXT repository contains the UI plugin source code, which is **symlinked** into the DuetWebControl repository for development:
