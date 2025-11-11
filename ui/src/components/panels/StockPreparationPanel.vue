@@ -385,9 +385,21 @@
                       />
                     </g>
                     <g v-if="stockShape === 'circular'">
+                      <!-- Top circle (back) for cabinet projection -->
                       <ellipse
-                        :cx="svgCenterX"
-                        :cy="svgCenterY - totalDepth * svgZScale * 0.5"
+                        :cx="svgOriginX - totalDepth * svgZScale * 0.5"
+                        :cy="svgOriginY + totalDepth * svgZScale"
+                        :rx="svgRadius"
+                        :ry="svgRadius * 0.5"
+                        fill="none"
+                        stroke="#888888"
+                        stroke-width="2"
+                        stroke-dasharray="5,5"
+                      />
+                      <!-- Bottom circle (front) -->
+                      <ellipse
+                        :cx="svgOriginX"
+                        :cy="svgOriginY"
                         :rx="svgRadius"
                         :ry="svgRadius * 0.5"
                         fill="none"
@@ -629,7 +641,7 @@ export default BaseComponent.extend({
       previewWidth: 600,
       previewHeight: 450,
       svgScale: 1,
-      svgZScale: 3,  // Z axis scale factor for isometric view
+      svgZScale: 8,  // Increased Z axis scale factor for cabinet projection (better stepdown visibility)
       showDirectionArrows: false  // Option to show direction arrows on path
     }
   },
@@ -684,56 +696,92 @@ export default BaseComponent.extend({
     },
     
     svgOriginX(): number {
+      // Calculate the offset for centering
+      const margin = 50
+      
       if (this.stockShape === 'circular') {
-        return this.svgCenterX
+        // For circular, center in viewport accounting for cabinet projection depth offset
+        const depthOffsetX = this.totalDepth * this.svgZScale * 0.5
+        return this.svgCenterX - (this.svgRadius) + (depthOffsetX / 2)
       }
-      // Rectangular origin positioning based on originPosition
+      
+      // For rectangular, calculate based on origin position within the centered stock
+      const depthOffsetX = this.totalDepth * this.svgZScale * 0.5
+      const effectiveWidth = this.svgStockX + depthOffsetX
+      const startX = (this.previewWidth - effectiveWidth) / 2 + depthOffsetX
+      
       const position = this.originPosition
-      if (position.includes('left')) return 0
-      if (position.includes('center')) return this.svgStockX / 2
-      if (position.includes('right')) return this.svgStockX
-      return 0
+      if (position.includes('left')) return startX
+      if (position.includes('center')) return startX + this.svgStockX / 2
+      if (position.includes('right')) return startX + this.svgStockX
+      return startX
     },
     
     svgOriginY(): number {
+      // Calculate the offset for centering
+      const margin = 50
+      
       if (this.stockShape === 'circular') {
-        return this.svgCenterY
+        // For circular, center in viewport accounting for depth
+        const effectiveHeight = this.svgRadius * 2 + this.totalDepth * this.svgZScale
+        return (this.previewHeight - effectiveHeight) / 2 + this.svgRadius
       }
-      // Rectangular origin positioning
+      
+      // For rectangular, calculate based on origin position within the centered stock
+      const effectiveHeight = this.svgStockY + this.totalDepth * this.svgZScale
+      const startY = (this.previewHeight - effectiveHeight) / 2
+      
       const position = this.originPosition
-      if (position.includes('front')) return 0
-      if (position.includes('center')) return this.svgStockY / 2
-      if (position.includes('back')) return this.svgStockY
-      return 0
+      if (position.includes('front')) return startY
+      if (position.includes('center')) return startY + this.svgStockY / 2
+      if (position.includes('back')) return startY + this.svgStockY
+      return startY
     },
     
     svgStockBoundaryPath(): string {
       if (this.stockShape !== 'rectangular') return ''
       
-      // Create isometric box representation
-      const x = 0
-      const y = 0
+      // Create cabinet projection box representation
+      // Cabinet projection: oblique projection with 45° angle and 0.5 depth reduction
+      const depthOffsetX = this.totalDepth * this.svgZScale * 0.5
+      const effectiveWidth = this.svgStockX + depthOffsetX
+      const effectiveHeight = this.svgStockY + this.totalDepth * this.svgZScale
+      const startX = (this.previewWidth - effectiveWidth) / 2 + depthOffsetX
+      const startY = (this.previewHeight - effectiveHeight) / 2
+      
+      const x = startX
+      const y = startY
       const w = this.svgStockX
       const h = this.svgStockY
       const d = this.totalDepth * this.svgZScale
+      const dx = d * 0.5  // Cabinet projection horizontal offset (45° angle with 0.5 reduction)
       
-      // Isometric transformation: shift Y by Z depth
-      return `
+      // Draw cabinet projection box:
+      // Bottom face (front)
+      const path = `
         M ${x} ${y}
         L ${x + w} ${y}
         L ${x + w} ${y + h}
         L ${x} ${y + h}
         Z
-        M ${x} ${y - d}
-        L ${x + w} ${y - d}
-        L ${x + w} ${y + h - d}
-        L ${x} ${y + h - d}
-        Z
-        M ${x} ${y} L ${x} ${y - d}
-        M ${x + w} ${y} L ${x + w} ${y - d}
-        M ${x + w} ${y + h} L ${x + w} ${y + h - d}
-        M ${x} ${y + h} L ${x} ${y + h - d}
       `
+      // Top face (back, offset by depth)
+      const topPath = `
+        M ${x - dx} ${y + d}
+        L ${x + w - dx} ${y + d}
+        L ${x + w - dx} ${y + h + d}
+        L ${x - dx} ${y + h + d}
+        Z
+      `
+      // Connecting edges
+      const edges = `
+        M ${x} ${y} L ${x - dx} ${y + d}
+        M ${x + w} ${y} L ${x + w - dx} ${y + d}
+        M ${x + w} ${y + h} L ${x + w - dx} ${y + h + d}
+        M ${x} ${y + h} L ${x - dx} ${y + h + d}
+      `
+      
+      return path + topPath + edges
     },
     
     svgToolpathLayers(): Array<{ 
@@ -783,10 +831,12 @@ export default BaseComponent.extend({
         for (let i = 0; i < level.length; i++) {
           const point = level[i]
           
-          // Apply isometric transformation
-          // For isometric: x' = x, y' = y - z * scale
-          const x = (point.x * this.svgScale) + this.svgOriginX
-          const y = (point.y * this.svgScale) + this.svgOriginY - (Math.abs(point.z - this.zOffset) * this.svgZScale)
+          // Apply cabinet projection transformation
+          // Cabinet projection: x' = x - z * 0.5, y' = y + z
+          // This creates an oblique projection with 45° angle and 0.5 depth reduction
+          const zDepth = Math.abs(point.z - this.zOffset)
+          const x = (point.x * this.svgScale) + this.svgOriginX - (zDepth * this.svgZScale * 0.5)
+          const y = (point.y * this.svgScale) + this.svgOriginY + (zDepth * this.svgZScale)
           
           if (point.type === 'rapid') {
             // Rapid move - add to rapid path
@@ -925,11 +975,19 @@ export default BaseComponent.extend({
       const availableHeight = this.previewHeight - margin * 2
       
       if (this.stockShape === 'rectangular') {
-        const scaleX = availableWidth / this.stockX
-        const scaleY = availableHeight / this.stockY
+        // For cabinet projection, we need to account for Z depth affecting both X and Y dimensions
+        // Cabinet projection adds Z * 0.5 to X dimension (horizontal offset)
+        const depthOffsetX = this.totalDepth * 0.5
+        const effectiveWidth = this.stockX + depthOffsetX
+        const effectiveHeight = this.stockY + this.totalDepth  // Z affects Y in screen space
+        
+        const scaleX = availableWidth / effectiveWidth
+        const scaleY = availableHeight / effectiveHeight
         this.svgScale = Math.min(scaleX, scaleY)
       } else {
-        const scale = Math.min(availableWidth, availableHeight) / this.stockDiameter
+        const depthOffsetX = this.totalDepth * 0.5
+        const effectiveSize = this.stockDiameter + depthOffsetX
+        const scale = Math.min(availableWidth, availableHeight) / effectiveSize
         this.svgScale = scale
       }
     },

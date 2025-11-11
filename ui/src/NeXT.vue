@@ -4,8 +4,13 @@
     <!-- Status strip removed: CNC dashboard override supplies its own status UI -->
 
     <v-row>
+      <!-- Action Confirmation Widget - Full width above main content -->
+      <v-col v-if="hasActiveDialog" cols="12">
+        <nxt-action-confirmation-widget />
+      </v-col>
+
       <!-- Main Content Area -->
-      <v-col cols="12" md="8">
+      <v-col cols="12">
         <v-card>
           <v-card-title>
             <v-icon left>mdi-wrench</v-icon>
@@ -134,11 +139,6 @@
           </v-card-text>
         </v-card>
       </v-col>
-
-      <!-- Action Confirmation Widget -->
-      <v-col cols="12" md="4">
-        <nxt-action-confirmation-widget />
-      </v-col>
     </v-row>
   </v-container>
 </template>
@@ -181,6 +181,14 @@ export default BaseComponent.extend({
       }
       // Check if nxtLoaded global exists
       return !('nxtLoaded' in this.globals)
+    },
+
+    /**
+     * Check if there's an active dialog requiring user action
+     */
+    hasActiveDialog(): boolean {
+      const messageBox = this.$store.state.machine.model.messageBox
+      return messageBox && messageBox.message ? true : false
     },
 
     statusCaption(): string {
