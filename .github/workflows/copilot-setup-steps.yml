@@ -90,7 +90,7 @@ jobs:
               id: "NeXT",
               name: "NeXT - Next-Gen Extended Tooling",
               author: "NeXT Development Team",
-              version: "dev",
+              version: "%%NXT_VERSION%%",
               loadDwcResources: () => import(
                   /* webpackChunkName: "NeXT" */
                   "./NeXT/index"
@@ -98,9 +98,9 @@ jobs:
           },`;
           
           // Find the closing ]); and insert NeXT entry before it
-          // Use a regex to match the closing bracket with proper indentation
+          // Escape the brackets and parentheses properly
           const updatedContent = content.replace(
-            /^(\]);)$/m,
+            /^(\]\);)$/m,
             nextEntry + "\n$1"
           );
           
