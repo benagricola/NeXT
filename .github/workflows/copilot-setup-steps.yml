@@ -29,14 +29,11 @@ jobs:
     # the agent starts. If you do not check out your code, Copilot
     # will do this for you.
     steps:
-      - name: Checkout NeXT
-        uses: actions/checkout@v4
-        with:
-          path: NeXT
-          fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v5
 
       - name: Checkout DuetWebControl
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Duet3D/DuetWebControl
           ref: v3.7-dev
