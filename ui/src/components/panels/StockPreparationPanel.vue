@@ -349,6 +349,10 @@
                     <v-icon small>mdi-cube-outline</v-icon>
                     <span class="ml-1">3D</span>
                   </v-btn>
+                  <v-btn small value="gcode">
+                    <v-icon small>mdi-code-braces</v-icon>
+                    <span class="ml-1">G-code</span>
+                  </v-btn>
                 </v-btn-toggle>
                 <v-checkbox
                   v-model="showDirectionArrows"
@@ -468,6 +472,11 @@
                     :origin-position="originPosition"
                     :show-direction-arrows="showDirectionArrows"
                   />
+                </div>
+
+                <!-- G-code Viewer -->
+                <div v-if="viewMode === 'gcode'" class="toolpath-preview-container gcode-viewer">
+                  <pre class="gcode-display">{{ generatedGcode || '// Generate G-code to preview' }}</pre>
                 </div>
 
                 <!-- Statistics -->
@@ -668,7 +677,7 @@ export default BaseComponent.extend({
       showDirectionArrows: false,  // Option to show direction arrows on path
       
       // View Mode
-      viewMode: '2d' as '2d' | '3d'  // Toggle between 2D and 3D views
+      viewMode: '2d' as '2d' | '3d' | 'gcode'  // Toggle between 2D, 3D, and G-code views
     }
   },
   
@@ -1292,6 +1301,27 @@ export default BaseComponent.extend({
 .code-preview {
   font-family: 'Courier New', monospace;
   font-size: 12px;
+}
+
+.gcode-viewer {
+  max-height: 450px;
+  overflow: auto;
+  background: #1e1e1e;
+  padding: 0;
+}
+
+.gcode-display {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  margin: 0;
+  padding: 16px;
+  white-space: pre;
+  overflow-x: auto;
+  background: #1e1e1e;
+  height: 100%;
+  min-height: 450px;
 }
 
 .v-stepper {
