@@ -163,8 +163,7 @@ export default Vue.extend({
     },
     
     async renderGCode() {
-      const THREE = window.THREE
-      if (!this.gcode || !this.scene || !THREE) return
+      if (!this.gcode || !this.scene) return
       
       this.loading = true
       this.error = null
@@ -301,8 +300,7 @@ export default Vue.extend({
     },
     
     renderStock(stock: StockMetadata) {
-      const THREE = window.THREE
-      if (!this.scene || !THREE) return
+      if (!this.scene) return
       
       const material = new THREE.MeshPhongMaterial({
         color: 0x4CAF50,
@@ -344,8 +342,7 @@ export default Vue.extend({
     },
     
     renderToolpaths(toolpaths: any[][]) {
-      const THREE = window.THREE
-      if (!this.scene || toolpaths.length === 0 || !THREE) return
+      if (!this.scene || toolpaths.length === 0) return
       
       toolpaths.forEach((level, levelIndex) => {
         // Color gradient from green to blue by depth
@@ -373,8 +370,7 @@ export default Vue.extend({
     },
     
     renderLine(from: any, to: any, color: number, dashed: boolean) {
-      const THREE = window.THREE
-      if (!this.scene || !THREE) return
+      if (!this.scene) return
       
       const points = [
         new THREE.Vector3(from.x, from.z, from.y), // Convert G-code coords to Three.js
@@ -396,8 +392,7 @@ export default Vue.extend({
     },
     
     renderArc(from: any, to: any, center: any, clockwise: boolean, color: number) {
-      const THREE = window.THREE
-      if (!this.scene || !THREE) return
+      if (!this.scene) return
       
       // Calculate arc parameters
       const startVec = new THREE.Vector2(from.x - center.x, from.y - center.y)
@@ -427,8 +422,7 @@ export default Vue.extend({
     },
     
     fitCameraToScene() {
-      const THREE = window.THREE
-      if (!this.scene || !this.camera || !this.controls || !THREE) return
+      if (!this.scene || !this.camera || !this.controls) return
       
       // Calculate bounding box of all objects
       const box = new THREE.Box3()
