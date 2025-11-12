@@ -465,6 +465,7 @@
                     :stock-diameter="stockDiameter"
                     :total-depth="totalDepth"
                     :z-offset="zOffset"
+                    :origin-position="originPosition"
                     :show-direction-arrows="showDirectionArrows"
                   />
                 </div>

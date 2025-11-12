@@ -74,6 +74,10 @@ export default Vue.extend({
       type: Number,
       default: 0
     },
+    originPosition: {
+      type: String,
+      default: 'front-left'
+    },
     showDirectionArrows: {
       type: Boolean,
       default: false
@@ -123,6 +127,9 @@ export default Vue.extend({
     zOffset() {
       this.render()
     },
+    originPosition() {
+      this.render()
+    },
     showDirectionArrows() {
       this.render()
     },
@@ -163,6 +170,46 @@ export default Vue.extend({
       this.camera.targetX = 0
       this.camera.targetY = 0
       this.camera.targetZ = -this.totalDepth / 2
+    },
+    
+    /**
+     * Calculate origin offset based on origin position
+     * Returns the offset from WCS origin (0,0) to the front-left corner of the stock
+     */
+    calculateOriginOffset(): { x: number; y: number } {
+      // Parse origin position to determine X and Y position
+      const [yPos, xPos] = this.originPosition.split('-')
+      
+      let xOffset = 0
+      let yOffset = 0
+      
+      // Calculate X offset based on horizontal position
+      switch (xPos) {
+        case 'left':
+          xOffset = 0
+          break
+        case 'center':
+          xOffset = -this.stockX / 2
+          break
+        case 'right':
+          xOffset = -this.stockX
+          break
+      }
+      
+      // Calculate Y offset based on vertical position
+      switch (yPos) {
+        case 'front':
+          yOffset = 0
+          break
+        case 'center':
+          yOffset = -this.stockY / 2
+          break
+        case 'back':
+          yOffset = -this.stockY
+          break
+      }
+      
+      return { x: xOffset, y: yOffset }
     },
     
     project3DTo2D(point: Point3D): { x: number; y: number } {
@@ -253,21 +300,28 @@ export default Vue.extend({
     drawRectangularStock() {
       if (!this.ctx) return
       
-      const halfX = this.stockX / 2
-      const halfY = this.stockY / 2
+      // Get origin offset to position stock correctly relative to WCS origin
+      const originOffset = this.calculateOriginOffset()
+      
+      // Calculate stock corner positions relative to WCS origin
+      // The stock extends from originOffset to originOffset + stockDimensions
+      const xMin = originOffset.x
+      const xMax = originOffset.x + this.stockX
+      const yMin = originOffset.y
+      const yMax = originOffset.y + this.stockY
       
       // Define 8 corners of the rectangular stock
       const corners = [
         // Bottom face (Z = zOffset)
-        { x: -halfX, y: -halfY, z: this.zOffset },
-        { x: halfX, y: -halfY, z: this.zOffset },
-        { x: halfX, y: halfY, z: this.zOffset },
-        { x: -halfX, y: halfY, z: this.zOffset },
+        { x: xMin, y: yMin, z: this.zOffset },
+        { x: xMax, y: yMin, z: this.zOffset },
+        { x: xMax, y: yMax, z: this.zOffset },
+        { x: xMin, y: yMax, z: this.zOffset },
         // Top face (Z = zOffset - totalDepth)
-        { x: -halfX, y: -halfY, z: this.zOffset - this.totalDepth },
-        { x: halfX, y: -halfY, z: this.zOffset - this.totalDepth },
-        { x: halfX, y: halfY, z: this.zOffset - this.totalDepth },
-        { x: -halfX, y: halfY, z: this.zOffset - this.totalDepth }
+        { x: xMin, y: yMin, z: this.zOffset - this.totalDepth },
+        { x: xMax, y: yMin, z: this.zOffset - this.totalDepth },
+        { x: xMax, y: yMax, z: this.zOffset - this.totalDepth },
+        { x: xMin, y: yMax, z: this.zOffset - this.totalDepth }
       ]
       
       // Project all corners
