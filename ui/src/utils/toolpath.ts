@@ -578,10 +578,12 @@ export function generateSpiralPattern(
     let yMin = boundaries.yMin
     let yMax = boundaries.yMax
     
-    // Calculate initial and final radii
-    const initialWidth = xMax - xMin
-    const initialHeight = yMax - yMin
-    const initialRadius = Math.min(initialWidth, initialHeight) / 2
+    // Calculate initial radius to encompass entire rectangular stock
+    // For a rectangle, the diagonal from center to corner gives us the radius needed
+    // to fully encompass the stock within the spiral
+    const halfWidth = (xMax - xMin) / 2
+    const halfHeight = (yMax - yMin) / 2
+    const initialRadius = Math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight) + cutting.toolRadius
     
     // Start at the outer edge of the spiral at the pattern angle
     const startAngle = pattern.angle * Math.PI / 180
@@ -635,16 +637,29 @@ export function generateSpiralPattern(
       }
       
       // Calculate position on spiral
-      const x = centerX + currentRadius * Math.cos(currentAngle)
-      const y = centerY + currentRadius * Math.sin(currentAngle)
+      let x = centerX + currentRadius * Math.cos(currentAngle)
+      let y = centerY + currentRadius * Math.sin(currentAngle)
       
-      levelPasses.push({
-        x,
-        y,
-        z: zLevel.depth,
-        feedRate: feeds.xy,
-        type: 'linear'
-      })
+      // Clip to rectangular stock boundaries
+      // Only include points if they're within or near the stock boundaries
+      // Check if point is within expanded boundaries (tool radius + small margin)
+      const margin = cutting.toolRadius * 1.5
+      const inBounds = x >= (xMin - margin) && x <= (xMax + margin) && 
+                       y >= (yMin - margin) && y <= (yMax + margin)
+      
+      if (inBounds) {
+        // Clamp to actual boundaries for tool center
+        x = Math.max(xMin, Math.min(xMax, x))
+        y = Math.max(yMin, Math.min(yMax, y))
+        
+        levelPasses.push({
+          x,
+          y,
+          z: zLevel.depth,
+          feedRate: feeds.xy,
+          type: 'linear'
+        })
+      }
     }
     
     // Final retract for this Z level

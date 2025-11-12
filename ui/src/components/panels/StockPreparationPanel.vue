@@ -641,7 +641,7 @@ export default BaseComponent.extend({
       previewWidth: 600,
       previewHeight: 450,
       svgScale: 1,
-      svgZScale: 8,  // Increased Z axis scale factor for cabinet projection (better stepdown visibility)
+      svgZScale: 3,  // Z axis scale factor for cabinet projection - lower value = less vertical viewing angle
       showDirectionArrows: false  // Option to show direction arrows on path
     }
   },
@@ -728,14 +728,16 @@ export default BaseComponent.extend({
       }
       
       // For rectangular, calculate based on origin position within the centered stock
+      // In CNC convention: Front is near operator (bottom of screen), Back is away (top of screen)
+      // In SVG: Y increases downward, so front should have larger Y, back should have smaller Y
       const effectiveHeight = this.svgStockY + this.totalDepth * this.svgZScale
       const startY = (this.previewHeight - effectiveHeight) / 2
       
       const position = this.originPosition
-      if (position.includes('front')) return startY
+      if (position.includes('back')) return startY  // Back is at top (small Y)
       if (position.includes('center')) return startY + this.svgStockY / 2
-      if (position.includes('back')) return startY + this.svgStockY
-      return startY
+      if (position.includes('front')) return startY + this.svgStockY  // Front is at bottom (large Y)
+      return startY + this.svgStockY  // Default to front
     },
     
     svgStockBoundaryPath(): string {
@@ -832,11 +834,12 @@ export default BaseComponent.extend({
           const point = level[i]
           
           // Apply cabinet projection transformation
-          // Cabinet projection: x' = x - z * 0.5, y' = y + z
-          // This creates an oblique projection with 45° angle and 0.5 depth reduction
+          // Cabinet projection: x' = x - z * 0.5, y' = -y + z
+          // Note: Y is inverted because in SVG, Y increases downward, but in CNC, Y+ is away from operator
+          // This transformation shows the work from above with front (near operator) at bottom of screen
           const zDepth = Math.abs(point.z - this.zOffset)
           const x = (point.x * this.svgScale) + this.svgOriginX - (zDepth * this.svgZScale * 0.5)
-          const y = (point.y * this.svgScale) + this.svgOriginY + (zDepth * this.svgZScale)
+          const y = (-point.y * this.svgScale) + this.svgOriginY + (zDepth * this.svgZScale)
           
           if (point.type === 'rapid') {
             // Rapid move - add to rapid path
