@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import Vue, { PropType } from 'vue'
 import { ToolpathPoint } from '../../utils/toolpath'
 
 interface Camera {
@@ -34,7 +34,7 @@ interface Point3D {
   z: number
 }
 
-export default defineComponent({
+export default Vue.extend({
   name: 'ToolpathViewer3D',
   
   props: {
@@ -144,7 +144,7 @@ export default defineComponent({
     this.render()
   },
   
-  beforeUnmount() {
+  beforeDestroy() {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId)
     }
