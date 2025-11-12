@@ -335,150 +335,27 @@
                 <v-icon left small>mdi-eye</v-icon>
                 Toolpath Preview
                 <v-spacer />
-                <v-btn-toggle
-                  v-model="viewMode"
-                  mandatory
-                  dense
-                  class="mr-2"
-                >
-                  <v-btn small value="2d">
-                    <v-icon small>mdi-crop-square</v-icon>
-                    <span class="ml-1">2D</span>
-                  </v-btn>
-                  <v-btn small value="3d">
-                    <v-icon small>mdi-cube-outline</v-icon>
-                    <span class="ml-1">3D</span>
-                  </v-btn>
-                </v-btn-toggle>
                 <v-btn
                   small
                   outlined
                   color="primary"
-                  class="mr-2"
                   :disabled="!generatedGcode"
                   @click="openInGCodeViewer"
                 >
                   <v-icon small left>mdi-file-eye</v-icon>
                   View in DWC G-code Viewer
                 </v-btn>
-                <v-checkbox
-                  v-model="showDirectionArrows"
-                  label="Show Direction Arrows"
-                  dense
-                  hide-details
-                  class="mt-0"
-                />
               </v-card-subtitle>
               <v-card-text>
-                <!-- 2D SVG Visualization -->
-                <div v-if="viewMode === '2d'" class="toolpath-preview-container">
-                  <svg
-                    ref="previewSvg"
-                    :width="previewWidth"
-                    :height="previewHeight"
-                    class="toolpath-preview"
-                  >
-                    <!-- Define gradient for depth -->
-                    <defs>
-                      <linearGradient id="depthGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
-                      </linearGradient>
-                    </defs>
-                    
-                    <!-- Stock boundary (isometric) -->
-                    <g v-if="stockShape === 'rectangular'">
-                      <path
-                        :d="svgStockBoundaryPath"
-                        fill="none"
-                        stroke="#888888"
-                        stroke-width="2"
-                        stroke-dasharray="5,5"
-                      />
-                    </g>
-                    <g v-if="stockShape === 'circular'">
-                      <!-- Top circle (back) for cabinet projection -->
-                      <ellipse
-                        :cx="svgOriginX - totalDepth * svgZScale * 0.5"
-                        :cy="svgOriginY + totalDepth * svgZScale"
-                        :rx="svgRadius"
-                        :ry="svgRadius * 0.5"
-                        fill="none"
-                        stroke="#888888"
-                        stroke-width="2"
-                        stroke-dasharray="5,5"
-                      />
-                      <!-- Bottom circle (front) -->
-                      <ellipse
-                        :cx="svgOriginX"
-                        :cy="svgOriginY"
-                        :rx="svgRadius"
-                        :ry="svgRadius * 0.5"
-                        fill="none"
-                        stroke="#888888"
-                        stroke-width="2"
-                        stroke-dasharray="5,5"
-                      />
-                    </g>
-
-                    <!-- WCS Origin indicator -->
-                    <g :transform="`translate(${svgOriginX}, ${svgOriginY})`">
-                      <line x1="-10" y1="0" x2="10" y2="0" stroke="red" stroke-width="1" />
-                      <line x1="0" y1="-10" x2="0" y2="10" stroke="green" stroke-width="1" />
-                      <circle cx="0" cy="0" r="3" fill="blue" />
-                    </g>
-
-                    <!-- Toolpath layers (all Z levels) -->
-                    <g v-for="(layer, index) in svgToolpathLayers" :key="index">
-                      <!-- Cutting moves -->
-                      <path
-                        :d="layer.cuttingPath"
-                        fill="none"
-                        :stroke="layer.color"
-                        :stroke-opacity="layer.opacity"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                      <!-- Rapid moves -->
-                      <path
-                        v-if="layer.rapidPath"
-                        :d="layer.rapidPath"
-                        fill="none"
-                        stroke="red"
-                        :stroke-opacity="layer.opacity * 0.5"
-                        stroke-width="1"
-                        stroke-dasharray="3,3"
-                      />
-                      <!-- Direction arrows -->
-                      <g v-if="showDirectionArrows">
-                        <polygon
-                          v-for="(arrow, arrowIndex) in layer.arrows"
-                          :key="`arrow-${index}-${arrowIndex}`"
-                          :points="arrow.points"
-                          :fill="layer.color"
-                          :fill-opacity="layer.opacity * 0.7"
-                        />
-                      </g>
-                    </g>
-                  </svg>
-                </div>
-                
-                <!-- 3D WebGL Visualization -->
-                <div v-if="viewMode === '3d'" class="toolpath-preview-container">
-                  <toolpath-viewer-3d
-                    :width="previewWidth"
-                    :height="previewHeight"
-                    :toolpath="generatedToolpath"
-                    :stock-shape="stockShape"
-                    :stock-x="stockX"
-                    :stock-y="stockY"
-                    :stock-diameter="stockDiameter"
-                    :total-depth="totalDepth"
-                    :z-offset="zOffset"
-                    :origin-position="originPosition"
-                    :show-direction-arrows="showDirectionArrows"
-                  />
+                <!-- Placeholder for future Three.js-based G-code viewer -->
+                <div class="toolpath-preview-placeholder">
+                  <v-icon size="64" color="grey lighten-1">mdi-cube-outline</v-icon>
+                  <p class="text-center grey--text text--lighten-1 mt-4">
+                    3D G-code viewer coming soon
+                  </p>
+                  <p class="text-center grey--text text--darken-1 caption">
+                    Use "View in DWC G-code Viewer" to preview toolpath
+                  </p>
                 </div>
 
                 <!-- Statistics -->
@@ -585,7 +462,6 @@
 
 <script lang="ts">
 import BaseComponent from '../base/BaseComponent.vue'
-import ToolpathViewer3D from './ToolpathViewer3D.vue'
 import {
   generateToolpath,
   calculateToolpathStatistics,
@@ -596,10 +472,6 @@ import { generateGCode, validateGCodeParameters } from '../../utils/gcode'
 
 export default BaseComponent.extend({
   name: 'NxtStockPreparationPanel',
-  
-  components: {
-    ToolpathViewer3D
-  },
   
   data() {
     return {
@@ -669,17 +541,7 @@ export default BaseComponent.extend({
       saveLocations: [
         { text: '/gcodes/', value: '/gcodes/' },
         { text: '/macros/', value: '/macros/' }
-      ],
-      
-      // SVG Preview
-      previewWidth: 600,
-      previewHeight: 450,
-      svgScale: 1,
-      svgZScale: 3,  // Z axis scale factor for cabinet projection - lower value = less vertical viewing angle
-      showDirectionArrows: false,  // Option to show direction arrows on path
-      
-      // View Mode
-      viewMode: '2d' as '2d' | '3d'  // Toggle between 2D and 3D views
+      ]
     }
   },
   
@@ -709,299 +571,6 @@ export default BaseComponent.extend({
     
     gcodeLineCount(): number {
       return this.generatedGcode.split('\n').length
-    },
-    
-    // SVG scaling and positioning
-    svgStockX(): number {
-      return this.stockX * this.svgScale
-    },
-    
-    svgStockY(): number {
-      return this.stockY * this.svgScale
-    },
-    
-    svgCenterX(): number {
-      return this.previewWidth / 2
-    },
-    
-    svgCenterY(): number {
-      return this.previewHeight / 2
-    },
-    
-    svgRadius(): number {
-      return (this.stockDiameter / 2) * this.svgScale
-    },
-    
-    svgOriginX(): number {
-      // Calculate the offset for centering
-      const margin = 50
-      
-      if (this.stockShape === 'circular') {
-        // For circular, center in viewport accounting for cabinet projection depth offset
-        const depthOffsetX = this.totalDepth * this.svgZScale * 0.5
-        return this.svgCenterX - (this.svgRadius) + (depthOffsetX / 2)
-      }
-      
-      // For rectangular, calculate based on origin position within the centered stock
-      const depthOffsetX = this.totalDepth * this.svgZScale * 0.5
-      const effectiveWidth = this.svgStockX + depthOffsetX
-      const startX = (this.previewWidth - effectiveWidth) / 2 + depthOffsetX
-      
-      const position = this.originPosition
-      if (position.includes('left')) return startX
-      if (position.includes('center')) return startX + this.svgStockX / 2
-      if (position.includes('right')) return startX + this.svgStockX
-      return startX
-    },
-    
-    svgOriginY(): number {
-      // Calculate the offset for centering
-      const margin = 50
-      
-      if (this.stockShape === 'circular') {
-        // For circular, center in viewport accounting for depth
-        const effectiveHeight = this.svgRadius * 2 + this.totalDepth * this.svgZScale
-        return (this.previewHeight - effectiveHeight) / 2 + this.svgRadius
-      }
-      
-      // For rectangular, calculate based on origin position within the centered stock
-      // In CNC convention: Front is near operator (bottom of screen), Back is away (top of screen)
-      // In SVG: Y increases downward, so front should have larger Y, back should have smaller Y
-      const effectiveHeight = this.svgStockY + this.totalDepth * this.svgZScale
-      const startY = (this.previewHeight - effectiveHeight) / 2
-      
-      const position = this.originPosition
-      if (position.includes('back')) return startY  // Back is at top (small Y)
-      if (position.includes('center')) return startY + this.svgStockY / 2
-      if (position.includes('front')) return startY + this.svgStockY  // Front is at bottom (large Y)
-      return startY + this.svgStockY  // Default to front
-    },
-    
-    svgStockBoundaryPath(): string {
-      if (this.stockShape !== 'rectangular') return ''
-      
-      // Create cabinet projection box representation
-      // Cabinet projection: oblique projection with 45° angle and 0.5 depth reduction
-      const depthOffsetX = this.totalDepth * this.svgZScale * 0.5
-      const effectiveWidth = this.svgStockX + depthOffsetX
-      const effectiveHeight = this.svgStockY + this.totalDepth * this.svgZScale
-      const startX = (this.previewWidth - effectiveWidth) / 2 + depthOffsetX
-      const startY = (this.previewHeight - effectiveHeight) / 2
-      
-      const x = startX
-      const y = startY
-      const w = this.svgStockX
-      const h = this.svgStockY
-      const d = this.totalDepth * this.svgZScale
-      const dx = d * 0.5  // Cabinet projection horizontal offset (45° angle with 0.5 reduction)
-      
-      // Draw cabinet projection box:
-      // Bottom face (front)
-      const path = `
-        M ${x} ${y}
-        L ${x + w} ${y}
-        L ${x + w} ${y + h}
-        L ${x} ${y + h}
-        Z
-      `
-      // Top face (back, offset by depth)
-      const topPath = `
-        M ${x - dx} ${y + d}
-        L ${x + w - dx} ${y + d}
-        L ${x + w - dx} ${y + h + d}
-        L ${x - dx} ${y + h + d}
-        Z
-      `
-      // Connecting edges
-      const edges = `
-        M ${x} ${y} L ${x - dx} ${y + d}
-        M ${x + w} ${y} L ${x + w - dx} ${y + d}
-        M ${x + w} ${y + h} L ${x + w - dx} ${y + h + d}
-        M ${x} ${y + h} L ${x - dx} ${y + h + d}
-      `
-      
-      return path + topPath + edges
-    },
-    
-    svgToolpathLayers(): Array<{ 
-      cuttingPath: string; 
-      rapidPath: string; 
-      color: string; 
-      opacity: number;
-      arrows: Array<{ points: string }>;
-    }> {
-      if (this.generatedToolpath.length === 0) return []
-      
-      const layers: Array<{ 
-        cuttingPath: string; 
-        rapidPath: string; 
-        color: string; 
-        opacity: number;
-        arrows: Array<{ points: string }>;
-      }> = []
-      
-      // Process each Z level
-      for (let levelIndex = 0; levelIndex < this.generatedToolpath.length; levelIndex++) {
-        const level = this.generatedToolpath[levelIndex]
-        if (!level || level.length === 0) continue
-        
-        // Calculate color based on depth (gradient from green to blue)
-        const depthRatio = levelIndex / Math.max(1, this.generatedToolpath.length - 1)
-        const r = Math.round(76 - depthRatio * 44)  // 76 -> 32 (green to blue)
-        const g = Math.round(175 - depthRatio * 25)  // 175 -> 150
-        const b = Math.round(80 + depthRatio * 163)  // 80 -> 243
-        const color = `rgb(${r}, ${g}, ${b})`
-        
-        // Opacity decreases with depth to show layering
-        const opacity = 1.0 - depthRatio * 0.3
-        
-        // Build separate paths for cutting and rapid moves
-        let cuttingPath = ''
-        let rapidPath = ''
-        let firstCuttingPoint = true
-        let firstRapidPoint = true
-        const arrows: Array<{ points: string }> = []
-        
-        let prevPoint: any = null
-        let prevX = 0
-        let prevY = 0
-        let lastDirection = { dx: 0, dy: 0 }
-        
-        for (let i = 0; i < level.length; i++) {
-          const point = level[i]
-          
-          // Apply cabinet projection transformation
-          // Cabinet projection: x' = x - z * 0.5, y' = -y + z
-          // Note: Y is inverted because in SVG, Y increases downward, but in CNC, Y+ is away from operator
-          // This transformation shows the work from above with front (near operator) at bottom of screen
-          const zDepth = Math.abs(point.z - this.zOffset)
-          const x = (point.x * this.svgScale) + this.svgOriginX - (zDepth * this.svgZScale * 0.5)
-          const y = (-point.y * this.svgScale) + this.svgOriginY + (zDepth * this.svgZScale)
-          
-          if (point.type === 'rapid') {
-            // Rapid move - add to rapid path
-            if (firstRapidPoint) {
-              rapidPath += `M ${x} ${y} `
-              firstRapidPoint = false
-            } else {
-              rapidPath += `L ${x} ${y} `
-            }
-          } else {
-            // Cutting move - add to cutting path
-            if (firstCuttingPoint) {
-              cuttingPath += `M ${x} ${y} `
-              firstCuttingPoint = false
-            } else if (point.type === 'arc' && point.i !== undefined && point.j !== undefined) {
-              // Arc move - calculate arc parameters for SVG
-              // SVG arc format: A rx ry x-axis-rotation large-arc-flag sweep-flag x y
-              // For now, convert G-code I,J arc to SVG arc
-              
-              // Calculate center point in world coordinates
-              const prevWorldX = prevPoint ? prevPoint.x : point.x
-              const prevWorldY = prevPoint ? prevPoint.y : point.y
-              const centerWorldX = prevWorldX + point.i
-              const centerWorldY = prevWorldY + point.j
-              
-              // Calculate radius
-              const radius = Math.sqrt(point.i * point.i + point.j * point.j) * this.svgScale
-              
-              // For SVG, we need:
-              // - large-arc-flag: 1 if arc > 180 degrees, 0 otherwise
-              // - sweep-flag: 1 for CW (G2), 0 for CCW (G3)
-              
-              // Calculate angles to determine if arc is > 180 degrees
-              const startAngle = Math.atan2(-point.j, -point.i)
-              const endAngle = Math.atan2(point.y - centerWorldY, point.x - centerWorldX)
-              let angleDiff = endAngle - startAngle
-              
-              // Normalize angle difference
-              if (point.clockwise) {
-                // CW (G2) - angle should be negative
-                if (angleDiff > 0) angleDiff -= 2 * Math.PI
-              } else {
-                // CCW (G3) - angle should be positive
-                if (angleDiff < 0) angleDiff += 2 * Math.PI
-              }
-              
-              const largeArcFlag = Math.abs(angleDiff) > Math.PI ? 1 : 0
-              const sweepFlag = point.clockwise ? 1 : 0
-              
-              cuttingPath += `A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${x} ${y} `
-              
-              // For arcs, update direction for arrow placement
-              if (prevPoint && prevPoint.type !== 'rapid') {
-                const dx = x - prevX
-                const dy = y - prevY
-                const distance = Math.sqrt(dx * dx + dy * dy)
-                
-                if (distance > 0) {
-                  const currentDirection = { dx: dx / distance, dy: dy / distance }
-                  lastDirection = currentDirection
-                }
-              }
-            } else {
-              // Linear move
-              cuttingPath += `L ${x} ${y} `
-              
-              // Check for direction change (for arrow placement)
-              if (prevPoint && prevPoint.type !== 'rapid') {
-                const dx = x - prevX
-                const dy = y - prevY
-                const distance = Math.sqrt(dx * dx + dy * dy)
-                
-                if (distance > 0) {
-                  const currentDirection = { dx: dx / distance, dy: dy / distance }
-                  
-                  // Check if direction changed significantly (dot product < 0.9)
-                  const dotProduct = currentDirection.dx * lastDirection.dx + currentDirection.dy * lastDirection.dy
-                  
-                  if (lastDirection.dx !== 0 || lastDirection.dy !== 0) {
-                    if (dotProduct < 0.9 && distance > 10) {
-                      // Direction changed - place arrow a few mm into the line
-                      const arrowDist = Math.min(5, distance * 0.3)
-                      const arrowX = prevX + currentDirection.dx * arrowDist
-                      const arrowY = prevY + currentDirection.dy * arrowDist
-                      
-                      // Create arrow triangle pointing in direction of travel
-                      const arrowSize = 4
-                      const perpX = -currentDirection.dy
-                      const perpY = currentDirection.dx
-                      
-                      const tipX = arrowX + currentDirection.dx * arrowSize
-                      const tipY = arrowY + currentDirection.dy * arrowSize
-                      const baseX1 = arrowX + perpX * arrowSize * 0.5
-                      const baseY1 = arrowY + perpY * arrowSize * 0.5
-                      const baseX2 = arrowX - perpX * arrowSize * 0.5
-                      const baseY2 = arrowY - perpY * arrowSize * 0.5
-                      
-                      arrows.push({
-                        points: `${tipX},${tipY} ${baseX1},${baseY1} ${baseX2},${baseY2}`
-                      })
-                    }
-                  }
-                  
-                  lastDirection = currentDirection
-                }
-              }
-            }
-          }
-          
-          prevPoint = point
-          prevX = x
-          prevY = y
-        }
-        
-        if (cuttingPath || rapidPath) {
-          layers.push({ cuttingPath, rapidPath, color, opacity, arrows })
-        }
-      }
-      
-      return layers
-    },
-    
-    svgToolpathPoints(): string {
-      // Deprecated - keeping for compatibility but not used anymore
-      return ''
     }
   },
   
@@ -1017,19 +586,15 @@ export default BaseComponent.extend({
     
     // Watch all settings that affect toolpath generation
     stockShape() {
-      this.calculateSvgScale()
       this.generatePreview()
     },
     stockX() {
-      this.calculateSvgScale()
       this.generatePreview()
     },
     stockY() {
-      this.calculateSvgScale()
       this.generatePreview()
     },
     stockDiameter() {
-      this.calculateSvgScale()
       this.generatePreview()
     },
     originPosition() {
@@ -1048,11 +613,9 @@ export default BaseComponent.extend({
       this.generatePreview()
     },
     stepdown() {
-      this.calculateSvgScale()
       this.generatePreview()
     },
     totalDepth() {
-      this.calculateSvgScale()
       this.generatePreview()
     },
     zOffset() {
@@ -1086,7 +649,6 @@ export default BaseComponent.extend({
   
   mounted() {
     this.initializeFromMachineState()
-    this.calculateSvgScale()
     // Set initial finishing pass offset to half of tool radius
     this.finishingPassOffset = this.toolRadius / 2
     // Generate initial toolpath
@@ -1126,29 +688,6 @@ export default BaseComponent.extend({
           const maxSpeed = spindle.max || 30000
           this.spindleSpeed = Math.min(10000, (minSpeed + maxSpeed) / 2)
         }
-      }
-    },
-    
-    calculateSvgScale() {
-      const margin = 50
-      const availableWidth = this.previewWidth - margin * 2
-      const availableHeight = this.previewHeight - margin * 2
-      
-      if (this.stockShape === 'rectangular') {
-        // For cabinet projection, we need to account for Z depth affecting both X and Y dimensions
-        // Cabinet projection adds Z * 0.5 to X dimension (horizontal offset)
-        const depthOffsetX = this.totalDepth * 0.5
-        const effectiveWidth = this.stockX + depthOffsetX
-        const effectiveHeight = this.stockY + this.totalDepth  // Z affects Y in screen space
-        
-        const scaleX = availableWidth / effectiveWidth
-        const scaleY = availableHeight / effectiveHeight
-        this.svgScale = Math.min(scaleX, scaleY)
-      } else {
-        const depthOffsetX = this.totalDepth * 0.5
-        const effectiveSize = this.stockDiameter + depthOffsetX
-        const scale = Math.min(availableWidth, availableHeight) / effectiveSize
-        this.svgScale = scale
       }
     },
     
@@ -1217,9 +756,6 @@ export default BaseComponent.extend({
           currentToolNum,
           workplace
         )
-        
-        // Update SVG scale
-        this.calculateSvgScale()
       } catch (error) {
         console.error('Error generating toolpath:', error)
         alert('Error generating toolpath: ' + error)
@@ -1319,6 +855,15 @@ export default BaseComponent.extend({
 .nxt-stock-preparation-panel {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.toolpath-preview-placeholder {
+  min-height: 450px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
 }
 
 .toolpath-preview-container {
