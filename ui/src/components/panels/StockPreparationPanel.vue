@@ -335,6 +335,21 @@
                 <v-icon left small>mdi-eye</v-icon>
                 Toolpath Preview
                 <v-spacer />
+                <v-btn-toggle
+                  v-model="viewMode"
+                  mandatory
+                  dense
+                  class="mr-2"
+                >
+                  <v-btn small value="2d">
+                    <v-icon small>mdi-crop-square</v-icon>
+                    <span class="ml-1">2D</span>
+                  </v-btn>
+                  <v-btn small value="3d">
+                    <v-icon small>mdi-cube-outline</v-icon>
+                    <span class="ml-1">3D</span>
+                  </v-btn>
+                </v-btn-toggle>
                 <v-checkbox
                   v-model="showDirectionArrows"
                   label="Show Direction Arrows"
@@ -344,8 +359,8 @@
                 />
               </v-card-subtitle>
               <v-card-text>
-                <!-- SVG Visualization -->
-                <div class="toolpath-preview-container">
+                <!-- 2D SVG Visualization -->
+                <div v-if="viewMode === '2d'" class="toolpath-preview-container">
                   <svg
                     ref="previewSvg"
                     :width="previewWidth"
@@ -436,6 +451,22 @@
                       </g>
                     </g>
                   </svg>
+                </div>
+                
+                <!-- 3D WebGL Visualization -->
+                <div v-if="viewMode === '3d'" class="toolpath-preview-container">
+                  <toolpath-viewer-3d
+                    :width="previewWidth"
+                    :height="previewHeight"
+                    :toolpath="generatedToolpath"
+                    :stock-shape="stockShape"
+                    :stock-x="stockX"
+                    :stock-y="stockY"
+                    :stock-diameter="stockDiameter"
+                    :total-depth="totalDepth"
+                    :z-offset="zOffset"
+                    :show-direction-arrows="showDirectionArrows"
+                  />
                 </div>
 
                 <!-- Statistics -->
@@ -542,6 +573,7 @@
 
 <script lang="ts">
 import BaseComponent from '../base/BaseComponent.vue'
+import ToolpathViewer3D from './ToolpathViewer3D.vue'
 import {
   generateToolpath,
   calculateToolpathStatistics,
@@ -552,6 +584,10 @@ import { generateGCode, validateGCodeParameters } from '../../utils/gcode'
 
 export default BaseComponent.extend({
   name: 'NxtStockPreparationPanel',
+  
+  components: {
+    ToolpathViewer3D
+  },
   
   data() {
     return {
@@ -628,7 +664,10 @@ export default BaseComponent.extend({
       previewHeight: 450,
       svgScale: 1,
       svgZScale: 3,  // Z axis scale factor for cabinet projection - lower value = less vertical viewing angle
-      showDirectionArrows: false  // Option to show direction arrows on path
+      showDirectionArrows: false,  // Option to show direction arrows on path
+      
+      // View Mode
+      viewMode: '2d' as '2d' | '3d'  // Toggle between 2D and 3D views
     }
   },
   
