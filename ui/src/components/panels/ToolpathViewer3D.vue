@@ -88,7 +88,7 @@ export default Vue.extend({
     return {
       ctx: null as CanvasRenderingContext2D | null,
       camera: {
-        distance: 200,
+        distance: 150,  // Reduced from 200 for closer initial view
         theta: Math.PI / 4,  // 45 degrees
         phi: Math.PI / 6,    // 30 degrees
         targetX: 0,
@@ -164,7 +164,8 @@ export default Vue.extend({
         this.stockShape === 'rectangular' ? Math.max(this.stockX, this.stockY) : this.stockDiameter,
         this.totalDepth
       )
-      this.camera.distance = maxDim * 2.5
+      // Reduced multiplier from 2.5 to 1.8 for closer default zoom
+      this.camera.distance = maxDim * 1.8
       this.camera.theta = Math.PI / 4
       this.camera.phi = Math.PI / 6
       this.camera.targetX = 0
