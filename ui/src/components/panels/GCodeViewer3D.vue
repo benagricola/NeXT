@@ -13,13 +13,8 @@
 
 <script lang="ts">
 import Vue from 'vue'
-
-// Declare THREE as potentially undefined
-declare global {
-  interface Window {
-    THREE: any
-  }
-}
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
 interface StockMetadata {
   type: 'cuboid' | 'cylinder'
@@ -44,30 +39,26 @@ export default Vue.extend({
     return {
       loading: false,
       error: null as string | null,
-      scene: null as any,
-      camera: null as any,
-      renderer: null as any,
-      controls: null as any,
-      animationFrameId: null as number | null,
-      threeLoaded: false
+      scene: null as THREE.Scene | null,
+      camera: null as THREE.PerspectiveCamera | null,
+      renderer: null as THREE.WebGLRenderer | null,
+      controls: null as OrbitControls | null,
+      animationFrameId: null as number | null
     }
   },
   
   watch: {
     gcode(newGcode: string) {
-      if (this.autoUpdate && newGcode && this.threeLoaded) {
+      if (this.autoUpdate && newGcode) {
         this.renderGCode()
       }
     }
   },
   
-  async mounted() {
-    await this.loadThreeJS()
-    if (this.threeLoaded) {
-      this.initThreeJS()
-      if (this.gcode) {
-        this.renderGCode()
-      }
+  mounted() {
+    this.initThreeJS()
+    if (this.gcode) {
+      this.renderGCode()
     }
     window.addEventListener('resize', this.onWindowResize)
   },
@@ -86,41 +77,7 @@ export default Vue.extend({
   },
   
   methods: {
-    async loadThreeJS() {
-      // Check if THREE is already available (from DWC)
-      if (typeof window.THREE !== 'undefined') {
-        this.threeLoaded = true
-        return
-      }
-      
-      // Try to load Three.js from CDN
-      this.loading = true
-      try {
-        await this.loadScript('https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js')
-        await this.loadScript('https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js')
-        this.threeLoaded = true
-      } catch (err) {
-        console.error('Failed to load Three.js:', err)
-        this.error = 'Failed to load 3D viewer library. Please check your internet connection.'
-      } finally {
-        this.loading = false
-      }
-    },
-    
-    loadScript(src: string): Promise<void> {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = src
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error(`Failed to load script: ${src}`))
-        document.head.appendChild(script)
-      })
-    },
-    
     initThreeJS() {
-      const THREE = window.THREE
-      if (!THREE) return
-      
       const canvas = this.$refs.canvas as HTMLCanvasElement
       if (!canvas) return
       
@@ -164,7 +121,7 @@ export default Vue.extend({
       this.scene.add(axesHelper)
       
       // Controls
-      this.controls = new THREE.OrbitControls(this.camera, canvas)
+      this.controls = new OrbitControls(this.camera, canvas)
       this.controls.enableDamping = true
       this.controls.dampingFactor = 0.05
       this.controls.screenSpacePanning = true
