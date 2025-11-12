@@ -349,11 +349,18 @@
                     <v-icon small>mdi-cube-outline</v-icon>
                     <span class="ml-1">3D</span>
                   </v-btn>
-                  <v-btn small value="gcode">
-                    <v-icon small>mdi-code-braces</v-icon>
-                    <span class="ml-1">G-code</span>
-                  </v-btn>
                 </v-btn-toggle>
+                <v-btn
+                  small
+                  outlined
+                  color="primary"
+                  class="mr-2"
+                  :disabled="!generatedGcode"
+                  @click="openInGCodeViewer"
+                >
+                  <v-icon small left>mdi-file-eye</v-icon>
+                  View in DWC G-code Viewer
+                </v-btn>
                 <v-checkbox
                   v-model="showDirectionArrows"
                   label="Show Direction Arrows"
@@ -472,11 +479,6 @@
                     :origin-position="originPosition"
                     :show-direction-arrows="showDirectionArrows"
                   />
-                </div>
-
-                <!-- G-code Viewer -->
-                <div v-if="viewMode === 'gcode'" class="toolpath-preview-container gcode-viewer">
-                  <pre class="gcode-display">{{ generatedGcode || '// Generate G-code to preview' }}</pre>
                 </div>
 
                 <!-- Statistics -->
@@ -677,7 +679,7 @@ export default BaseComponent.extend({
       showDirectionArrows: false,  // Option to show direction arrows on path
       
       // View Mode
-      viewMode: '2d' as '2d' | '3d' | 'gcode'  // Toggle between 2D, 3D, and G-code views
+      viewMode: '2d' as '2d' | '3d'  // Toggle between 2D and 3D views
     }
   },
   
@@ -1269,6 +1271,41 @@ export default BaseComponent.extend({
       }
     },
     
+    async openInGCodeViewer() {
+      try {
+        // Save G-code to a temporary file
+        const tempFilename = `next-stock-prep-preview-${Date.now()}`
+        const tempPath = `0:/gcodes/${tempFilename}.gcode`
+        
+        // Upload the file
+        const formData = new FormData()
+        const blob = new Blob([this.generatedGcode], { type: 'text/plain' })
+        formData.append('file', blob, `${tempFilename}.gcode`)
+        
+        const response = await fetch(
+          `/rr_upload?name=${encodeURIComponent(tempPath)}`,
+          {
+            method: 'POST',
+            body: formData
+          }
+        )
+        
+        if (!response.ok) {
+          throw new Error('Failed to upload temporary file')
+        }
+        
+        // Navigate to Job Status page to view the file
+        // DWC will automatically load the file in the G-code viewer
+        this.$router.push(`/Job/Status?file=${encodeURIComponent(tempPath)}`)
+        
+        // Optionally close this panel
+        // this.$emit('close')
+      } catch (error) {
+        console.error('Error opening in G-code viewer:', error)
+        alert('Error opening G-code viewer: ' + error)
+      }
+    },
+    
     formatTime(seconds: number): string {
       const mins = Math.floor(seconds / 60)
       const secs = seconds % 60
@@ -1301,27 +1338,6 @@ export default BaseComponent.extend({
 .code-preview {
   font-family: 'Courier New', monospace;
   font-size: 12px;
-}
-
-.gcode-viewer {
-  max-height: 450px;
-  overflow: auto;
-  background: #1e1e1e;
-  padding: 0;
-}
-
-.gcode-display {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #d4d4d4;
-  margin: 0;
-  padding: 16px;
-  white-space: pre;
-  overflow-x: auto;
-  background: #1e1e1e;
-  height: 100%;
-  min-height: 450px;
 }
 
 .v-stepper {
