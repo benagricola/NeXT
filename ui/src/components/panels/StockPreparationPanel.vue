@@ -334,27 +334,19 @@
               <v-card-subtitle class="font-weight-bold d-flex align-center">
                 <v-icon left small>mdi-eye</v-icon>
                 Toolpath Preview
-                <v-spacer />
-                <v-btn
-                  small
-                  outlined
-                  color="primary"
-                  :disabled="!generatedGcode"
-                  @click="openInGCodeViewer"
-                >
-                  <v-icon small left>mdi-file-eye</v-icon>
-                  View in DWC G-code Viewer
-                </v-btn>
               </v-card-subtitle>
               <v-card-text>
-                <!-- Placeholder for future Three.js-based G-code viewer -->
-                <div class="toolpath-preview-placeholder">
+                <!-- Three.js-based G-code Viewer -->
+                <g-code-viewer-3-d 
+                  v-if="generatedGcode"
+                  :gcode="generatedGcode"
+                  :auto-update="true"
+                  class="mb-4"
+                />
+                <div v-else class="toolpath-preview-placeholder">
                   <v-icon size="64" color="grey lighten-1">mdi-cube-outline</v-icon>
                   <p class="text-center grey--text text--lighten-1 mt-4">
-                    3D G-code viewer coming soon
-                  </p>
-                  <p class="text-center grey--text text--darken-1 caption">
-                    Use "View in DWC G-code Viewer" to preview toolpath
+                    Configure facing parameters and click Generate
                   </p>
                 </div>
 
@@ -462,6 +454,7 @@
 
 <script lang="ts">
 import BaseComponent from '../base/BaseComponent.vue'
+import GCodeViewer3D from './GCodeViewer3D.vue'
 import {
   generateToolpath,
   calculateToolpathStatistics,
@@ -472,6 +465,10 @@ import { generateGCode, validateGCodeParameters } from '../../utils/gcode'
 
 export default BaseComponent.extend({
   name: 'NxtStockPreparationPanel',
+  
+  components: {
+    GCodeViewer3D
+  },
   
   data() {
     return {
@@ -804,41 +801,6 @@ export default BaseComponent.extend({
       } catch (error) {
         console.error('Error running G-code:', error)
         alert('Error running G-code: ' + error)
-      }
-    },
-    
-    async openInGCodeViewer() {
-      try {
-        // Save G-code to a temporary file
-        const tempFilename = `next-stock-prep-preview-${Date.now()}`
-        const tempPath = `0:/gcodes/${tempFilename}.gcode`
-        
-        // Upload the file
-        const formData = new FormData()
-        const blob = new Blob([this.generatedGcode], { type: 'text/plain' })
-        formData.append('file', blob, `${tempFilename}.gcode`)
-        
-        const response = await fetch(
-          `/rr_upload?name=${encodeURIComponent(tempPath)}`,
-          {
-            method: 'POST',
-            body: formData
-          }
-        )
-        
-        if (!response.ok) {
-          throw new Error('Failed to upload temporary file')
-        }
-        
-        // Navigate to Job Status page to view the file
-        // DWC will automatically load the file in the G-code viewer
-        this.$router.push(`/Job/Status?file=${encodeURIComponent(tempPath)}`)
-        
-        // Optionally close this panel
-        // this.$emit('close')
-      } catch (error) {
-        console.error('Error opening in G-code viewer:', error)
-        alert('Error opening G-code viewer: ' + error)
       }
     },
     
