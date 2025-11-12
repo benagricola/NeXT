@@ -608,58 +608,71 @@ export function generateSpiralPattern(
       type: 'linear'
     })
     
-    // Spiral inward using smooth path
+    // Spiral inward using arc commands (G2/G3)
     // For a facing spiral, we create a smooth inward spiral path
     // The radius decreases linearly with angle (Archimedean spiral)
     
     // Number of complete revolutions based on stepover
     const totalInwardDistance = initialRadius - cutting.toolRadius
     const numRevolutions = totalInwardDistance / effectiveWidth
-    const totalAngle = numRevolutions * 2 * Math.PI
     
-    // Generate spiral path with small angular steps for smooth motion
-    // Use 10-degree increments for smooth appearance
-    const angleStep = (10 * Math.PI) / 180  // 10 degrees per step
-    const numSteps = Math.ceil(totalAngle / angleStep)
-    const radiusDecrement = totalInwardDistance / numSteps
-    
-    let currentAngle = pattern.angle * Math.PI / 180  // Start angle from pattern angle
+    // Generate spiral as a series of arc segments
+    // Each revolution is one complete 360-degree arc
     let currentRadius = initialRadius
+    let currentAngle = pattern.angle * Math.PI / 180  // Start angle from pattern angle
+    const radiusDecrementPerRevolution = effectiveWidth
     
-    for (let step = 0; step < numSteps; step++) {
-      if (currentRadius <= cutting.toolRadius) break
+    // Track previous point for boundary checking
+    let prevX = startX
+    let prevY = startY
+    
+    for (let rev = 0; rev < numRevolutions && currentRadius > cutting.toolRadius; rev++) {
+      // Calculate radius at end of this revolution
+      const nextRadius = Math.max(cutting.toolRadius, currentRadius - radiusDecrementPerRevolution)
       
-      currentAngle += angleStep
-      currentRadius -= radiusDecrement
+      // End angle is one full revolution from start
+      const endAngle = currentAngle + 2 * Math.PI
       
-      if (currentRadius < cutting.toolRadius) {
-        currentRadius = cutting.toolRadius
-      }
+      // Calculate end position of this arc
+      let endX = centerX + nextRadius * Math.cos(endAngle)
+      let endY = centerY + nextRadius * Math.sin(endAngle)
       
-      // Calculate position on spiral
-      let x = centerX + currentRadius * Math.cos(currentAngle)
-      let y = centerY + currentRadius * Math.sin(currentAngle)
-      
-      // Clip to rectangular stock boundaries
-      // Only include points if they're within or near the stock boundaries
-      // Check if point is within expanded boundaries (tool radius + small margin)
+      // Check if arc endpoint is within bounds (with margin)
       const margin = cutting.toolRadius * 1.5
-      const inBounds = x >= (xMin - margin) && x <= (xMax + margin) && 
-                       y >= (yMin - margin) && y <= (yMax + margin)
+      const inBounds = endX >= (xMin - margin) && endX <= (xMax + margin) && 
+                       endY >= (yMin - margin) && endY <= (yMax + margin)
       
       if (inBounds) {
         // Clamp to actual boundaries for tool center
-        x = Math.max(xMin, Math.min(xMax, x))
-        y = Math.max(yMin, Math.min(yMax, y))
+        endX = Math.max(xMin, Math.min(xMax, endX))
+        endY = Math.max(yMin, Math.min(yMax, endY))
         
+        // Calculate I and J offsets (from start point to center)
+        // For an Archimedean spiral, the center point is the stock center
+        const iOffset = centerX - prevX
+        const jOffset = centerY - prevY
+        
+        // Add arc move (counterclockwise for inward spiral)
         levelPasses.push({
-          x,
-          y,
+          x: endX,
+          y: endY,
           z: zLevel.depth,
           feedRate: feeds.xy,
-          type: 'linear'
+          type: 'arc',
+          i: iOffset,
+          j: jOffset,
+          clockwise: false  // CCW for inward spiral
         })
+        
+        prevX = endX
+        prevY = endY
+      } else {
+        // If we're out of bounds, stop the spiral
+        break
       }
+      
+      currentRadius = nextRadius
+      currentAngle = endAngle
     }
     
     // Final retract for this Z level

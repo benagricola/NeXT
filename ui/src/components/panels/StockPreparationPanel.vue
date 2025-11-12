@@ -149,7 +149,7 @@
                         :disabled="uiFrozen"
                       />
                     </v-col>
-                    <v-col cols="12" md="6">
+                    <v-col v-if="facingPattern !== 'spiral'" cols="12" md="6">
                       <v-text-field
                         v-model.number="patternAngle"
                         label="Pattern Angle"
@@ -325,20 +325,6 @@
                   </v-row>
                 </v-card-text>
               </v-card>
-
-              <!-- Step Actions -->
-              <v-row>
-                <v-col cols="12" class="text-right">
-                  <v-btn
-                    color="primary"
-                    :disabled="!isSetupValid || uiFrozen"
-                    @click="generatePreview"
-                  >
-                    Generate Preview & G-code
-                    <v-icon right>mdi-refresh</v-icon>
-                  </v-btn>
-                </v-col>
-              </v-row>
             </v-form>
           </v-col>
 
@@ -926,6 +912,75 @@ export default BaseComponent.extend({
       if (this.finishingPassOffset === 0.0 || this.finishingPassOffset === 1.5) {
         this.finishingPassOffset = newRadius / 2
       }
+      this.generatePreview()
+    },
+    
+    // Watch all settings that affect toolpath generation
+    stockShape() {
+      this.calculateSvgScale()
+      this.generatePreview()
+    },
+    stockX() {
+      this.calculateSvgScale()
+      this.generatePreview()
+    },
+    stockY() {
+      this.calculateSvgScale()
+      this.generatePreview()
+    },
+    stockDiameter() {
+      this.calculateSvgScale()
+      this.generatePreview()
+    },
+    originPosition() {
+      this.generatePreview()
+    },
+    facingPattern() {
+      this.generatePreview()
+    },
+    patternAngle() {
+      this.generatePreview()
+    },
+    millingDirection() {
+      this.generatePreview()
+    },
+    stepover() {
+      this.generatePreview()
+    },
+    stepdown() {
+      this.calculateSvgScale()
+      this.generatePreview()
+    },
+    totalDepth() {
+      this.calculateSvgScale()
+      this.generatePreview()
+    },
+    zOffset() {
+      this.generatePreview()
+    },
+    safeZHeight() {
+      this.generatePreview()
+    },
+    clearStockExit() {
+      this.generatePreview()
+    },
+    finishingPass() {
+      this.generatePreview()
+    },
+    finishingPassHeight() {
+      this.generatePreview()
+    },
+    finishingPassOffset() {
+      this.generatePreview()
+    },
+    feedRateXY() {
+      this.generatePreview()
+    },
+    feedRateZ() {
+      this.generatePreview()
+    },
+    spindleSpeed() {
+      this.generatePreview()
     }
   },
   
@@ -934,6 +989,8 @@ export default BaseComponent.extend({
     this.calculateSvgScale()
     // Set initial finishing pass offset to half of tool radius
     this.finishingPassOffset = this.toolRadius / 2
+    // Generate initial toolpath
+    this.generatePreview()
   },
   
   methods: {
