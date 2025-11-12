@@ -880,7 +880,56 @@ export default BaseComponent.extend({
             if (firstCuttingPoint) {
               cuttingPath += `M ${x} ${y} `
               firstCuttingPoint = false
+            } else if (point.type === 'arc' && point.i !== undefined && point.j !== undefined) {
+              // Arc move - calculate arc parameters for SVG
+              // SVG arc format: A rx ry x-axis-rotation large-arc-flag sweep-flag x y
+              // For now, convert G-code I,J arc to SVG arc
+              
+              // Calculate center point in world coordinates
+              const prevWorldX = prevPoint ? prevPoint.x : point.x
+              const prevWorldY = prevPoint ? prevPoint.y : point.y
+              const centerWorldX = prevWorldX + point.i
+              const centerWorldY = prevWorldY + point.j
+              
+              // Calculate radius
+              const radius = Math.sqrt(point.i * point.i + point.j * point.j) * this.svgScale
+              
+              // For SVG, we need:
+              // - large-arc-flag: 1 if arc > 180 degrees, 0 otherwise
+              // - sweep-flag: 1 for CW (G2), 0 for CCW (G3)
+              
+              // Calculate angles to determine if arc is > 180 degrees
+              const startAngle = Math.atan2(-point.j, -point.i)
+              const endAngle = Math.atan2(point.y - centerWorldY, point.x - centerWorldX)
+              let angleDiff = endAngle - startAngle
+              
+              // Normalize angle difference
+              if (point.clockwise) {
+                // CW (G2) - angle should be negative
+                if (angleDiff > 0) angleDiff -= 2 * Math.PI
+              } else {
+                // CCW (G3) - angle should be positive
+                if (angleDiff < 0) angleDiff += 2 * Math.PI
+              }
+              
+              const largeArcFlag = Math.abs(angleDiff) > Math.PI ? 1 : 0
+              const sweepFlag = point.clockwise ? 1 : 0
+              
+              cuttingPath += `A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${x} ${y} `
+              
+              // For arcs, update direction for arrow placement
+              if (prevPoint && prevPoint.type !== 'rapid') {
+                const dx = x - prevX
+                const dy = y - prevY
+                const distance = Math.sqrt(dx * dx + dy * dy)
+                
+                if (distance > 0) {
+                  const currentDirection = { dx: dx / distance, dy: dy / distance }
+                  lastDirection = currentDirection
+                }
+              }
             } else {
+              // Linear move
               cuttingPath += `L ${x} ${y} `
               
               // Check for direction change (for arrow placement)

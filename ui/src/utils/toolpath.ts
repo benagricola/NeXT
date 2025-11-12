@@ -556,13 +556,17 @@ export function generateSpiralPattern(
   params: ToolpathGenerationParams
 ): ToolpathPoint[][] {
   const { stock, cutting, pattern, feeds } = params
-  const stockX = stock.x || 0
-  const stockY = stock.y || 0
+  
+  // Handle both circular and rectangular stock
+  const isCircular = stock.shape === 'circular'
+  const stockX = isCircular ? stock.diameter || 0 : stock.x || 0
+  const stockY = isCircular ? stock.diameter || 0 : stock.y || 0
   
   const effectiveWidth = calculateEffectiveCuttingWidth(cutting.toolRadius, cutting.stepover)
-  let boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
   
-  const originOffset = calculateOriginOffset(stockX, stockY, stock.originPosition)
+  // For circular stock, center is at origin (0,0)
+  // For rectangular stock, calculate based on origin position
+  const originOffset = isCircular ? { x: 0, y: 0 } : calculateOriginOffset(stockX, stockY, stock.originPosition)
   const centerX = originOffset.x + stockX / 2
   const centerY = originOffset.y + stockY / 2
   
@@ -572,18 +576,18 @@ export function generateSpiralPattern(
   for (const zLevel of zLevels) {
     const levelPasses: ToolpathPoint[] = []
     
-    // Reset boundaries for each Z level
-    let xMin = boundaries.xMin
-    let xMax = boundaries.xMax
-    let yMin = boundaries.yMin
-    let yMax = boundaries.yMax
-    
-    // Calculate initial radius to encompass entire rectangular stock
-    // For a rectangle, the diagonal from center to corner gives us the radius needed
-    // to fully encompass the stock within the spiral
-    const halfWidth = (xMax - xMin) / 2
-    const halfHeight = (yMax - yMin) / 2
-    const initialRadius = Math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight) + cutting.toolRadius
+    // Calculate initial radius based on stock shape
+    let initialRadius: number
+    if (isCircular) {
+      // For circular stock, start from outer edge minus tool radius
+      initialRadius = (stock.diameter || 0) / 2 - cutting.toolRadius
+    } else {
+      // For rectangular stock, use diagonal to encompass entire stock
+      const boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
+      const halfWidth = (boundaries.xMax - boundaries.xMin) / 2
+      const halfHeight = (boundaries.yMax - boundaries.yMin) / 2
+      initialRadius = Math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight)
+    }
     
     // Start at the outer edge of the spiral at the pattern angle
     const startAngle = pattern.angle * Math.PI / 180
@@ -608,69 +612,53 @@ export function generateSpiralPattern(
       type: 'linear'
     })
     
-    // Spiral inward using arc commands (G2/G3)
-    // For a facing spiral, we create a smooth inward spiral path
-    // The radius decreases linearly with angle (Archimedean spiral)
+    // Generate spiral as a series of smaller arc segments
+    // Breaking each revolution into multiple segments for better control
+    const segmentsPerRevolution = 4  // Quarter-circle arcs
+    const anglePerSegment = (2 * Math.PI) / segmentsPerRevolution
+    const radiusDecrementPerRevolution = effectiveWidth
+    const radiusDecrementPerSegment = radiusDecrementPerRevolution / segmentsPerRevolution
     
     // Number of complete revolutions based on stepover
     const totalInwardDistance = initialRadius - cutting.toolRadius
     const numRevolutions = totalInwardDistance / effectiveWidth
+    const totalSegments = Math.floor(numRevolutions * segmentsPerRevolution)
     
-    // Generate spiral as a series of arc segments
-    // Each revolution is one complete 360-degree arc
     let currentRadius = initialRadius
-    let currentAngle = pattern.angle * Math.PI / 180  // Start angle from pattern angle
-    const radiusDecrementPerRevolution = effectiveWidth
-    
-    // Track previous point for boundary checking
+    let currentAngle = startAngle
     let prevX = startX
     let prevY = startY
     
-    for (let rev = 0; rev < numRevolutions && currentRadius > cutting.toolRadius; rev++) {
-      // Calculate radius at end of this revolution
-      const nextRadius = Math.max(cutting.toolRadius, currentRadius - radiusDecrementPerRevolution)
+    for (let seg = 0; seg < totalSegments && currentRadius > cutting.toolRadius; seg++) {
+      // Calculate radius at end of this segment
+      const nextRadius = Math.max(cutting.toolRadius, currentRadius - radiusDecrementPerSegment)
       
-      // End angle is one full revolution from start
-      const endAngle = currentAngle + 2 * Math.PI
+      // Calculate end angle for this segment
+      const endAngle = currentAngle + anglePerSegment
       
-      // Calculate end position of this arc
-      let endX = centerX + nextRadius * Math.cos(endAngle)
-      let endY = centerY + nextRadius * Math.sin(endAngle)
+      // Calculate end position
+      const endX = centerX + nextRadius * Math.cos(endAngle)
+      const endY = centerY + nextRadius * Math.sin(endAngle)
       
-      // Check if arc endpoint is within bounds (with margin)
-      const margin = cutting.toolRadius * 1.5
-      const inBounds = endX >= (xMin - margin) && endX <= (xMax + margin) && 
-                       endY >= (yMin - margin) && endY <= (yMax + margin)
+      // Calculate I and J offsets (from current point to center)
+      const iOffset = centerX - prevX
+      const jOffset = centerY - prevY
       
-      if (inBounds) {
-        // Clamp to actual boundaries for tool center
-        endX = Math.max(xMin, Math.min(xMax, endX))
-        endY = Math.max(yMin, Math.min(yMax, endY))
-        
-        // Calculate I and J offsets (from start point to center)
-        // For an Archimedean spiral, the center point is the stock center
-        const iOffset = centerX - prevX
-        const jOffset = centerY - prevY
-        
-        // Add arc move (counterclockwise for inward spiral)
-        levelPasses.push({
-          x: endX,
-          y: endY,
-          z: zLevel.depth,
-          feedRate: feeds.xy,
-          type: 'arc',
-          i: iOffset,
-          j: jOffset,
-          clockwise: false  // CCW for inward spiral
-        })
-        
-        prevX = endX
-        prevY = endY
-      } else {
-        // If we're out of bounds, stop the spiral
-        break
-      }
+      // Add arc move (G3 for counterclockwise inward spiral)
+      levelPasses.push({
+        x: endX,
+        y: endY,
+        z: zLevel.depth,
+        feedRate: feeds.xy,
+        type: 'arc',
+        i: iOffset,
+        j: jOffset,
+        clockwise: false  // G3 (CCW) for inward spiral
+      })
       
+      // Update for next iteration
+      prevX = endX
+      prevY = endY
       currentRadius = nextRadius
       currentAngle = endAngle
     }
