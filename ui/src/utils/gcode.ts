@@ -10,7 +10,8 @@ import { ToolpathPoint, ToolpathGenerationParams, calculateZLevels } from './too
 /**
  * Generate stock metadata M-codes
  * These M-codes store stock dimensions in the object model for the G-code viewer
- * Format: M7500 K"key" V"value" - stores key-value pair in global.nxtMetadata
+ * Format: M7500 K"key" V{values} - stores key-value pair in global.nxtMetadata
+ * Values are passed as vectors for RRF compatibility
  */
 function generateStockMetadata(params: ToolpathGenerationParams): string {
   const { stock, cutting } = params
@@ -19,16 +20,16 @@ function generateStockMetadata(params: ToolpathGenerationParams): string {
   lines.push('; Stock metadata for G-code viewer')
   
   if (stock.shape === 'rectangular') {
-    // Cuboid stock: X, Y, Z dimensions
-    const x = stock.x || 0
-    const y = stock.y || 0
-    const z = cutting.totalDepth
-    lines.push(`M7500 K"stock_cuboid" V"X${formatNumber(x)}:Y${formatNumber(y)}:Z${formatNumber(z)}"`)
+    // Cuboid stock: X, Y, Z dimensions as 3-element vector
+    const x = formatNumber(stock.x || 0)
+    const y = formatNumber(stock.y || 0)
+    const z = formatNumber(cutting.totalDepth)
+    lines.push(`M7500 K"stock_cuboid" V{${x},${y},${z}}`)
   } else {
-    // Cylindrical stock: Diameter, Z height
-    const d = stock.diameter || 0
-    const z = cutting.totalDepth
-    lines.push(`M7500 K"stock_cylinder" V"D${formatNumber(d)}:Z${formatNumber(z)}"`)
+    // Cylindrical stock: Diameter, Z height as 2-element vector
+    const d = formatNumber(stock.diameter || 0)
+    const z = formatNumber(cutting.totalDepth)
+    lines.push(`M7500 K"stock_cylinder" V{${d},${z}}`)
   }
   
   lines.push('')
