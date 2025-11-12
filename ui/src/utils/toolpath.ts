@@ -352,27 +352,25 @@ export function generateRectilinearPattern(
         clippedEnd = { x: clipped.x2, y: clipped.y2 }
       }
       
-      // Add start point (rapid positioning)
-      if (levelPasses.length === 0) {
-        levelPasses.push({
-          x: clippedStart.x,
-          y: clippedStart.y,
-          z: cutting.zOffset + cutting.safeZHeight,
-          feedRate: 0,
-          type: 'rapid'
-        })
-        
-        // Plunge to depth
-        levelPasses.push({
-          x: clippedStart.x,
-          y: clippedStart.y,
-          z: zLevel.depth,
-          feedRate: feeds.z,
-          type: 'linear'
-        })
-      }
+      // Rapid to safe height at start position
+      levelPasses.push({
+        x: clippedStart.x,
+        y: clippedStart.y,
+        z: cutting.zOffset + cutting.safeZHeight,
+        feedRate: 0,
+        type: 'rapid'
+      })
       
-      // Cutting move
+      // Plunge to cutting depth at vertical feed rate
+      levelPasses.push({
+        x: clippedStart.x,
+        y: clippedStart.y,
+        z: zLevel.depth,
+        feedRate: feeds.z,
+        type: 'linear'
+      })
+      
+      // Cutting move at horizontal feed rate
       levelPasses.push({
         x: clippedEnd.x,
         y: clippedEnd.y,
@@ -381,25 +379,11 @@ export function generateRectilinearPattern(
         type: 'linear'
       })
       
-      // Retract at end of pass
-      if (i < numPasses - 1) {
-        levelPasses.push({
-          x: clippedEnd.x,
-          y: clippedEnd.y,
-          z: zLevel.depth + cutting.safeZHeight,
-          feedRate: 0,
-          type: 'rapid'
-        })
-      }
-    }
-    
-    // Final retract for this Z level
-    if (levelPasses.length > 0) {
-      const lastPoint = levelPasses[levelPasses.length - 1]
+      // Retract to safe height after every pass
       levelPasses.push({
-        x: lastPoint.x,
-        y: lastPoint.y,
-        z: zLevel.depth + cutting.safeZHeight,
+        x: clippedEnd.x,
+        y: clippedEnd.y,
+        z: cutting.zOffset + cutting.safeZHeight,
         feedRate: 0,
         type: 'rapid'
       })
