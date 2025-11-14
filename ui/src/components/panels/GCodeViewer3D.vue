@@ -1,6 +1,9 @@
 <template>
   <div class="gcode-viewer-3d">
-    <canvas ref="canvas" @mousedown="onCanvasMouseDown"></canvas>
+    <canvas ref="canvas" @mousedown="onCanvasMouseDown" @click="onCanvasClick"></canvas>
+    <div v-if="highlightedGcodeText" class="gcode-annotation">
+      <span class="annotation-line-number">#{{ highlightedLine + 1 }}:</span> {{ highlightedGcodeText }}
+    </div>
     <div v-if="loading" class="loading-overlay">
       <v-progress-circular indeterminate color="primary"></v-progress-circular>
       <div class="mt-2">Parsing G-code...</div>
@@ -32,6 +35,14 @@ export default Vue.extend({
     autoUpdate: {
       type: Boolean,
       default: true
+    },
+    highlightedLine: {
+      type: Number,
+      default: null
+    },
+    highlightedGcodeText: {
+      type: String,
+      default: ''
     }
   },
   
@@ -43,7 +54,12 @@ export default Vue.extend({
       camera: null as THREE.PerspectiveCamera | null,
       renderer: null as THREE.WebGLRenderer | null,
       controls: null as OrbitControls | null,
-      animationFrameId: null as number | null
+      animationFrameId: null as number | null,
+      lineSegments: new Map<number, { line: THREE.Line, originalColor: number, originalLineWidth: number, from: THREE.Vector3, to: THREE.Vector3 }>(),
+      currentHighlightedLine: null as THREE.Line | null,
+      highlightedArrows: [] as THREE.Mesh[],
+      raycaster: new THREE.Raycaster(),
+      mouse: new THREE.Vector2()
     }
   },
   
@@ -52,10 +68,44 @@ export default Vue.extend({
       if (this.autoUpdate && newGcode) {
         this.renderGCode()
       }
+    },
+    
+    highlightedLine(newLineNumber: number | null, oldLineNumber: number | null) {
+      // Remove previous arrows if they exist
+      this.highlightedArrows.forEach(arrow => this.scene?.remove(arrow))
+      this.highlightedArrows = []
+      
+      // Restore previous highlighted line to original color
+      if (this.currentHighlightedLine) {
+        const oldSegment = this.lineSegments.get(oldLineNumber!)
+        if (oldSegment) {
+          const material = oldSegment.line.material as THREE.LineBasicMaterial
+          material.color.setHex(oldSegment.originalColor)
+          material.linewidth = oldSegment.originalLineWidth
+          material.needsUpdate = true
+        }
+        this.currentHighlightedLine = null
+      }
+      
+      // Highlight new line and create arrow
+      if (newLineNumber !== null) {
+        const segment = this.lineSegments.get(newLineNumber)
+        if (segment) {
+          const material = segment.line.material as THREE.LineBasicMaterial
+          material.color.setHex(0xFFFF00) // Yellow highlight
+          material.linewidth = 4
+          material.needsUpdate = true
+          this.currentHighlightedLine = segment.line
+          
+          // Create direction arrow for highlighted line
+          this.createHighlightArrow(segment.from, segment.to)
+        }
+      }
     }
   },
   
   mounted() {
+    this.raycaster.params.Line!.threshold = 0.5  // Increase click tolerance for lines
     this.initThreeJS()
     if (this.gcode) {
       this.renderGCode()
@@ -124,9 +174,19 @@ export default Vue.extend({
       this.controls = new OrbitControls(this.camera, canvas)
       this.controls.enableDamping = true
       this.controls.dampingFactor = 0.05
-      this.controls.screenSpacePanning = true
+      this.controls.screenSpacePanning = false  // Use target-based rotation instead of screen-space panning
       this.controls.minDistance = 10
       this.controls.maxDistance = 1000
+      
+      // Mouse button configuration:
+      // LEFT (0) = rotate/orbit camera around target
+      // MIDDLE (1) = pan camera (screen-space movement)
+      // RIGHT (2) = zoom
+      this.controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.PAN,
+        RIGHT: THREE.MOUSE.DOLLY
+      }
       
       // Start animation loop
       this.animate()
@@ -162,6 +222,104 @@ export default Vue.extend({
       event.preventDefault()
     },
     
+    onCanvasClick(event: MouseEvent) {
+      if (!this.camera || !this.scene) return
+      
+      const canvas = this.$refs.canvas as HTMLCanvasElement
+      const rect = canvas.getBoundingClientRect()
+      
+      // Calculate mouse position in normalized device coordinates (-1 to +1)
+      this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+      
+      // Update raycaster
+      this.raycaster.setFromCamera(this.mouse, this.camera)
+      
+      // Find intersected lines
+      const lines: THREE.Line[] = []
+      this.lineSegments.forEach(segment => lines.push(segment.line))
+      
+      const intersects = this.raycaster.intersectObjects(lines)
+      
+      if (intersects.length > 0) {
+        // Find which line was clicked
+        const clickedLine = intersects[0].object as THREE.Line
+        
+        // Find the line number for this line
+        for (const [lineNumber, segment] of this.lineSegments.entries()) {
+          if (segment.line === clickedLine) {
+            // Emit event to parent to update highlighted line
+            this.$emit('line-selected', lineNumber)
+            break
+          }
+        }
+      }
+    },
+    
+    createHighlightArrow(fromVec: THREE.Vector3, toVec: THREE.Vector3) {
+      if (!this.scene) return
+      
+      const direction = new THREE.Vector3().subVectors(toVec, fromVec)
+      const lineLength = direction.length()
+      direction.normalize()
+      
+      // Arrow size: 8% of line length, minimum 1mm, maximum 3mm
+      const arrowLength = Math.max(1, Math.min(lineLength * 0.08, 3))
+      
+      // Skip arrows if line is shorter than 1.1x the arrow length
+      if (lineLength < arrowLength * 1.1) return
+      
+      // Minimum spacing between arrows: 15mm
+      const minSpacing = 15
+      
+      // Calculate how many arrows we can fit
+      const numArrows = Math.floor(lineLength / minSpacing)
+      
+      if (numArrows === 0) {
+        // Line is shorter than 15mm - show single centered arrow
+        this.createSingleArrow(fromVec, toVec, direction, arrowLength, 0.5)
+      } else {
+        // Calculate actual spacing to distribute arrows evenly
+        const actualSpacing = lineLength / (numArrows + 1)
+        
+        // Create arrows at regular intervals along the line
+        for (let i = 1; i <= numArrows; i++) {
+          const position = (i * actualSpacing) / lineLength
+          this.createSingleArrow(fromVec, toVec, direction, arrowLength, position)
+        }
+      }
+    },
+    
+    createSingleArrow(fromVec: THREE.Vector3, toVec: THREE.Vector3, direction: THREE.Vector3, arrowLength: number, position: number) {
+      if (!this.scene) return
+      
+      // Position arrow at specified position along line
+      const arrowOrigin = fromVec.clone().lerp(toVec, position)
+      const arrowRadius = arrowLength * 0.2  // Wider base (was 0.15)
+      
+      // Create cone geometry for smooth appearance
+      const coneGeometry = new THREE.ConeGeometry(arrowRadius, arrowLength, 8)
+      // Very bright orange/pink color for highlighted arrow
+      const arrowColor = 0xFF1493  // Deep pink - very visible
+      const coneMaterial = new THREE.MeshPhongMaterial({ 
+        color: arrowColor,
+        emissive: arrowColor,
+        emissiveIntensity: 0.8  // Very high intensity for maximum visibility
+      })
+      const cone = new THREE.Mesh(coneGeometry, coneMaterial)
+      
+      // Position and orient cone
+      cone.position.copy(arrowOrigin).add(direction.clone().multiplyScalar(arrowLength / 2))
+      
+      // Align cone with direction vector
+      const upVector = new THREE.Vector3(0, 1, 0)
+      const quaternion = new THREE.Quaternion().setFromUnitVectors(upVector, direction)
+      cone.setRotationFromQuaternion(quaternion)
+      
+      this.scene.add(cone)
+      this.highlightedArrows.push(cone)
+    },
+    
     async renderGCode() {
       if (!this.gcode || !this.scene) return
       
@@ -179,6 +337,14 @@ export default Vue.extend({
           }
         })
         objectsToRemove.forEach(obj => this.scene!.remove(obj))
+        
+        // Clear highlighted arrows
+        this.highlightedArrows.forEach(arrow => this.scene!.remove(arrow))
+        this.highlightedArrows = []
+        
+        // Clear line segment mappings
+        this.lineSegments.clear()
+        this.currentHighlightedLine = null
         
         // Parse G-code
         const { stock, toolpaths } = this.parseGCode(this.gcode)
@@ -213,7 +379,8 @@ export default Vue.extend({
       let currentLevel: any[] = []
       let lastZ = 0
       
-      for (const line of lines) {
+      for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
+        const line = lines[lineNumber]
         const trimmed = line.trim()
         if (!trimmed || trimmed.startsWith(';')) {
           // Check for stock metadata in comments
@@ -271,7 +438,8 @@ export default Vue.extend({
         const segment: any = {
           type: command === 'G0' ? 'rapid' : command === 'G2' || command === 'G3' ? 'arc' : 'linear',
           from: { x: currentX, y: currentY, z: currentZ },
-          to: { x, y, z }
+          to: { x, y, z },
+          lineNumber: lineNumber
         }
         
         // Add arc parameters
@@ -303,9 +471,9 @@ export default Vue.extend({
       if (!this.scene) return
       
       const material = new THREE.MeshPhongMaterial({
-        color: 0x4CAF50,
+        color: 0x2E7D32,  // Darker green for better contrast
         transparent: true,
-        opacity: 0.15,
+        opacity: 0.2,
         side: THREE.DoubleSide
       })
       
@@ -313,14 +481,15 @@ export default Vue.extend({
       
       if (stock.type === 'cuboid') {
         const [x, y, z] = stock.dimensions
-        geometry = new THREE.BoxGeometry(x, z, y) // Note: Three.js Y is up, G-code Z is up
+        geometry = new THREE.BoxGeometry(x, z, y) // X width, Z height, Y depth
         const mesh = new THREE.Mesh(geometry, material)
-        mesh.position.set(x / 2, z / 2, y / 2)
+        // Position stock so it extends DOWN from Z=0, centered on X and Y
+        mesh.position.set(x / 2, -z / 2, -y / 2)
         this.scene.add(mesh)
         
         // Wireframe
         const edges = new THREE.EdgesGeometry(geometry)
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4CAF50, linewidth: 1 })
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x1B5E20, linewidth: 1 })  // Dark green
         const wireframe = new THREE.LineSegments(edges, lineMaterial)
         wireframe.position.copy(mesh.position)
         this.scene.add(wireframe)
@@ -329,12 +498,13 @@ export default Vue.extend({
         const radius = diameter / 2
         geometry = new THREE.CylinderGeometry(radius, radius, height, 32)
         const mesh = new THREE.Mesh(geometry, material)
-        mesh.position.set(0, height / 2, 0)
+        // Center cylinder at origin on XZ plane, extending DOWN from Z=0
+        mesh.position.set(0, -height / 2, 0)
         this.scene.add(mesh)
         
         // Wireframe
         const edges = new THREE.EdgesGeometry(geometry)
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4CAF50, linewidth: 1 })
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x1B5E20, linewidth: 1 })  // Dark green
         const wireframe = new THREE.LineSegments(edges, lineMaterial)
         wireframe.position.copy(mesh.position)
         this.scene.add(wireframe)
@@ -345,6 +515,8 @@ export default Vue.extend({
       if (!this.scene || toolpaths.length === 0) return
       
       toolpaths.forEach((level, levelIndex) => {
+        if (!level || level.length === 0) return
+        
         // Color gradient from green to blue by depth
         const depthRatio = levelIndex / Math.max(1, toolpaths.length - 1)
         const color = new THREE.Color()
@@ -355,32 +527,37 @@ export default Vue.extend({
         )
         
         level.forEach(segment => {
+          if (!segment || !segment.from || !segment.to) return
+          
           if (segment.type === 'rapid') {
-            // Rapid moves: dashed gray lines
-            this.renderLine(segment.from, segment.to, 0x666666, true)
+            // Rapid moves: dashed red lines for visibility
+            this.renderLine(segment.from, segment.to, 0xFF0000, true, segment.lineNumber, levelIndex)
           } else if (segment.type === 'arc') {
             // Arc moves: curved solid lines
-            this.renderArc(segment.from, segment.to, segment.arcCenter, segment.clockwise, color.getHex())
+            this.renderArc(segment.from, segment.to, segment.arcCenter, segment.clockwise, color.getHex(), segment.lineNumber, levelIndex)
           } else {
             // Linear cutting moves: solid colored lines
-            this.renderLine(segment.from, segment.to, color.getHex(), false)
+            this.renderLine(segment.from, segment.to, color.getHex(), false, segment.lineNumber, levelIndex)
           }
         })
       })
     },
     
-    renderLine(from: any, to: any, color: number, dashed: boolean) {
-      if (!this.scene) return
+    renderLine(from: any, to: any, color: number, dashed: boolean, lineNumber?: number, levelIndex?: number) {
+      if (!this.scene || !from || !to) return
+      if (from.x === undefined || from.y === undefined || from.z === undefined) return
+      if (to.x === undefined || to.y === undefined || to.z === undefined) return
       
-      const points = [
-        new THREE.Vector3(from.x, from.z, from.y), // Convert G-code coords to Three.js
-        new THREE.Vector3(to.x, to.z, to.y)
-      ]
+      const fromVec = new THREE.Vector3(from.x, from.z, -from.y) // X stays X, Z→Y (up), Y→-Z (depth)
+      const toVec = new THREE.Vector3(to.x, to.z, -to.y)
+      
+      const points = [fromVec, toVec]
       
       const geometry = new THREE.BufferGeometry().setFromPoints(points)
+      const linewidth = dashed ? 1 : 2
       const material = dashed
-        ? new THREE.LineDashedMaterial({ color, linewidth: 1, dashSize: 2, gapSize: 1 })
-        : new THREE.LineBasicMaterial({ color, linewidth: 2 })
+        ? new THREE.LineDashedMaterial({ color, linewidth, dashSize: 2, gapSize: 1 })
+        : new THREE.LineBasicMaterial({ color, linewidth })
       
       const line = new THREE.Line(geometry, material)
       
@@ -389,18 +566,41 @@ export default Vue.extend({
       }
       
       this.scene.add(line)
+      
+      // Store line mapping with from/to vectors for arrow creation
+      if (lineNumber !== undefined) {
+        this.lineSegments.set(lineNumber, {
+          line,
+          originalColor: color,
+          originalLineWidth: linewidth,
+          from: fromVec.clone(),
+          to: toVec.clone()
+        })
+      }
     },
     
-    renderArc(from: any, to: any, center: any, clockwise: boolean, color: number) {
-      if (!this.scene) return
+    renderArc(from: any, to: any, center: any, clockwise: boolean, color: number, lineNumber?: number, levelIndex?: number) {
+      if (!this.scene || !from || !to || !center) return
+      if (from.x === undefined || from.y === undefined || from.z === undefined) return
+      if (to.x === undefined || to.y === undefined || to.z === undefined) return
+      if (center.x === undefined || center.y === undefined) return
       
       // Calculate arc parameters
       const startVec = new THREE.Vector2(from.x - center.x, from.y - center.y)
       const endVec = new THREE.Vector2(to.x - center.x, to.y - center.y)
       
       const radius = startVec.length()
-      const startAngle = Math.atan2(startVec.y, startVec.x)
-      const endAngle = Math.atan2(endVec.y, endVec.x)
+      let startAngle = Math.atan2(startVec.y, startVec.x)
+      let endAngle = Math.atan2(endVec.y, endVec.x)
+      
+      // Handle angle wrapping for arcs that cross 0°
+      // For counterclockwise (G3), if endAngle < startAngle, add 2π to endAngle
+      // For clockwise (G2), if endAngle > startAngle, subtract 2π from endAngle
+      if (!clockwise && endAngle < startAngle) {
+        endAngle += Math.PI * 2
+      } else if (clockwise && endAngle > startAngle) {
+        endAngle -= Math.PI * 2
+      }
       
       // Create arc curve
       const curve = new THREE.EllipseCurve(
@@ -411,14 +611,29 @@ export default Vue.extend({
         0                             // rotation
       )
       
-      const points = curve.getPoints(20)
-      const points3D = points.map((p: any) => new THREE.Vector3(p.x, from.z, p.y))
+      const points = curve.getPoints(50)  // Increased from 20 for smoother arcs
+      const points3D = points.map((p: any) => new THREE.Vector3(p.x, from.z, -p.y))
       
       const geometry = new THREE.BufferGeometry().setFromPoints(points3D)
       const material = new THREE.LineBasicMaterial({ color, linewidth: 2 })
       const line = new THREE.Line(geometry, material)
       
       this.scene.add(line)
+      
+      // Store line mapping for highlighting
+      // NOTE: We store straight-line from/to for arcs since arrows can't follow curves
+      // The arrow system will skip rendering for very short effective distances
+      if (lineNumber !== undefined) {
+        const fromVec = new THREE.Vector3(from.x, from.z, -from.y)
+        const toVec = new THREE.Vector3(to.x, to.z, -to.y)
+        this.lineSegments.set(lineNumber, {
+          line,
+          originalColor: color,
+          originalLineWidth: 2,
+          from: fromVec,
+          to: toVec
+        })
+      }
     },
     
     fitCameraToScene() {
@@ -444,7 +659,7 @@ export default Vue.extend({
       const fov = this.camera.fov * (Math.PI / 180)
       let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2))
       
-      cameraZ *= 1.5 // Zoom out a bit for better view
+      cameraZ *= 1.1 // Minimal zoom out for better view (was 1.5)
       
       this.camera.position.set(
         center.x + cameraZ * 0.7,
@@ -463,8 +678,8 @@ export default Vue.extend({
 .gcode-viewer-3d {
   position: relative;
   width: 100%;
-  height: 500px;
-  min-height: 400px;
+  height: 100%;
+  min-height: 500px;
   border-radius: 4px;
   overflow: hidden;
   background: #263238;
@@ -479,6 +694,27 @@ canvas {
 
 canvas:active {
   cursor: grabbing;
+}
+
+.gcode-annotation {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #FFD700;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.annotation-line-number {
+  color: #90CAF9;
+  margin-right: 8px;
 }
 
 .loading-overlay,

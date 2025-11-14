@@ -13,19 +13,102 @@
       </v-btn>
     </v-card-title>
 
+    <!-- Progress Dialog -->
+    <v-dialog
+      v-model="showProgressDialog"
+      persistent
+      max-width="400"
+    >
+      <v-card>
+        <v-card-title>
+          <v-icon left>mdi-cog</v-icon>
+          Generating Toolpath
+        </v-card-title>
+        <v-card-text>
+          <div class="text-center mb-4">
+            {{ generationMessage }}
+          </div>
+          <v-progress-linear
+            :value="generationProgress"
+            color="primary"
+            height="25"
+            striped
+          >
+            <template v-slot:default="{ value }">
+              <strong>{{ Math.ceil(value) }}%</strong>
+            </template>
+          </v-progress-linear>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
     <v-card-text>
-      <!-- Two-column layout: Settings on left, Preview on right -->
       <v-row>
-        <!-- Left Column: Setup/Settings -->
-        <v-col cols="12" md="6">
+        <!-- Left Column: 3D Viewer (70-80% width) -->
+        <v-col cols="12" lg="8">
+          <v-card flat>
+            <v-card-subtitle class="font-weight-bold d-flex align-center">
+              <v-icon left small>mdi-eye</v-icon>
+              Toolpath Preview
+            </v-card-subtitle>
+            <v-card-text>
+              <!-- Three.js-based G-code Viewer -->
+                          <g-code-viewer-3-d
+              ref="gcodeViewer"
+              :gcode="generatedGcode"
+              :auto-update="true"
+              :highlighted-line="highlightedGcodeLine"
+              :highlighted-gcode-text="highlightedGcodeText"
+              @line-selected="onLineSelectedFrom3D"
+            />
+            </v-card-text>
+          </v-card>
+          
+          <!-- G-code Preview - Full width under viewer -->
+          <v-expansion-panels class="mt-4">
+            <v-expansion-panel>
+              <v-expansion-panel-header>
+                <div>
+                  <v-icon left>mdi-code-tags</v-icon>
+                  Show G-code ({{ gcodeLineCount }} lines)
+                </div>
+              </v-expansion-panel-header>
+              <v-expansion-panel-content>
+                <div class="gcode-lines-container" ref="gcodeContainer">
+                  <div
+                    v-for="(line, index) in gcodeLines"
+                    :key="index"
+                    :class="[
+                      'gcode-line',
+                      { 'even-line': index % 2 === 0 },
+                      { 'odd-line': index % 2 === 1 },
+                      { 'highlighted-line': index === highlightedGcodeLine },
+                      { 'clickable-line': isMovementCommand(line) }
+                    ]"
+                    @click="onGcodeLineClick(index, line)"
+                  >
+                    <span class="line-number">{{ index + 1 }}</span>
+                    <span class="line-content">{{ line }}</span>
+                  </div>
+                </div>
+              </v-expansion-panel-content>
+            </v-expansion-panel>
+          </v-expansion-panels>
+        </v-col>
+        
+        <!-- Right Column: Tool Configuration (20-30% width) -->
+        <v-col cols="12" lg="4">
           <v-form ref="setupForm" v-model="formValid">
-            <!-- Tool Configuration -->
-            <v-card flat class="mb-4">
-              <v-card-subtitle class="font-weight-bold">
-                <v-icon left small>mdi-tools</v-icon>
-                Tool Configuration
-              </v-card-subtitle>
-              <v-card-text>
+            <v-expansion-panels accordion multiple>
+              <!-- Tool Configuration -->
+              <v-expansion-panel>
+                <v-expansion-panel-header>
+                  <div>
+                    <v-icon left small>mdi-tools</v-icon>
+                    Tool Configuration
+                  </div>
+                </v-expansion-panel-header>
+                <v-expansion-panel-content>
                   <v-row>
                     <v-col cols="12">
                       <v-alert
@@ -56,16 +139,18 @@
                       />
                     </v-col>
                   </v-row>
-                </v-card-text>
-              </v-card>
+                </v-expansion-panel-content>
+              </v-expansion-panel>
 
               <!-- Stock Geometry -->
-              <v-card flat class="mb-4">
-                <v-card-subtitle class="font-weight-bold">
-                  <v-icon left small>mdi-cube</v-icon>
-                  Stock Geometry
-                </v-card-subtitle>
-                <v-card-text>
+              <v-expansion-panel>
+                <v-expansion-panel-header>
+                  <div>
+                    <v-icon left small>mdi-cube</v-icon>
+                    Stock Geometry
+                  </div>
+                </v-expansion-panel-header>
+                <v-expansion-panel-content>
                   <v-row>
                     <v-col cols="12">
                       <v-radio-group v-model="stockShape" row dense>
@@ -130,16 +215,18 @@
                       </v-alert>
                     </v-col>
                   </v-row>
-                </v-card-text>
-              </v-card>
+                </v-expansion-panel-content>
+              </v-expansion-panel>
 
               <!-- Facing Pattern -->
-              <v-card flat class="mb-4">
-                <v-card-subtitle class="font-weight-bold">
-                  <v-icon left small>mdi-axis-arrow</v-icon>
-                  Facing Pattern
-                </v-card-subtitle>
-                <v-card-text>
+              <v-expansion-panel>
+                <v-expansion-panel-header>
+                  <div>
+                    <v-icon left small>mdi-axis-arrow</v-icon>
+                    Facing Pattern
+                  </div>
+                </v-expansion-panel-header>
+                <v-expansion-panel-content>
                   <v-row>
                     <v-col cols="12" md="6">
                       <v-select
@@ -166,17 +253,51 @@
                         <v-radio label="Conventional Milling" value="conventional" />
                       </v-radio-group>
                     </v-col>
+                    <v-col v-if="facingPattern === 'spiral'" cols="12">
+                      <v-radio-group v-model="spiralDirection" row dense>
+                        <v-radio label="Outside-In (Recommended)" value="outside-in" />
+                        <v-radio label="Inside-Out" value="inside-out" />
+                      </v-radio-group>
+                    </v-col>
+                    <v-col v-if="facingPattern === 'spiral'" cols="12">
+                      <v-subheader class="px-0">
+                        Spiral Resolution: {{ spiralSegmentsPerRevolution }} segments/revolution
+                        <v-spacer />
+                        <span class="text-caption">
+                          {{ (360 / spiralSegmentsPerRevolution).toFixed(1) }}° per segment
+                        </span>
+                      </v-subheader>
+                      <v-slider
+                        v-model="spiralSegmentsPerRevolution"
+                        :min="10"
+                        :max="40"
+                        :step="10"
+                        thumb-label="always"
+                        :disabled="uiFrozen"
+                      >
+                        <template v-slot:prepend>
+                          <v-icon small>mdi-speedometer-slow</v-icon>
+                          <span class="text-caption ml-1">Fast</span>
+                        </template>
+                        <template v-slot:append>
+                          <span class="text-caption mr-1">Accurate</span>
+                          <v-icon small>mdi-speedometer</v-icon>
+                        </template>
+                      </v-slider>
+                    </v-col>
                   </v-row>
-                </v-card-text>
-              </v-card>
+                </v-expansion-panel-content>
+              </v-expansion-panel>
 
               <!-- Cutting Parameters -->
-              <v-card flat class="mb-4">
-                <v-card-subtitle class="font-weight-bold">
-                  <v-icon left small>mdi-sine-wave</v-icon>
-                  Cutting Parameters
-                </v-card-subtitle>
-                <v-card-text>
+              <v-expansion-panel>
+                <v-expansion-panel-header>
+                  <div>
+                    <v-icon left small>mdi-sine-wave</v-icon>
+                    Cutting Parameters
+                  </div>
+                </v-expansion-panel-header>
+                <v-expansion-panel-content>
                   <v-row>
                     <v-col cols="12" md="6">
                       <v-text-field
@@ -278,16 +399,18 @@
                       />
                     </v-col>
                   </v-row>
-                </v-card-text>
-              </v-card>
+                </v-expansion-panel-content>
+              </v-expansion-panel>
 
               <!-- Feed and Speed -->
-              <v-card flat class="mb-4">
-                <v-card-subtitle class="font-weight-bold">
-                  <v-icon left small>mdi-speedometer</v-icon>
-                  Feed and Speed
-                </v-card-subtitle>
-                <v-card-text>
+              <v-expansion-panel>
+                <v-expansion-panel-header>
+                  <div>
+                    <v-icon left small>mdi-speedometer</v-icon>
+                    Feed and Speed
+                  </div>
+                </v-expansion-panel-header>
+                <v-expansion-panel-content>
                   <v-row>
                     <v-col cols="12" md="4">
                       <v-text-field
@@ -323,134 +446,101 @@
                       />
                     </v-col>
                   </v-row>
-                </v-card-text>
-              </v-card>
-            </v-form>
-          </v-col>
+                </v-expansion-panel-content>
+              </v-expansion-panel>
+            </v-expansion-panels>
+          </v-form>
+          
+          <!-- Statistics (in right column) -->
 
-          <!-- Right Column: Preview & Run -->
-          <v-col cols="12" md="6">
-            <v-card flat>
-              <v-card-subtitle class="font-weight-bold d-flex align-center">
-                <v-icon left small>mdi-eye</v-icon>
-                Toolpath Preview
-              </v-card-subtitle>
-              <v-card-text>
-                <!-- Three.js-based G-code Viewer -->
-                <g-code-viewer-3-d 
-                  v-if="generatedGcode"
-                  :gcode="generatedGcode"
-                  :auto-update="true"
-                  class="mb-4"
-                />
-                <div v-else class="toolpath-preview-placeholder">
-                  <v-icon size="64" color="grey lighten-1">mdi-cube-outline</v-icon>
-                  <p class="text-center grey--text text--lighten-1 mt-4">
-                    Configure facing parameters and click Generate
-                  </p>
-                </div>
+          <!-- Statistics (in right column) -->
+          <v-card outlined class="mt-4">
+            <v-card-subtitle class="font-weight-bold">
+              <v-icon left small>mdi-chart-box</v-icon>
+              Statistics
+            </v-card-subtitle>
+            <v-card-text>
+              <v-row dense>
+                <v-col cols="12">
+                  <div class="text-caption">Roughing Passes</div>
+                  <div class="text-h6">{{ statistics.roughingPasses }}</div>
+                </v-col>
+                <v-col cols="12">
+                  <div class="text-caption">Finishing Pass</div>
+                  <div class="text-h6">{{ statistics.finishingPass ? 'Yes' : 'No' }}</div>
+                </v-col>
+                <v-col cols="12">
+                  <div class="text-caption">Total Distance</div>
+                  <div class="text-h6">{{ statistics.totalDistance }} mm</div>
+                </v-col>
+                <v-col cols="12">
+                  <div class="text-caption">Est. Time</div>
+                  <div class="text-h6">{{ formatTime(statistics.estimatedTime) }}</div>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </v-card>
 
-                <!-- Statistics -->
-                <v-card outlined class="mt-4">
-                  <v-card-text>
-                    <v-row dense>
-                      <v-col cols="6" sm="3">
-                        <div class="text-caption">Roughing Passes</div>
-                        <div class="text-h6">{{ statistics.roughingPasses }}</div>
-                      </v-col>
-                      <v-col cols="6" sm="3">
-                        <div class="text-caption">Finishing Pass</div>
-                        <div class="text-h6">{{ statistics.finishingPass ? 'Yes' : 'No' }}</div>
-                      </v-col>
-                      <v-col cols="6" sm="3">
-                        <div class="text-caption">Total Distance</div>
-                        <div class="text-h6">{{ statistics.totalDistance }} mm</div>
-                      </v-col>
-                      <v-col cols="6" sm="3">
-                        <div class="text-caption">Est. Time</div>
-                        <div class="text-h6">{{ formatTime(statistics.estimatedTime) }}</div>
-                      </v-col>
-                    </v-row>
-                  </v-card-text>
-                </v-card>
-
-                <!-- G-code Preview -->
-                <v-expansion-panels class="mt-4">
-                  <v-expansion-panel>
-                    <v-expansion-panel-header>
-                      <div>
-                        <v-icon left>mdi-code-tags</v-icon>
-                        Show G-code ({{ gcodeLineCount }} lines)
-                      </div>
-                    </v-expansion-panel-header>
-                    <v-expansion-panel-content>
-                      <v-textarea
-                        :value="generatedGcode"
-                        readonly
-                        outlined
-                        auto-grow
-                        rows="15"
-                        class="code-preview"
-                      />
-                    </v-expansion-panel-content>
-                  </v-expansion-panel>
-                </v-expansion-panels>
-
-                <!-- File Management -->
-                <v-card outlined class="mt-4">
-                  <v-card-subtitle class="font-weight-bold">
-                    <v-icon left small>mdi-content-save</v-icon>
-                    File Management
-                  </v-card-subtitle>
-                  <v-card-text>
-                    <v-row>
-                      <v-col cols="12" md="8">
-                        <v-text-field
-                          v-model="filename"
-                          label="Filename"
-                          suffix=".gcode"
-                          :rules="[v => !!v || 'Filename required', v => /^[a-zA-Z0-9_-]+$/.test(v) || 'Invalid filename']"
-                          hint="Alphanumeric, dash, and underscore only"
-                          persistent-hint
-                        />
-                      </v-col>
-                      <v-col cols="12" md="4">
-                        <v-select
-                          v-model="saveLocation"
-                          :items="saveLocations"
-                          label="Save Location"
-                        />
-                      </v-col>
-                    </v-row>
-                    <v-row>
-                      <v-col cols="12" class="d-flex justify-space-between">
-                        <v-btn
-                          color="secondary"
-                          :disabled="!filename || uiFrozen"
-                          @click="saveAsFile"
-                        >
-                          <v-icon left>mdi-content-save</v-icon>
-                          Save as File
-                        </v-btn>
-                        <v-btn
-                          color="primary"
-                          :disabled="!filename || uiFrozen"
-                          @click="runImmediately"
-                        >
-                          <v-icon left>mdi-play</v-icon>
-                          Run Immediately
-                        </v-btn>
-                      </v-col>
-                    </v-row>
-                  </v-card-text>
-                </v-card>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
-  </template>
+          <!-- File Management (in right column) -->
+          <v-card outlined class="mt-4">
+            <v-card-subtitle class="font-weight-bold">
+              <v-icon left small>mdi-content-save</v-icon>
+              File Management
+            </v-card-subtitle>
+            <v-card-text>
+              <v-row>
+                <v-col cols="12">
+                  <v-text-field
+                    v-model="filename"
+                    label="Filename"
+                    suffix=".gcode"
+                    :rules="[v => !!v || 'Filename required', v => /^[a-zA-Z0-9_-]+$/.test(v) || 'Invalid filename']"
+                    hint="Alphanumeric, dash, and underscore only"
+                    persistent-hint
+                    dense
+                  />
+                </v-col>
+                <v-col cols="12">
+                  <v-select
+                    v-model="saveLocation"
+                    :items="saveLocations"
+                    label="Save Location"
+                    dense
+                  />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12">
+                  <v-btn
+                    block
+                    color="secondary"
+                    :disabled="!filename || uiFrozen"
+                    @click="saveAsFile"
+                    class="mb-2"
+                  >
+                    <v-icon left>mdi-content-save</v-icon>
+                    Save as File
+                  </v-btn>
+                </v-col>
+                <v-col cols="12">
+                  <v-btn
+                    block
+                    color="primary"
+                    :disabled="!filename || uiFrozen"
+                    @click="runImmediately"
+                  >
+                    <v-icon left>mdi-play</v-icon>
+                    Run Immediately
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-card-text>
+  </v-card>
+</template>
 
 <script lang="ts">
 import BaseComponent from '../base/BaseComponent.vue'
@@ -504,6 +594,8 @@ export default BaseComponent.extend({
       ],
       patternAngle: 0,
       millingDirection: 'climb' as 'climb' | 'conventional',
+      spiralSegmentsPerRevolution: 30,
+      spiralDirection: 'outside-in' as 'outside-in' | 'inside-out',
       
       // Cutting Parameters
       stepover: 30,
@@ -538,11 +630,27 @@ export default BaseComponent.extend({
       saveLocations: [
         { text: '/gcodes/', value: '/gcodes/' },
         { text: '/macros/', value: '/macros/' }
-      ]
+      ],
+      
+      // Viewer Options
+      highlightedGcodeLine: null as number | null,
+      highlightedGcodeText: '' as string,
+      
+      // Worker and Progress
+      toolpathWorker: null as Worker | null,
+      isGenerating: false,
+      showProgressDialog: false,
+      progressDialogTimer: null as NodeJS.Timeout | null,
+      generationProgress: 0,
+      generationMessage: ''
     }
   },
   
   computed: {
+    gcodeLines(): string[] {
+      return this.generatedGcode ? this.generatedGcode.split('\n') : []
+    },
+    
     toolRadiusHint(): string {
       if (this.currentTool) {
         const toolNum = this.currentTool.number
@@ -606,6 +714,12 @@ export default BaseComponent.extend({
     millingDirection() {
       this.generatePreview()
     },
+    spiralSegmentsPerRevolution() {
+      this.generatePreview()
+    },
+    spiralDirection() {
+      this.generatePreview()
+    },
     stepover() {
       this.generatePreview()
     },
@@ -648,8 +762,85 @@ export default BaseComponent.extend({
     this.initializeFromMachineState()
     // Set initial finishing pass offset to half of tool radius
     this.finishingPassOffset = this.toolRadius / 2
+    
+    // Initialize Web Worker for toolpath generation
+    this.toolpathWorker = new Worker(
+      new URL('../../workers/toolpath.worker.ts', import.meta.url),
+      { type: 'module' }
+    )
+    
+    // Set up worker message handler
+    this.toolpathWorker.onmessage = (event) => {
+      const message = event.data
+      
+      if (message.type === 'progress') {
+        this.generationProgress = message.progress
+        this.generationMessage = message.message
+      } else if (message.type === 'complete') {
+        this.isGenerating = false
+        this.showProgressDialog = false
+        if (this.progressDialogTimer) {
+          clearTimeout(this.progressDialogTimer)
+          this.progressDialogTimer = null
+        }
+        
+        this.generatedToolpath = message.toolpath || []
+        this.statistics = message.statistics || {
+          totalDistance: 0,
+          estimatedTime: 0,
+          materialRemoved: 0,
+          roughingPasses: 0,
+          finishingPass: false
+        }
+        
+        // Generate G-code from the toolpath
+        const currentToolNum = this.currentTool?.number || 0
+        const workplace = this.currentWorkplace || 1
+        const params = this.buildGenerationParams()
+        this.generatedGcode = generateGCode(
+          this.generatedToolpath,
+          params,
+          currentToolNum,
+          workplace
+        )
+      } else if (message.type === 'error') {
+        this.isGenerating = false
+        this.showProgressDialog = false
+        if (this.progressDialogTimer) {
+          clearTimeout(this.progressDialogTimer)
+          this.progressDialogTimer = null
+        }
+        alert('Error generating toolpath: ' + message.error)
+      }
+    }
+    
+    this.toolpathWorker.onerror = (error) => {
+      this.isGenerating = false
+      this.showProgressDialog = false
+      if (this.progressDialogTimer) {
+        clearTimeout(this.progressDialogTimer)
+        this.progressDialogTimer = null
+      }
+      console.error('Worker error:', error)
+      alert('Worker error: ' + error.message)
+    }
+    
     // Generate initial toolpath
     this.generatePreview()
+  },
+  
+  beforeDestroy() {
+    // Clean up worker when component is destroyed
+    if (this.toolpathWorker) {
+      this.toolpathWorker.terminate()
+      this.toolpathWorker = null
+    }
+    
+    // Clean up progress dialog timer
+    if (this.progressDialogTimer) {
+      clearTimeout(this.progressDialogTimer)
+      this.progressDialogTimer = null
+    }
   },
   
   methods: {
@@ -717,7 +908,9 @@ export default BaseComponent.extend({
         pattern: {
           type: this.facingPattern as any,
           angle: this.patternAngle,
-          millingDirection: this.millingDirection
+          millingDirection: this.millingDirection,
+          spiralSegmentsPerRevolution: this.spiralSegmentsPerRevolution,
+          spiralDirection: this.spiralDirection
         },
         feeds: {
           xy: this.feedRateXY,
@@ -728,6 +921,11 @@ export default BaseComponent.extend({
     },
     
     generatePreview() {
+      // Don't generate if already generating
+      if (this.isGenerating) {
+        return
+      }
+      
       try {
         const params = this.buildGenerationParams()
         
@@ -738,22 +936,54 @@ export default BaseComponent.extend({
           return
         }
         
-        // Generate toolpath
-        this.generatedToolpath = generateToolpath(params)
+        // Clear any existing progress dialog timer
+        if (this.progressDialogTimer) {
+          clearTimeout(this.progressDialogTimer)
+          this.progressDialogTimer = null
+        }
         
-        // Calculate statistics
-        this.statistics = calculateToolpathStatistics(this.generatedToolpath, params.cutting)
+        // Start generation in worker
+        this.isGenerating = true
+        this.showProgressDialog = false
+        this.generationProgress = 0
+        this.generationMessage = 'Starting generation...'
         
-        // Generate G-code
-        const currentToolNum = this.currentTool?.number || 0
-        const workplace = this.currentWorkplace || 1
-        this.generatedGcode = generateGCode(
-          this.generatedToolpath,
-          params,
-          currentToolNum,
-          workplace
-        )
+        // Show progress dialog after 1 second if still generating
+        this.progressDialogTimer = setTimeout(() => {
+          if (this.isGenerating) {
+            this.showProgressDialog = true
+          }
+          this.progressDialogTimer = null
+        }, 1000)
+        
+        if (this.toolpathWorker) {
+          this.toolpathWorker.postMessage({
+            type: 'generate',
+            params
+          })
+        } else {
+          // Fallback to synchronous generation if worker not available
+          this.generatedToolpath = generateToolpath(params)
+          this.statistics = calculateToolpathStatistics(this.generatedToolpath, params.cutting)
+          
+          const currentToolNum = this.currentTool?.number || 0
+          const workplace = this.currentWorkplace || 1
+          this.generatedGcode = generateGCode(
+            this.generatedToolpath,
+            params,
+            currentToolNum,
+            workplace
+          )
+          this.isGenerating = false
+          this.showProgressDialog = false
+        }
       } catch (error) {
+        this.isGenerating = false
+        this.showProgressDialog = false
+        if (this.progressDialogTimer) {
+          clearTimeout(this.progressDialogTimer)
+          this.progressDialogTimer = null
+        }
         console.error('Error generating toolpath:', error)
         alert('Error generating toolpath: ' + error)
       }
@@ -808,24 +1038,58 @@ export default BaseComponent.extend({
       const mins = Math.floor(seconds / 60)
       const secs = seconds % 60
       return `${mins}m ${secs}s`
-    }
+    },
+    
+    isMovementCommand(line: string): boolean {
+      const trimmed = line.trim()
+      // Only G0, G1, G2, G3 movement commands are clickable
+      return /^(G0|G1|G2|G3)\s/.test(trimmed)
+    },
+    
+    onGcodeLineClick(lineNumber: number, lineText: string) {
+      // Only handle clicks on movement commands
+      if (!this.isMovementCommand(lineText)) return
+      
+      this.highlightedGcodeLine = lineNumber
+      this.highlightedGcodeText = lineText.trim()
+      
+      // Auto-scroll to the 3D viewer
+      this.$nextTick(() => {
+        const viewerElement = this.$refs.gcodeViewer as any
+        if (viewerElement && viewerElement.$el) {
+          viewerElement.$el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
+      })
+    },
+    
+    onLineSelectedFrom3D(lineNumber: number) {
+      // Update highlighted line from 3D viewer click
+      if (lineNumber >= 0 && lineNumber < this.gcodeLines.length) {
+        const lineText = this.gcodeLines[lineNumber]
+        this.highlightedGcodeLine = lineNumber
+        this.highlightedGcodeText = lineText.trim()
+        
+        // Do NOT scroll - just update the highlight
+        // User can manually scroll to see the G-code if needed
+      }
+    },
   }
 })
 </script>
 
 <style scoped>
 .nxt-stock-preparation-panel {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .toolpath-preview-placeholder {
-  min-height: 450px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 40px;
+  background: #263238;
+  border-radius: 4px;
 }
 
 .toolpath-preview-container {
@@ -845,6 +1109,60 @@ export default BaseComponent.extend({
 .code-preview {
   font-family: 'Courier New', monospace;
   font-size: 12px;
+}
+
+.gcode-lines-container {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+.gcode-line {
+  display: flex;
+  padding: 2px 8px;
+  white-space: pre;
+  line-height: 1.5;
+}
+
+.gcode-line.even-line {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.gcode-line.odd-line {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.gcode-line.clickable-line {
+  cursor: pointer;
+}
+
+.gcode-line.clickable-line:hover {
+  background-color: rgba(33, 150, 243, 0.1) !important;
+}
+
+.gcode-line.highlighted-line {
+  background-color: rgba(255, 235, 59, 0.3) !important;
+  font-weight: bold;
+}
+
+.line-number {
+  display: inline-block;
+  min-width: 40px;
+  text-align: right;
+  margin-right: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  user-select: none;
+}
+
+.theme--light .line-number {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.line-content {
+  flex: 1;
 }
 
 .v-stepper {

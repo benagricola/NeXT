@@ -105,7 +105,8 @@ If the plugin is already enabled (you can see "NeXT" in the sidebar):
 
 **Note**: The plugin must be enabled (started) at least once. This setting persists in browser localStorage, so you typically only need to enable it once per browser/profile.
 
-**Warning**: Dialog boxes and other UI elements have animations associated with them. If you execute an action and then instantly take a snapshot, you may find that the snapshot still contains the 
+**Warning**: Dialog boxes and other UI elements have animations associated with them. If you execute an action and then instantly take a snapshot, you may find that the snapshot still contains the previous content. It is worth waiting a second or two for the UI to update first.
+
 ## Development Workflow
 
 ### Making Changes
