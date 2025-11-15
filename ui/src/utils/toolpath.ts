@@ -345,6 +345,50 @@ export function clipLineToRect(
   const ny2 = y1 + t1 * dy
   return { x1: nx1, y1: ny1, x2: nx2, y2: ny2 }
 }
+export function computeSegmentIntersectionRect(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  xMin: number,
+  yMin: number,
+  xMax: number,
+  yMax: number
+): { x: number; y: number } | null {
+  const clipped = clipLineToRect(x1, y1, x2, y2, xMin, yMin, xMax, yMax)
+  if (!clipped) return null
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const eps = 1e-9
+  const t1 = dx !== 0 ? (clipped.x1 - x1) / dx : (clipped.y1 - y1) / dy
+  const t2 = dx !== 0 ? (clipped.x2 - x1) / dx : (clipped.y2 - y1) / dy
+  let t: number | null = null
+  if (t1 > eps && t1 < 1 - eps) t = t1
+  if (t2 > eps && t2 < 1 - eps) t = t2
+  if (t === null) {
+    if (Math.abs(t1) > eps) t = t1
+    else if (Math.abs(t2) > eps) t = t2
+  }
+  if (t === null) return null
+  return { x: x1 + dx * t, y: y1 + dy * t }
+}
+
+
+/**
+ * Compute an intersection point (x,y) where the line segment intersects the provided rect boundary.
+ * Returns null if no intersection or if computation fails. This returns the first valid intersection point
+ * lying between segment endpoints.
+ */
+// Second duplicate of computeSegmentIntersectionRect removed (use module-level declaration above)
+
+/**
+ * Compute an intersection point (x,y) where the line segment intersects the provided rect boundary.
+ * Returns null if no intersection or if computation fails. This returns the first valid intersection point
+ * lying between segment endpoints.
+ */
+// Second duplicate of computeSegmentIntersectionRect removed (use module-level declaration above)
+
+// Duplicate computeSegmentIntersectionCircle removed; using module-level helper declared later
 
 /**
  * Generate rectilinear pattern toolpath
@@ -370,6 +414,7 @@ export function generateRectilinearPattern(
   
   const effectiveWidth = calculateEffectiveCuttingWidth(cutting.toolRadius, cutting.stepover)
   
+  // Local boundaries for spiral clipping
   const boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
   
   // For circular stock, center is at origin (0,0).
@@ -384,6 +429,7 @@ export function generateRectilinearPattern(
     
     // Pre-compute passes
     const validPasses: Array<{ finalStart: { x: number; y: number }; finalEnd: { x: number; y: number }; passIndex: number }> = []
+    // Boundaries (tool center compensated) - for rectangular stock this is used directly.
     if (isCircular) {
       // Circular: scan across diameter perpendicular to pattern angle
       const angleRad = (pattern.angle * Math.PI) / 180
@@ -536,6 +582,33 @@ export function generateRectilinearPattern(
   }
   
   return allPasses
+}
+
+export function computeSegmentIntersectionCircle(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  cx: number,
+  cy: number,
+  radius: number
+): { x: number; y: number } | null {
+  const clipped = clipLineToCircle(x1, y1, x2, y2, cx, cy, radius)
+  if (!clipped) return null
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const eps = 1e-9
+  const t1 = dx !== 0 ? (clipped.x1 - x1) / dx : (clipped.y1 - y1) / dy
+  const t2 = dx !== 0 ? (clipped.x2 - x1) / dx : (clipped.y2 - y1) / dy
+  let t: number | null = null
+  if (t1 > eps && t1 < 1 - eps) t = t1
+  if (t2 > eps && t2 < 1 - eps) t = t2
+  if (t === null) {
+    if (Math.abs(t1) > eps) t = t1
+    else if (Math.abs(t2) > eps) t = t2
+  }
+  if (t === null) return null
+  return { x: x1 + dx * t, y: y1 + dy * t }
 }
 
 /**
@@ -748,6 +821,11 @@ export function generateSpiralPattern(
   
   const zLevels = calculateZLevels(cutting)
   const allPasses: ToolpathPoint[][] = []
+  const exitTolerance = 1 // mm outside boundary to consider as exit
+  // Precompute boundaries and allowed radii once per call (stock doesn't change per z-level)
+  let boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
+  const allowedRadius = (stock.diameter || 0) / 2 - cutting.toolRadius
+  const allowedRadiusTol = allowedRadius + exitTolerance
   
   for (const zLevel of zLevels) {
     const levelPasses: ToolpathPoint[] = []
@@ -775,10 +853,20 @@ export function generateSpiralPattern(
       }
     } else {
       // For rectangular stock, use diagonal to encompass entire stock
-      const boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
+      boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
       const halfWidth = (boundaries.xMax - boundaries.xMin) / 2
       const halfHeight = (boundaries.yMax - boundaries.yMin) / 2
       outerRadius = Math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight)
+    }
+    // Ensure we have boundaries defined even for circular stock so later code can refer to it
+    if (isCircular) {
+      const allowedRadius = (stock.diameter || 0) / 2 - cutting.toolRadius
+      boundaries = {
+        xMin: centerX - allowedRadius,
+        xMax: centerX + allowedRadius,
+        yMin: centerY - allowedRadius,
+        yMax: centerY + allowedRadius
+      }
     }
     
     // Set starting radius based on spiral direction
@@ -790,23 +878,7 @@ export function generateSpiralPattern(
     const startX = centerX + initialRadius * Math.cos(startAngle)
     const startY = centerY + initialRadius * Math.sin(startAngle)
     
-    // Rapid to start
-    levelPasses.push({
-      x: startX,
-      y: startY,
-      z: cutting.zOffset + cutting.safeZHeight,
-      feedRate: 0,
-      type: 'rapid'
-    })
-    
-    // Plunge to depth
-    levelPasses.push({
-      x: startX,
-      y: startY,
-      z: zLevel.depth,
-      feedRate: feeds.z,
-      type: 'linear'
-    })
+    // We'll determine the starting point after we build the spiral points
     
     // Generate spiral as a series of line segments
     // Total segments per revolution controlled by spiralSegmentsPerRevolution parameter
@@ -823,9 +895,9 @@ export function generateSpiralPattern(
     
     let currentRadius = initialRadius
     let currentAngle = startAngle
-    let prevX = startX
-    let prevY = startY
-    
+    // Build list of spiral points first
+    const spiralPoints: Array<{ x: number; y: number }> = []
+    spiralPoints.push({ x: startX, y: startY })
     for (let seg = 0; seg < totalSegments; seg++) {
       // Calculate next radius
       const nextRadius = currentRadius + radiusChangePerSegment
@@ -841,19 +913,124 @@ export function generateSpiralPattern(
       const endX = centerX + nextRadius * Math.cos(endAngle)
       const endY = centerY + nextRadius * Math.sin(endAngle)
       
-      levelPasses.push({
-        x: endX,
-        y: endY,
-        z: zLevel.depth,
-        feedRate: feeds.xy,
-        type: 'linear'
-      })
+      spiralPoints.push({ x: endX, y: endY })
       
       // Update for next iteration
       currentRadius = nextRadius
       currentAngle = endAngle
     }
+    // Inside predicate uses already-precomputed boundaries and allowed radius/tolerance
+    const pointInside = (x: number, y: number) => {
+      if (isCircular) {
+        const dx = x - centerX
+        const dy = y - centerY
+        return Math.sqrt(dx * dx + dy * dy) <= allowedRadiusTol
+      }
+      return (
+        x >= (boundaries.xMin - exitTolerance) &&
+        x <= (boundaries.xMax + exitTolerance) &&
+        y >= (boundaries.yMin - exitTolerance) &&
+        y <= (boundaries.yMax + exitTolerance)
+      )
+    }
+
+    // Helper: compute intersection on segment between inside->outside with expanded rectangle/circle
+    // Note: local segment -> boundary intersection helpers removed; using module-level computeSegmentIntersectionRect / Circle
+
     
+
+    // Now walk the points, inserting only cutting lines for 'inside' points and G0 moves for outside re-entry
+    const L = spiralPoints.length
+    // Find first index where we are inside
+    let firstInsideIdx = spiralPoints.findIndex(p => pointInside(p.x, p.y))
+    if (firstInsideIdx === -1) {
+      // The whole spiral doesn't touch the stock - skip
+      allPasses.push(levelPasses)
+      continue
+    }
+
+    // Rapid to first inside point at safeZ and plunge
+    const firstPt = spiralPoints[firstInsideIdx]
+    levelPasses.push({ x: firstPt.x, y: firstPt.y, z: cutting.zOffset + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+    levelPasses.push({ x: firstPt.x, y: firstPt.y, z: zLevel.depth, feedRate: feeds.z, type: 'linear' })
+
+    let idx = firstInsideIdx
+    while (idx < L - 1) {
+      const nextIdx = idx + 1
+      const nextPt = spiralPoints[nextIdx]
+      const currPt = spiralPoints[idx]
+      if (pointInside(nextPt.x, nextPt.y)) {
+        // normal cutting linear
+        levelPasses.push({ x: nextPt.x, y: nextPt.y, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' })
+        idx = nextIdx
+        continue
+      }
+
+      // next point is outside: find next re-entry; compute exit intersection point at the expanded boundary
+      let reentryIdx = -1
+      for (let j = nextIdx + 1; j < L; j++) {
+        if (pointInside(spiralPoints[j].x, spiralPoints[j].y)) {
+          reentryIdx = j
+          break
+        }
+      }
+      if (reentryIdx === -1) {
+        // no re-entry found: end spiral
+        break
+      }
+
+      // First, compute exact exitIntersection for current segment (idx -> nextIdx)
+      let exitIntersection: { x: number; y: number } | null = null
+      if (isCircular) {
+        exitIntersection = computeSegmentIntersectionCircle(currPt.x, currPt.y, nextPt.x, nextPt.y, centerX, centerY, allowedRadius)
+      } else {
+        exitIntersection = computeSegmentIntersectionRect(currPt.x, currPt.y, nextPt.x, nextPt.y, boundaries.xMin, boundaries.yMin, boundaries.xMax, boundaries.yMax)
+      }
+      // If we found an exit intersection, push a cutting linear to it; otherwise, push a linear to nextPt as before
+      if (exitIntersection) {
+        levelPasses.push({ x: exitIntersection.x, y: exitIntersection.y, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' })
+      } else {
+        // fallback: do not cut to an outside point — safely raise and rapid to next point at safeZ
+        const last = levelPasses[levelPasses.length - 1]
+        if (last && last.z !== zLevel.depth + cutting.safeZHeight) {
+          levelPasses.push({ x: last.x, y: last.y, z: zLevel.depth + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+        }
+        levelPasses.push({ x: nextPt.x, y: nextPt.y, z: zLevel.depth + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+      }
+
+      // Move up to safe height before rapid
+      const last = levelPasses[levelPasses.length - 1]
+      if (last && last.z !== zLevel.depth + cutting.safeZHeight) {
+        levelPasses.push({ x: last.x, y: last.y, z: zLevel.depth + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+      }
+
+      // Compute reentry outside intersection (1mm outside the stock) for the segment reentryIdx-1 -> reentryIdx
+      const preReentry = spiralPoints[reentryIdx - 1]
+      const reentry = spiralPoints[reentryIdx]
+      let reentryOutside: { x: number; y: number } | null = null
+      let reentryInside: { x: number; y: number } | null = null
+      if (isCircular) {
+        reentryOutside = computeSegmentIntersectionCircle(preReentry.x, preReentry.y, reentry.x, reentry.y, centerX, centerY, allowedRadiusTol)
+        reentryInside = computeSegmentIntersectionCircle(preReentry.x, preReentry.y, reentry.x, reentry.y, centerX, centerY, allowedRadius)
+      } else {
+        reentryOutside = computeSegmentIntersectionRect(preReentry.x, preReentry.y, reentry.x, reentry.y, boundaries.xMin - exitTolerance, boundaries.yMin - exitTolerance, boundaries.xMax + exitTolerance, boundaries.yMax + exitTolerance)
+        reentryInside = computeSegmentIntersectionRect(preReentry.x, preReentry.y, reentry.x, reentry.y, boundaries.xMin, boundaries.yMin, boundaries.xMax, boundaries.yMax)
+      }
+      // Rapid to the outside intersection point and plunge to the inside re-entry point
+      if (reentryOutside) {
+        levelPasses.push({ x: reentryOutside.x, y: reentryOutside.y, z: zLevel.depth + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+      } else {
+        // fallback to reentry — still do rapid to reentry at safeZ, better than plunging blindly
+        levelPasses.push({ x: reentry.x, y: reentry.y, z: zLevel.depth + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+      }
+      // Plunge to cutting depth at exact inside intersection if available, else the first spiral in-point
+      if (reentryInside) {
+        levelPasses.push({ x: reentryInside.x, y: reentryInside.y, z: zLevel.depth, feedRate: feeds.z, type: 'linear' })
+      } else {
+        levelPasses.push({ x: reentry.x, y: reentry.y, z: zLevel.depth, feedRate: feeds.z, type: 'linear' })
+      }
+      idx = reentryIdx
+    }
     // Final retract for this Z level
     if (levelPasses.length > 0) {
       const lastPoint = levelPasses[levelPasses.length - 1]

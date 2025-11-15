@@ -1,16 +1,25 @@
 <template>
-  <v-card class="nxt-stock-preparation-panel">
+    <v-card class="nxt-stock-preparation-panel">
     <v-card-title>
       <v-icon left>mdi-cube-outline</v-icon>
-      Stock Preparation
+      {{ $t('plugins.next.panels.stockPreparation.caption') }}
       <v-spacer />
-      <v-btn
-        icon
+      <div v-if="!isConnected || !nxtReady" class="d-flex align-center mr-2">
+        <v-icon small class="mr-2" color="warning">mdi-lan-disconnect</v-icon>
+        <span class="text-caption mr-2">{{ $t('plugins.next.messages.disconnectedShort') }}</span>
+      </div>
+      <v-spacer />
+      <v-chip
+        v-if="pendingCount > 0"
+        color="warning"
+        text-color="white"
         small
-        @click="$emit('close')"
+        class="mr-2"
+        @click.stop.prevent="commitAll"
       >
-        <v-icon>mdi-close</v-icon>
-      </v-btn>
+        Pending ({{ pendingCount }})
+      </v-chip>
+      <!-- Close button removed: navigation should be via the left-hand menu -->
     </v-card-title>
 
     <!-- Progress Dialog -->
@@ -64,7 +73,7 @@
             </v-card-text>
           </v-card>
         </v-col>
-        
+
         <!-- Right Column: Tool Configuration (20-30% width) -->
         <v-col cols="12" lg="4">
           <v-form ref="setupForm" v-model="formValid">
@@ -96,7 +105,12 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="toolRadius"
+                        data-field="toolRadius"
+                        v-model="toolRadiusInput"
+                        :append-outer-icon="isPending('toolRadius') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('toolRadius')"
+                        @blur="commit('toolRadius')"
+                        @keyup.enter.native="commitInput"
                         label="Tool Radius *"
                         type="number"
                         step="0.1"
@@ -133,7 +147,12 @@
                   <v-row v-if="stockShape === 'rectangular'">
                     <v-col cols="12" md="4">
                       <v-text-field
-                        v-model.number="stockX"
+                        data-field="stockX"
+                        v-model="stockXInput"
+                        :append-outer-icon="isPending('stockX') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('stockX')"
+                        @blur="commit('stockX')"
+                        @keyup.enter.native="commitInput"
                         label="X Dimension *"
                         type="number"
                         step="1"
@@ -144,7 +163,12 @@
                     </v-col>
                     <v-col cols="12" md="4">
                       <v-text-field
-                        v-model.number="stockY"
+                        data-field="stockY"
+                        v-model="stockYInput"
+                        :append-outer-icon="isPending('stockY') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('stockY')"
+                        @blur="commit('stockY')"
+                        @keyup.enter.native="commitInput"
                         label="Y Dimension *"
                         type="number"
                         step="1"
@@ -155,7 +179,12 @@
                     </v-col>
                     <v-col cols="12" md="4">
                       <v-text-field
-                        v-model.number="stockZ"
+                        data-field="stockZ"
+                        v-model="stockZInput"
+                        :append-outer-icon="isPending('stockZ') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('stockZ')"
+                        @blur="commit('stockZ')"
+                        @keyup.enter.native="commitInput"
                         label="Z Height *"
                         type="number"
                         step="1"
@@ -178,7 +207,12 @@
                   <v-row v-if="stockShape === 'circular'">
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="stockDiameter"
+                        data-field="stockDiameter"
+                          v-model="stockDiameterInput"
+                          :append-outer-icon="isPending('stockDiameter') ? 'mdi-timer-sand' : ''"
+                          @click:append-outer="applyPending('stockDiameter')"
+                          @blur="commit('stockDiameter')"
+                          @keyup.enter.native="commitInput"
                         label="Diameter *"
                         type="number"
                         step="1"
@@ -189,14 +223,33 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="stockZ"
+                        data-field="stockZ"
+                        v-model="stockZInput"
+                        @blur="commit('stockZ')"
+                        @keyup.enter.native="commitInput"
                         label="Z Height *"
                         type="number"
                         step="1"
                         suffix="mm"
                         :rules="[v => v > 0 || 'Must be positive', v => v <= 500 || 'Must be <= 500mm']"
                         :disabled="uiFrozen"
-                      />
+                        :append-outer-icon="isPending('stockZ') ? 'mdi-timer-sand' : ''"
+                      >
+                        <template v-slot:append-outer>
+                          <v-tooltip bottom v-if="isPending('stockZ')">
+                            <template v-slot:activator="{ on, attrs }">
+                              <v-icon
+                                v-bind="attrs"
+                                v-on="on"
+                                class="mr-2"
+                                small
+                                @click.stop.prevent="applyPending('stockZ')"
+                              >mdi-timer-sand</v-icon>
+                            </template>
+                            <span>Pending: {{ stockZInput }}</span>
+                          </v-tooltip>
+                        </template>
+                      </v-text-field>
                     </v-col>
                     <v-col cols="12">
                       <v-alert dense outlined type="info" class="ma-0">
@@ -229,7 +282,12 @@
                     </v-col>
                     <v-col v-if="facingPattern !== 'spiral'" cols="12" md="6">
                       <v-text-field
-                        v-model.number="patternAngle"
+                        data-field="patternAngle"
+                        v-model="patternAngleInput"
+                          :append-outer-icon="isPending('patternAngle') ? 'mdi-timer-sand' : ''"
+                          @click:append-outer="applyPending('patternAngle')"
+                        @blur="commit('patternAngle')"
+                        @keyup.enter.native="commitInput"
                         label="Pattern Angle"
                         type="number"
                         step="45"
@@ -292,7 +350,12 @@
                   <v-row>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="stepover"
+                        data-field="stepover"
+                        v-model="stepoverInput"
+                          :append-outer-icon="isPending('stepover') ? 'mdi-timer-sand' : ''"
+                          @click:append-outer="applyPending('stepover')"
+                        @blur="commit('stepover')"
+                        @keyup.enter.native="commitInput"
                         label="Stepover"
                         type="number"
                         step="5"
@@ -305,7 +368,12 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="stepdown"
+                        data-field="stepdown"
+                        v-model="stepdownInput"
+                        :append-outer-icon="isPending('stepdown') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('stepdown')"
+                        @blur="commit('stepdown')"
+                        @keyup.enter.native="commitInput"
                         label="Stepdown"
                         type="number"
                         step="0.1"
@@ -316,7 +384,12 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="totalDepth"
+                        data-field="totalDepth"
+                        v-model="totalDepthInput"
+                        :append-outer-icon="isPending('totalDepth') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('totalDepth')"
+                        @blur="commit('totalDepth')"
+                        @keyup.enter.native="commitInput"
                         label="Total Depth"
                         type="number"
                         step="0.1"
@@ -327,7 +400,12 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="zOffset"
+                        data-field="zOffset"
+                        v-model="zOffsetInput"
+                        :append-outer-icon="isPending('zOffset') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('zOffset')"
+                        @blur="commit('zOffset')"
+                        @keyup.enter.native="commitInput"
                         label="Z Offset"
                         type="number"
                         step="0.1"
@@ -339,7 +417,12 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="safeZHeight"
+                        data-field="safeZHeight"
+                        v-model="safeZHeightInput"
+                        :append-outer-icon="isPending('safeZHeight') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('safeZHeight')"
+                        @blur="commit('safeZHeight')"
+                        @keyup.enter.native="commitInput"
                         label="Safe Z Height"
                         type="number"
                         step="1"
@@ -368,7 +451,12 @@
                     </v-col>
                     <v-col v-if="finishingPass" cols="12" md="6">
                       <v-text-field
-                        v-model.number="finishingPassHeight"
+                        data-field="finishingPassHeight"
+                        v-model="finishingPassHeightInput"
+                        :append-outer-icon="isPending('finishingPassHeight') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('finishingPassHeight')"
+                        @blur="commit('finishingPassHeight')"
+                        @keyup.enter.native="commitInput"
                         label="Finishing Pass Height"
                         type="number"
                         step="0.1"
@@ -379,7 +467,12 @@
                     </v-col>
                     <v-col v-if="finishingPass" cols="12" md="6">
                       <v-text-field
-                        v-model.number="finishingPassOffset"
+                        data-field="finishingPassOffset"
+                        v-model="finishingPassOffsetInput"
+                        :append-outer-icon="isPending('finishingPassOffset') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('finishingPassOffset')"
+                        @blur="commit('finishingPassOffset')"
+                        @keyup.enter.native="commitInput"
                         label="Finishing Pass Offset"
                         type="number"
                         step="0.1"
@@ -405,7 +498,12 @@
                   <v-row>
                     <v-col cols="12" md="4">
                       <v-text-field
-                        v-model.number="feedRateXY"
+                        data-field="feedRateXY"
+                        v-model="feedRateXYInput"
+                        :append-outer-icon="isPending('feedRateXY') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('feedRateXY')"
+                        @blur="commit('feedRateXY')"
+                        @keyup.enter.native="commitInput"
                         label="Horizontal Feed"
                         type="number"
                         step="100"
@@ -416,7 +514,12 @@
                     </v-col>
                     <v-col cols="12" md="4">
                       <v-text-field
-                        v-model.number="feedRateZ"
+                        data-field="feedRateZ"
+                        v-model="feedRateZInput"
+                        :append-outer-icon="isPending('feedRateZ') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('feedRateZ')"
+                        @blur="commit('feedRateZ')"
+                        @keyup.enter.native="commitInput"
                         label="Vertical Feed"
                         type="number"
                         step="50"
@@ -427,7 +530,12 @@
                     </v-col>
                     <v-col cols="12" md="4">
                       <v-text-field
-                        v-model.number="spindleSpeed"
+                        data-field="spindleSpeed"
+                        v-model="spindleSpeedInput"
+                        :append-outer-icon="isPending('spindleSpeed') ? 'mdi-timer-sand' : ''"
+                        @click:append-outer="applyPending('spindleSpeed')"
+                        @blur="commit('spindleSpeed')"
+                        @keyup.enter.native="commitInput"
                         label="Spindle Speed"
                         type="number"
                         step="1000"
@@ -441,7 +549,7 @@
               </v-expansion-panel>
             </v-expansion-panels>
           </v-form>
-          
+
           <!-- Statistics (in right column) -->
 
           <!-- Statistics (in right column) -->
@@ -482,7 +590,12 @@
               <v-row>
                 <v-col cols="12">
                   <v-text-field
-                    v-model="filename"
+                    data-field="filename"
+                    v-model="filenameInput"
+                    :append-outer-icon="isPending('filename') ? 'mdi-timer-sand' : ''"
+                    @click:append-outer="applyPending('filename')"
+                    @blur="commit('filename')"
+                    @keyup.enter.native="commitInput"
                     label="Filename"
                     suffix=".gcode"
                     :rules="[v => !!v || 'Filename required', v => /^[a-zA-Z0-9_-]+$/.test(v) || 'Invalid filename']"
@@ -547,24 +660,29 @@ import { generateGCode, validateGCodeParameters } from '../../utils/gcode'
 
 export default BaseComponent.extend({
   name: 'NxtStockPreparationPanel',
-  
+
   components: {
     GCodeViewer3D
   },
-  
+
   data() {
     return {
       formValid: false,
-      
+
       // Tool Configuration
       toolRadius: 3.0,
-      
+      toolRadiusInput: 3.0,
+
       // Stock Geometry
       stockShape: 'rectangular' as 'rectangular' | 'circular',
       stockX: 100,
       stockY: 75,
       stockZ: 20,
+      stockXInput: 100,
+      stockYInput: 75,
+      stockZInput: 20,
       stockDiameter: 100,
+      stockDiameterInput: 100,
       originPosition: 'front-left',
       originPositions: [
         { text: 'Front Left', value: 'front-left' },
@@ -577,7 +695,7 @@ export default BaseComponent.extend({
         { text: 'Back Center', value: 'back-center' },
         { text: 'Back Right', value: 'back-right' }
       ],
-      
+
       // Facing Pattern
       facingPattern: 'zigzag',
       facingPatterns: [
@@ -586,26 +704,55 @@ export default BaseComponent.extend({
         { text: 'Spiral', value: 'spiral' }
       ],
       patternAngle: 0,
+      patternAngleInput: 0,
       millingDirection: 'climb' as 'climb' | 'conventional',
       spiralSegmentsPerRevolution: 30,
       spiralDirection: 'outside-in' as 'outside-in' | 'inside-out',
-      
+
       // Cutting Parameters
       stepover: 30,
+      stepoverInput: 30,
       stepdown: 1.0,
+      stepdownInput: 1.0,
       totalDepth: 2.0,
+      totalDepthInput: 2.0,
       zOffset: 0.0,
+      zOffsetInput: 0.0,
       safeZHeight: 5.0,
+      safeZHeightInput: 5.0,
       clearStockExit: false,
       finishingPass: false,
       finishingPassHeight: 0.2,
+      finishingPassHeightInput: 0.2,
       finishingPassOffset: 1.5,  // Default to half of default tool radius (3.0mm)
-      
+      finishingPassOffsetInput: 1.5,
+
       // Feed and Speed
       feedRateXY: 1000,
+      feedRateXYInput: 1000,
       feedRateZ: 300,
+      feedRateZInput: 300,
       spindleSpeed: 10000,
-      
+      spindleSpeedInput: 10000,
+      // Buffered inputs to avoid generating preview while typing
+      toolRadiusInput: '',
+      stockXInput: '',
+      stockYInput: '',
+      stockZInput: '',
+      stockDiameterInput: '',
+      patternAngleInput: '',
+      stepoverInput: '',
+      stepdownInput: '',
+      totalDepthInput: '',
+      zOffsetInput: '',
+      safeZHeightInput: '',
+      finishingPassHeightInput: '',
+      finishingPassOffsetInput: '',
+      feedRateXYInput: '',
+      feedRateZInput: '',
+      spindleSpeedInput: '',
+      filenameInput: '',
+
       // Preview and Generation
       generatedToolpath: [] as ToolpathPoint[][],
       generatedGcode: '',
@@ -616,34 +763,37 @@ export default BaseComponent.extend({
         roughingPasses: 0,
         finishingPass: false
       },
-      
+
       // File Management
       filename: 'stock-prep-001',
+      filenameInput: 'stock-prep-001',
       saveLocation: '/gcodes/',
       saveLocations: [
         { text: '/gcodes/', value: '/gcodes/' },
         { text: '/macros/', value: '/macros/' }
       ],
-      
+
       // Viewer Options
       highlightedGcodeLines: [] as number[],  // Array for multi-selection
       lastClickedLine: null as number | null,  // Track last clicked line for shift-select
-      
+
       // Worker and Progress
       toolpathWorker: null as Worker | null,
       isGenerating: false,
       showProgressDialog: false,
       progressDialogTimer: null as NodeJS.Timeout | null,
       generationProgress: 0,
-      generationMessage: ''
+      generationMessage: '',
+      // Flag used to suppress auto-generation while batch-committing
+      suppressPreview: false,
     }
   },
-  
+
   computed: {
     gcodeLines(): string[] {
       return this.generatedGcode ? this.generatedGcode.split('\n') : []
     },
-    
+
     toolRadiusHint(): string {
       if (this.currentTool) {
         const toolNum = this.currentTool.number
@@ -654,11 +804,11 @@ export default BaseComponent.extend({
       }
       return 'Enter tool radius manually'
     },
-    
+
     isSetupValid(): boolean {
       return this.formValid && this.validateParameters().length === 0
     },
-    
+
     finishingPassRules(): Array<(v: number) => boolean | string> {
       return [
         (v: number) => v > 0 || 'Must be positive',
@@ -666,11 +816,11 @@ export default BaseComponent.extend({
         (v: number) => v < this.stepdown || 'Should be less than stepdown'
       ]
     },
-    
+
     gcodeLineCount(): number {
       return this.generatedGcode.split('\n').length
     },
-    
+
     // Computed property that combines all toolpath settings
     // When this changes, we need to regenerate the preview
     toolpathSettings(): string {
@@ -701,8 +851,36 @@ export default BaseComponent.extend({
         toolRadius: this.toolRadius
       })
     }
+    ,
+    pendingFields(): string[] {
+      // Auto-detect buffered inputs by scanning component data for keys ending in 'Input'
+      const dataKeys = Object.keys(this.$data || {})
+      const inputKeys = dataKeys.filter(k => k.endsWith('Input'))
+      const fields: string[] = []
+      for (const inputKey of inputKeys) {
+        const field = inputKey.slice(0, -'Input'.length)
+        // Ensure the base field actually exists on the component
+        if (!(field in this)) continue
+        const baseVal = (this as any)[field]
+        const inputVal = (this as any)[inputKey]
+        // If base value is a number, compare numerically (empty input is not considered pending)
+        if (typeof baseVal === 'number') {
+          const parsed = parseFloat(inputVal as any)
+          if (!Number.isNaN(parsed) && parsed !== baseVal) {
+            fields.push(field)
+          }
+        } else {
+          // Compare as strings for other types (e.g., filename)
+          if (String(inputVal) !== String(baseVal)) fields.push(field)
+        }
+      }
+      return fields
+    },
+    pendingCount(): number {
+      return this.pendingFields.length
+    }
   },
-  
+
   watch: {
     toolRadius(newRadius: number) {
       // Update finishing pass offset to half of tool radius when tool radius changes
@@ -710,31 +888,51 @@ export default BaseComponent.extend({
       if (this.finishingPassOffset === 0.0 || this.finishingPassOffset === 1.5) {
         this.finishingPassOffset = newRadius / 2
       }
-      this.generatePreview()
+      this.toolRadiusInput = newRadius
+      if (!this.suppressPreview) this.generatePreview()
     },
-    
+    // stepover watcher temporarily used for debugging - removed
+
     // Watch the computed toolpathSettings property
     // Any change to toolpath parameters triggers regeneration
     toolpathSettings() {
-      this.generatePreview()
+      if (!this.suppressPreview) this.generatePreview()
     }
   },
-  
+
   mounted() {
     this.initializeFromMachineState()
     // Set initial finishing pass offset to half of tool radius
     this.finishingPassOffset = this.toolRadius / 2
-    
+    // Initialize input buffers from current state
+    this.toolRadiusInput = this.toolRadius
+    this.stockXInput = this.stockX
+    this.stockYInput = this.stockY
+    this.stockZInput = this.stockZ
+    this.stockDiameterInput = this.stockDiameter
+    this.patternAngleInput = this.patternAngle
+    this.stepoverInput = this.stepover
+    this.stepdownInput = this.stepdown
+    this.totalDepthInput = this.totalDepth
+    this.zOffsetInput = this.zOffset
+    this.safeZHeightInput = this.safeZHeight
+    this.finishingPassHeightInput = this.finishingPassHeight
+    this.finishingPassOffsetInput = this.finishingPassOffset
+    this.feedRateXYInput = this.feedRateXY
+    this.feedRateZInput = this.feedRateZ
+    this.spindleSpeedInput = this.spindleSpeed
+    this.filenameInput = this.filename
+
     // Initialize Web Worker for toolpath generation
     this.toolpathWorker = new Worker(
       new URL('../../workers/toolpath.worker.ts', import.meta.url),
       { type: 'module' }
     )
-    
+
     // Set up worker message handler
     this.toolpathWorker.onmessage = (event) => {
       const message = event.data
-      
+
       if (message.type === 'progress') {
         this.generationProgress = message.progress
         this.generationMessage = message.message
@@ -745,7 +943,7 @@ export default BaseComponent.extend({
           clearTimeout(this.progressDialogTimer)
           this.progressDialogTimer = null
         }
-        
+
         this.generatedToolpath = message.toolpath || []
         this.statistics = message.statistics || {
           totalDistance: 0,
@@ -754,7 +952,7 @@ export default BaseComponent.extend({
           roughingPasses: 0,
           finishingPass: false
         }
-        
+
         // Generate G-code from the toolpath
         const currentToolNum = this.currentTool?.number || 0
         const workplace = this.currentWorkplace || 1
@@ -775,7 +973,7 @@ export default BaseComponent.extend({
         alert('Error generating toolpath: ' + message.error)
       }
     }
-    
+
     this.toolpathWorker.onerror = (error) => {
       this.isGenerating = false
       this.showProgressDialog = false
@@ -786,25 +984,25 @@ export default BaseComponent.extend({
       console.error('Worker error:', error)
       alert('Worker error: ' + error.message)
     }
-    
+
     // Generate initial toolpath
     this.generatePreview()
   },
-  
+
   beforeDestroy() {
     // Clean up worker when component is destroyed
     if (this.toolpathWorker) {
       this.toolpathWorker.terminate()
       this.toolpathWorker = null
     }
-    
+
     // Clean up progress dialog timer
     if (this.progressDialogTimer) {
       clearTimeout(this.progressDialogTimer)
       this.progressDialogTimer = null
     }
   },
-  
+
   methods: {
     initializeFromMachineState() {
       // Initialize tool radius from current tool if available
@@ -815,7 +1013,7 @@ export default BaseComponent.extend({
           this.toolRadius = radius
         }
       }
-      
+
       // Initialize feed rates from machine limits
       const axes = this.$store.state.machine.model.move?.axes
       if (axes) {
@@ -824,11 +1022,11 @@ export default BaseComponent.extend({
           axes[1]?.maxFeedrate || 10000
         )
         const maxFeedZ = axes[2]?.maxFeedrate || 1000
-        
+
         this.feedRateXY = Math.min(1000, maxFeedXY)
         this.feedRateZ = Math.min(300, maxFeedZ * 0.5)
       }
-      
+
       // Initialize spindle speed
       const spindleId = this.globals.nxtSpindleID
       if (spindleId !== undefined && spindleId !== null) {
@@ -840,12 +1038,12 @@ export default BaseComponent.extend({
         }
       }
     },
-    
+
     validateParameters(): string[] {
       const params = this.buildGenerationParams()
       return validateGCodeParameters(params)
     },
-    
+
     buildGenerationParams(): ToolpathGenerationParams {
       return {
         stock: {
@@ -882,35 +1080,35 @@ export default BaseComponent.extend({
         }
       }
     },
-    
+
     generatePreview() {
       // Don't generate if already generating
       if (this.isGenerating) {
         return
       }
-      
+
       try {
         const params = this.buildGenerationParams()
-        
+
         // Validate parameters
         const errors = validateGCodeParameters(params)
         if (errors.length > 0) {
           alert('Validation errors:\n' + errors.join('\n'))
           return
         }
-        
+
         // Clear any existing progress dialog timer
         if (this.progressDialogTimer) {
           clearTimeout(this.progressDialogTimer)
           this.progressDialogTimer = null
         }
-        
+
         // Start generation in worker
         this.isGenerating = true
         this.showProgressDialog = false
         this.generationProgress = 0
         this.generationMessage = 'Starting generation...'
-        
+
         // Show progress dialog after 1 second if still generating
         this.progressDialogTimer = setTimeout(() => {
           if (this.isGenerating) {
@@ -918,7 +1116,7 @@ export default BaseComponent.extend({
           }
           this.progressDialogTimer = null
         }, 1000)
-        
+
         if (this.toolpathWorker) {
           this.toolpathWorker.postMessage({
             type: 'generate',
@@ -928,7 +1126,7 @@ export default BaseComponent.extend({
           // Fallback to synchronous generation if worker not available
           this.generatedToolpath = generateToolpath(params)
           this.statistics = calculateToolpathStatistics(this.generatedToolpath, params.cutting)
-          
+
           const currentToolNum = this.currentTool?.number || 0
           const workplace = this.currentWorkplace || 1
           this.generatedGcode = generateGCode(
@@ -951,16 +1149,18 @@ export default BaseComponent.extend({
         alert('Error generating toolpath: ' + error)
       }
     },
-    
+
     async saveAsFile() {
       try {
+        // Ensure all buffered inputs are committed before saving
+        this.commitAll()
         const fullPath = `${this.saveLocation}${this.filename}.gcode`
-        
+
         // Use RRF file upload API
         const formData = new FormData()
         const blob = new Blob([this.generatedGcode], { type: 'text/plain' })
         formData.append('file', blob, `${this.filename}.gcode`)
-        
+
         const response = await fetch(
           `/rr_upload?name=${encodeURIComponent(fullPath)}`,
           {
@@ -968,7 +1168,7 @@ export default BaseComponent.extend({
             body: formData
           }
         )
-        
+
         if (response.ok) {
           alert(`File saved successfully: ${fullPath}`)
         } else {
@@ -979,36 +1179,115 @@ export default BaseComponent.extend({
         alert('Error saving file: ' + error)
       }
     },
-    
+
+    commitInput(event: Event) {
+      // Commit the field on Enter without blurring so the input keeps focus.
+      const target = event?.target as HTMLElement | null
+      let fieldName: string | undefined
+      if (target) {
+        fieldName = (target as any).dataset?.field
+      }
+      if (fieldName) {
+        this.commit(fieldName)
+        return
+      }
+      // Fallback - commit for active element if available, but don't blur
+      const active = document.activeElement as HTMLElement | null
+      if (active) {
+        const afield = (active as any).dataset?.field
+        if (afield) this.commit(afield)
+      }
+    },
+
+    // Commit a buffered input by copying it into the definitive field and kicking off preview
+    commit(fieldName: string) {
+      const inputKey = `${fieldName}Input`
+      // Make sure the field exists
+      if (!(inputKey in this)) return
+      const value = (this as any)[inputKey]
+      // Special case: filename is a string
+      if (fieldName === 'filename') {
+        (this as any).filename = value || '';
+        // Keep buffer in sync
+        (this as any)[inputKey] = (this as any).filename;
+        return
+      }
+      // Parse as a number and apply
+      const num = parseFloat(value as any)
+      if (!Number.isNaN(num)) {
+        ;(this as any)[fieldName] = num;
+        // Keep buffer in sync
+        ;(this as any)[inputKey] = num;
+      }
+    },
+
+    commitAll() {
+      const fields = this.pendingFields || []
+      if (!fields.length) return
+      try {
+        this.suppressPreview = true
+        fields.forEach(f => this.commit(f))
+      } finally {
+        this.suppressPreview = false
+      }
+      // Generate preview once for all commits
+      this.generatePreview()
+    },
+    applyPending(fieldName) {
+      // Allow clicking the pending icon to commit a field immediately
+      this.commit(fieldName)
+    },
+    // Determine if a buffer has pending changes compared to the current model value
+    isPending(fieldName: string): boolean {
+      const inputKey = `${fieldName}Input`
+      if (!(inputKey in this)) return false
+      const buffer = (this as any)[inputKey]
+      const model = (this as any)[fieldName]
+
+      if (typeof model === 'string') {
+        const b = buffer ?? ''
+        return b !== model
+      }
+      // Numeric model: compare numeric equivalence
+      const bnum = parseFloat(buffer as any)
+      if (Number.isNaN(bnum)) {
+        // If buffer isn't a number and model is defined, consider it pending only if buffer is non-empty
+        return buffer !== '' && buffer !== null && buffer !== undefined
+      }
+      return bnum !== model
+    },
+
     async runImmediately() {
       try {
+        // Ensure all buffered inputs are committed before running
+        this.commitAll()
         // First save the file
         await this.saveAsFile()
-        
+
         // Then run it
         const fullPath = `${this.saveLocation}${this.filename}.gcode`
         await this.sendCode(`M98 P"${fullPath}"`)
-        
+
         alert('G-code is running. Monitor progress in DWC.')
-        this.$emit('close')
+        this.$router.push('/NeXT/Status')
       } catch (error) {
         console.error('Error running G-code:', error)
         alert('Error running G-code: ' + error)
       }
     },
-    
+
     formatTime(seconds: number): string {
       const mins = Math.floor(seconds / 60)
       const secs = seconds % 60
       return `${mins}m ${secs}s`
     },
-    
+
     isMovementCommand(line: string): boolean {
       const trimmed = line.trim()
       // Only G0, G1, G2, G3 movement commands are clickable
       return /^(G0|G1|G2|G3)\s/.test(trimmed)
     },
-    
+
     onLineSelectedFrom3D(lineNumber: number, isShiftKey: boolean = false) {
       // Update highlighted line from 3D viewer click
       if (lineNumber >= 0 && lineNumber < this.gcodeLines.length) {
@@ -1028,7 +1307,7 @@ export default BaseComponent.extend({
         }
       }
     },
-    
+
     onLinesSelectedFromOverlay(lineNumbers: number[]) {
       // Update selection from overlay clicks
       this.highlightedGcodeLines = lineNumbers
@@ -1109,6 +1388,11 @@ export default BaseComponent.extend({
 .gcode-line.highlighted-line {
   background-color: rgba(255, 235, 59, 0.3) !important;
   font-weight: bold;
+}
+
+/* Pending edit indicator in inputs */
+.nxt-stock-preparation-panel .v-input__append-outer .mdi-timer-sand {
+  color: #FFC107; /* amber */
 }
 
 .line-number {

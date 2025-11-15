@@ -14,7 +14,12 @@
         <v-card>
           <v-card-title>
             <v-icon left>mdi-wrench</v-icon>
-            {{ $t('plugins.next.title') }}
+            {{ pageTitle }}
+            <v-spacer />
+            <div v-if="!isConnected" class="d-flex align-center">
+              <v-icon small class="mr-2" color="warning">mdi-lan-disconnect</v-icon>
+              <span class="text-caption">{{ $t('plugins.next.messages.disconnectedShort') }}</span>
+            </div>
           </v-card-title>
           
           <v-card-text>
@@ -54,88 +59,22 @@
               </v-alert>
             </v-alert>
 
-            <!-- Loading/Disconnected Alert -->
-            <v-alert 
-              v-else-if="!nxtReady" 
-              :type="isConnected ? 'warning' : 'info'" 
-              outlined
-              class="mb-4"
-            >
-              <div class="d-flex align-center">
-                <v-progress-circular
-                  v-if="isConnected && globals.nxtLoaded !== true"
-                  indeterminate
-                  size="20"
-                  width="2"
-                  class="mr-3"
-                />
-                <v-icon 
-                  v-else-if="!isConnected"
-                  class="mr-3"
-                >
-                  mdi-lan-disconnect
-                </v-icon>
-                <div>
-                  <div class="font-weight-bold">
-                    {{ !isConnected ? 'Machine Disconnected' : (globals.nxtLoaded === true ? 'UI Initializing...' : 'NeXT System Loading...') }}
-                  </div>
-                  <div class="text-caption">
-                    {{ !isConnected ? 'Connect to a machine to use NeXT features' : (globals.nxtLoaded === true ? 'UI components are starting up' : 'Backend macros are initializing') }}
-                  </div>
-                </div>
-              </div>
+            <!-- Informational header - plugin readiness is shown on individual pages -->
+            <v-alert type="info" outlined class="mb-4">
+              <v-icon left>mdi-information-outline</v-icon>
+              {{ $t('plugins.next.messages.chooseSubsection') }}
             </v-alert>
 
-            <v-alert
-              v-else
-              type="success"
-              outlined
-              class="mb-4"
-            >
-              <v-icon left>mdi-check-circle</v-icon>
-              {{ $t('plugins.next.messages.uiReady') }}
-            </v-alert>
-
-            <!-- Tab Navigation for different sections -->
-            <v-tabs v-model="activeTab" grow>
-              <v-tab>{{ statusCaption }}</v-tab>
-              <v-tab>{{ configurationCaption }}</v-tab>
-              <v-tab>{{ stockPreparationCaption }}</v-tab>
-              <v-tab>{{ probingCaption }}</v-tab>
-            </v-tabs>
-
-            <v-tabs-items v-model="activeTab">
-              <!-- Status Tab -->
-              <v-tab-item>
-                <div class="pa-4">
-                  <nxt-machine-status-panel />
-                </div>
-              </v-tab-item>
-
-              <!-- Configuration Tab -->
-              <v-tab-item>
-                <div class="pa-4">
-                  <nxt-configuration-panel />
-                </div>
-              </v-tab-item>
-
-              <!-- Stock Preparation Tab -->
-              <v-tab-item>
-                <div class="pa-4">
-                  <nxt-stock-preparation-panel />
-                </div>
-              </v-tab-item>
-
-              <!-- Probing Tab -->
-              <v-tab-item>
-                <div class="pa-4">
-                  <v-alert type="info" outlined>
-                    <v-icon left>mdi-target</v-icon>
-                    Probing UI will be implemented in Phase 3
-                  </v-alert>
-                </div>
-              </v-tab-item>
-            </v-tabs-items>
+            <!-- The plugin now exposes separate pages (Status, Configuration, Stock Preparation, Probing) under the NeXT menu. -->
+            <v-row>
+              <v-col cols="12">
+                <v-card outlined>
+                  <v-card-text>
+                    <div>{{ $t('plugins.next.messages.menuMoved') }}</div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
           </v-card-text>
         </v-card>
       </v-col>
@@ -157,7 +96,6 @@ export default BaseComponent.extend({
   name: 'NeXT',
   data() {
     return {
-      activeTab: 0,
       restarting: false,
     }
   },
@@ -214,6 +152,13 @@ export default BaseComponent.extend({
       const t = (this as any).$t(key).toString()
       return t === key ? 'Probing' : t
     },
+    pageTitle(): string {
+      const path = this.$route?.path || ''
+      if (path.startsWith('/NeXT/Configuration')) return this.configurationCaption
+      if (path.startsWith('/NeXT/StockPreparation')) return this.stockPreparationCaption
+      if (path.startsWith('/NeXT/Probing')) return this.probingCaption
+      return this.statusCaption
+    }
   },
 
   methods: {
