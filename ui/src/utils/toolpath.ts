@@ -23,6 +23,7 @@ export interface StockGeometry {
   shape: 'rectangular' | 'circular'
   x?: number  // For rectangular
   y?: number  // For rectangular
+  z?: number  // Height (used for both rectangular and circular in viewer)
   diameter?: number  // For circular
   originPosition: string
 }
@@ -303,6 +304,49 @@ export function clipLineToCircle(
 }
 
 /**
+ * Clip a line segment to an axis-aligned rectangular boundary using Liang–Barsky algorithm.
+ * Returns null if the line lies completely outside the rectangle.
+ */
+export function clipLineToRect(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  xMin: number,
+  yMin: number,
+  xMax: number,
+  yMax: number
+): { x1: number; y1: number; x2: number; y2: number } | null {
+  let dx = x2 - x1
+  let dy = y2 - y1
+  let t0 = 0
+  let t1 = 1
+  const p = [-dx, dx, -dy, dy]
+  const q = [x1 - xMin, xMax - x1, y1 - yMin, yMax - y1]
+  for (let i = 0; i < 4; i++) {
+    const pi = p[i]
+    const qi = q[i]
+    if (pi === 0) {
+      if (qi < 0) return null // Parallel and outside
+    } else {
+      const r = qi / pi
+      if (pi < 0) {
+        if (r > t1) return null
+        if (r > t0) t0 = r
+      } else {
+        if (r < t0) return null
+        if (r < t1) t1 = r
+      }
+    }
+  }
+  const nx1 = x1 + t0 * dx
+  const ny1 = y1 + t0 * dy
+  const nx2 = x1 + t1 * dx
+  const ny2 = y1 + t1 * dy
+  return { x1: nx1, y1: ny1, x2: nx2, y2: ny2 }
+}
+
+/**
  * Generate rectilinear pattern toolpath
  */
 export function generateRectilinearPattern(
@@ -314,20 +358,23 @@ export function generateRectilinearPattern(
   const isCircular = stock.shape === 'circular'
   const stockX = isCircular ? stock.diameter || 0 : stock.x || 0
   const stockY = isCircular ? stock.diameter || 0 : stock.y || 0
-  const circularRadius = isCircular ? (stock.diameter || 0) / 2 - cutting.toolRadius : 0
+  
+  // Apply clearStockExit to circular stock
+  let circularRadius = 0
+  if (isCircular) {
+    circularRadius = (stock.diameter || 0) / 2 - cutting.toolRadius
+    if (cutting.clearStockExit) {
+      circularRadius += cutting.toolRadius * 2 + 1  // Full diameter + 1mm clearance
+    }
+  }
   
   const effectiveWidth = calculateEffectiveCuttingWidth(cutting.toolRadius, cutting.stepover)
   
-  // For circular stock, we need to scan across the full diameter.
-  // The boundaries should be based on the un-rotated frame.
-  const scanDimension = isCircular ? stock.diameter || 0 : stockY;
-  const numPasses = calculateNumberOfPasses(scanDimension, effectiveWidth)
-  
   const boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
   
-  // For circular stock, center is at origin (0,0). For rectangular, calculate from origin position
-  const centerX = isCircular ? 0 : (calculateOriginOffset(stockX, stockY, stock.originPosition).x + stockX / 2)
-  const centerY = isCircular ? 0 : (calculateOriginOffset(stockX, stockY, stock.originPosition).y + stockY / 2)
+  // For circular stock, center is at origin (0,0).
+  const centerX = 0
+  const centerY = 0
   
   const zLevels = calculateZLevels(cutting)
   const allPasses: ToolpathPoint[][] = []
@@ -335,32 +382,109 @@ export function generateRectilinearPattern(
   for (const zLevel of zLevels) {
     const levelPasses: ToolpathPoint[] = []
     
-    for (let i = 0; i < numPasses; i++) {
-      // Compute un-rotated pass Y position
-      const passOffset = isCircular
-        ? (-(scanDimension / 2) + i * effectiveWidth + effectiveWidth / 2)
-        : (boundaries.yMin + i * effectiveWidth)
-      const yRaw = isCircular ? passOffset : Math.min(passOffset, boundaries.yMax)
-      
-      // Always cut left -> right
-      const startXRaw = isCircular ? -circularRadius : boundaries.xMin
-      const endXRaw   = isCircular ?  circularRadius : boundaries.xMax
-      
-      // Rotate
-      const startRot = rotatePoint(startXRaw, yRaw, centerX, centerY, pattern.angle)
-      const endRot   = rotatePoint(endXRaw,   yRaw, centerX, centerY, pattern.angle)
-      
-      // Clip for circular
-      let finalStart = startRot
-      let finalEnd   = endRot
-      if (isCircular) {
-        const clipped = clipLineToCircle(startRot.x, startRot.y, endRot.x, endRot.y, centerX, centerY, circularRadius)
-        if (!clipped) {
-          continue
+    // Pre-compute passes
+    const validPasses: Array<{ finalStart: { x: number; y: number }; finalEnd: { x: number; y: number }; passIndex: number }> = []
+    if (isCircular) {
+      // Circular: scan across diameter perpendicular to pattern angle
+      const angleRad = (pattern.angle * Math.PI) / 180
+      const dX = Math.cos(angleRad)
+      const dY = Math.sin(angleRad)
+      const scanDimension = stock.diameter || 0
+      if (cutting.clearStockExit) {
+        // For clear stock exit, extend scan to cover the enlarged radius
+        const enlargedDiameter = scanDimension + 2 * (cutting.toolRadius * 2 + 1)
+        const numPasses = calculateNumberOfPasses(enlargedDiameter, effectiveWidth)
+        for (let i = 0; i < numPasses; i++) {
+          const passOffset = (-(enlargedDiameter / 2) + i * effectiveWidth + effectiveWidth / 2)
+          // Create line perpendicular to pattern angle at this offset
+          const p0x = -dY * passOffset
+          const p0y = dX * passOffset
+          const x1 = p0x - dX * circularRadius
+          const y1 = p0y - dY * circularRadius
+          const x2 = p0x + dX * circularRadius
+          const y2 = p0y + dY * circularRadius
+          const clipped = clipLineToCircle(x1, y1, x2, y2, centerX, centerY, circularRadius)
+          if (!clipped) continue
+          validPasses.push({ finalStart: { x: clipped.x1, y: clipped.y1 }, finalEnd: { x: clipped.x2, y: clipped.y2 }, passIndex: i })
         }
-        finalStart = { x: clipped.x1, y: clipped.y1 }
-        finalEnd   = { x: clipped.x2, y: clipped.y2 }
+      } else {
+        const numPasses = calculateNumberOfPasses(scanDimension, effectiveWidth)
+        for (let i = 0; i < numPasses; i++) {
+          const passOffset = (-(scanDimension / 2) + i * effectiveWidth + effectiveWidth / 2)
+          // Create line perpendicular to pattern angle at this offset
+          const p0x = -dY * passOffset
+          const p0y = dX * passOffset
+          const x1 = p0x - dX * circularRadius
+          const y1 = p0y - dY * circularRadius
+          const x2 = p0x + dX * circularRadius
+          const y2 = p0y + dY * circularRadius
+          const clipped = clipLineToCircle(x1, y1, x2, y2, centerX, centerY, circularRadius)
+          if (!clipped) continue
+          validPasses.push({ finalStart: { x: clipped.x1, y: clipped.y1 }, finalEnd: { x: clipped.x2, y: clipped.y2 }, passIndex: i })
+        }
       }
+      // Respect milling direction for circular too
+      if (pattern.millingDirection === 'conventional') {
+        for (const vp of validPasses) {
+          const sx = vp.finalStart.x, sy = vp.finalStart.y
+          vp.finalStart = { x: vp.finalEnd.x, y: vp.finalEnd.y }
+          vp.finalEnd = { x: sx, y: sy }
+        }
+      }
+    } else {
+      // Rectangular: compute scan lines perpendicular to angle across the axis-aligned boundary
+      const angleRad = (pattern.angle * Math.PI) / 180
+      const dX = Math.cos(angleRad)
+      const dY = Math.sin(angleRad)
+      const nX = -dY
+      const nY = dX
+      const corners = [
+        { x: boundaries.xMin, y: boundaries.yMin },
+        { x: boundaries.xMax, y: boundaries.yMin },
+        { x: boundaries.xMax, y: boundaries.yMax },
+        { x: boundaries.xMin, y: boundaries.yMax }
+      ]
+      let tMin = Infinity, tMax = -Infinity
+      for (const c of corners) {
+        const t = nX * c.x + nY * c.y
+        if (t < tMin) tMin = t
+        if (t > tMax) tMax = t
+      }
+      const span = tMax - tMin
+      const numPasses = Math.max(1, Math.ceil(span / effectiveWidth))
+      const diag = Math.hypot(boundaries.xMax - boundaries.xMin, boundaries.yMax - boundaries.yMin)
+      for (let i = 0; i < numPasses; i++) {
+        const t = tMin + (i + 0.5) * effectiveWidth
+        // Point on line closest to rectangle center
+        const cX = (boundaries.xMin + boundaries.xMax) / 2
+        const cY = (boundaries.yMin + boundaries.yMax) / 2
+        const cProj = nX * cX + nY * cY
+        const delta = cProj - t
+        const p0x = cX - delta * nX
+        const p0y = cY - delta * nY
+        // Long segment along direction d
+        const p1x = p0x - dX * diag
+        const p1y = p0y - dY * diag
+        const p2x = p0x + dX * diag
+        const p2y = p0y + dY * diag
+        const clipped = clipLineToRect(p1x, p1y, p2x, p2y, boundaries.xMin, boundaries.yMin, boundaries.xMax, boundaries.yMax)
+        if (!clipped) continue
+        validPasses.push({ finalStart: { x: clipped.x1, y: clipped.y1 }, finalEnd: { x: clipped.x2, y: clipped.y2 }, passIndex: i })
+      }
+      // Respect milling direction: reverse segment ordering if conventional
+      if (pattern.millingDirection === 'conventional') {
+        for (const vp of validPasses) {
+          const sx = vp.finalStart.x, sy = vp.finalStart.y
+          vp.finalStart = { x: vp.finalEnd.x, y: vp.finalEnd.y }
+          vp.finalEnd = { x: sx, y: sy }
+        }
+      }
+    }
+    
+    // Now generate moves for valid passes
+    for (let validIdx = 0; validIdx < validPasses.length; validIdx++) {
+      const { finalStart, finalEnd, passIndex } = validPasses[validIdx]
+      const isLastPass = validIdx === validPasses.length - 1
       
       // Rapid to start
       levelPasses.push({
@@ -395,37 +519,12 @@ export function generateRectilinearPattern(
         type: 'rapid'
       })
       
-      // Rapid back to start of next pass (if any)
-      if (i < numPasses - 1) {
-        const nextPassOffset = isCircular
-          ? (-(scanDimension / 2) + (i + 1) * effectiveWidth + effectiveWidth / 2)
-          : (boundaries.yMin + (i + 1) * effectiveWidth)
-        const nextYRaw = isCircular ? nextPassOffset : Math.min(nextPassOffset, boundaries.yMax)
-        
-        // For circular stock, we need to find where the next cutting line intersects the circle
-        // Rotate the unrotated start/end points, then clip the line to get the entry point
-        const nextStartRotUnclipped = rotatePoint(startXRaw, nextYRaw, centerX, centerY, pattern.angle)
-        const nextEndRotUnclipped = rotatePoint(endXRaw, nextYRaw, centerX, centerY, pattern.angle)
-        
-        let nextStart = nextStartRotUnclipped
-        if (isCircular) {
-          // Clip the full line to find the actual entry point
-          const clipped = clipLineToCircle(
-            nextStartRotUnclipped.x, nextStartRotUnclipped.y,
-            nextEndRotUnclipped.x, nextEndRotUnclipped.y,
-            centerX, centerY, circularRadius
-          )
-          if (clipped) {
-            nextStart = { x: clipped.x1, y: clipped.y1 }
-          } else {
-            // Fallback to point clipping if line is outside (shouldn't happen)
-            nextStart = clipToCircle(nextStartRotUnclipped.x, nextStartRotUnclipped.y, centerX, centerY, circularRadius)
-          }
-        }
-        
+      // Rapid back to start of next pass (only if not the last pass)
+      if (!isLastPass) {
+        const nextPass = validPasses[validIdx + 1]
         levelPasses.push({
-          x: nextStart.x,
-          y: nextStart.y,
+          x: nextPass.finalStart.x,
+          y: nextPass.finalStart.y,
           z: cutting.zOffset + cutting.safeZHeight,
           feedRate: 0,
           type: 'rapid'
@@ -451,16 +550,22 @@ export function generateZigzagPattern(
   const isCircular = stock.shape === 'circular'
   const stockX = isCircular ? stock.diameter || 0 : stock.x || 0
   const stockY = isCircular ? stock.diameter || 0 : stock.y || 0
-  const circularRadius = isCircular ? (stock.diameter || 0) / 2 - cutting.toolRadius : 0
+  
+  // Apply clearStockExit to circular stock
+  let circularRadius = 0
+  if (isCircular) {
+    circularRadius = (stock.diameter || 0) / 2 - cutting.toolRadius
+    if (cutting.clearStockExit) {
+      circularRadius += cutting.toolRadius * 2 + 1  // Full diameter + 1mm clearance
+    }
+  }
   
   const effectiveWidth = calculateEffectiveCuttingWidth(cutting.toolRadius, cutting.stepover)
-  const scanDimension = isCircular ? stock.diameter || 0 : stockY;
-  const numPasses = calculateNumberOfPasses(scanDimension, effectiveWidth)
   const boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
   
-  // For circular stock, center is at origin (0,0). For rectangular, calculate from origin position
-  const centerX = isCircular ? 0 : (calculateOriginOffset(stockX, stockY, stock.originPosition).x + stockX / 2)
-  const centerY = isCircular ? 0 : (calculateOriginOffset(stockX, stockY, stock.originPosition).y + stockY / 2)
+  // For circular stock, center is at origin (0,0).
+  const centerX = 0
+  const centerY = 0
   
   const zLevels = calculateZLevels(cutting)
   const allPasses: ToolpathPoint[][] = []
@@ -468,135 +573,137 @@ export function generateZigzagPattern(
   for (const zLevel of zLevels) {
     const levelPasses: ToolpathPoint[] = []
 
-    // Determine the starting point for the entire Z-level
-    const firstPassOffset = -(scanDimension / 2) + effectiveWidth / 2;
-    let startX, startY;
     if (isCircular) {
-      startX = -circularRadius;
-      startY = firstPassOffset;
-    } else {
-      startX = boundaries.xMin;
-      startY = boundaries.yMin;
-    }
-
-    let startPoint = rotatePoint(startX, startY, centerX, centerY, pattern.angle);
-    if (isCircular) {
-        const clipped = clipLineToCircle(
-            rotatePoint(-circularRadius, firstPassOffset, centerX, centerY, pattern.angle).x,
-            rotatePoint(-circularRadius, firstPassOffset, centerX, centerY, pattern.angle).y,
-            rotatePoint(circularRadius, firstPassOffset, centerX, centerY, pattern.angle).x,
-            rotatePoint(circularRadius, firstPassOffset, centerX, centerY, pattern.angle).y,
-            centerX, centerY, circularRadius
-        );
-        if (clipped) {
-            startPoint = { x: clipped.x1, y: clipped.y1 };
-        } else {
-            // Fallback if the first pass is somehow outside
-            startPoint = clipToCircle(startPoint.x, startPoint.y, centerX, centerY, circularRadius);
-        }
-    }
-    
-    // Rapid to start
-    levelPasses.push({
-      x: startPoint.x,
-      y: startPoint.y,
-      z: cutting.zOffset + cutting.safeZHeight,
-      feedRate: 0,
-      type: 'rapid'
-    })
-    
-    // Plunge to depth
-    levelPasses.push({
-      x: startPoint.x,
-      y: startPoint.y,
-      z: zLevel.depth,
-      feedRate: feeds.z,
-      type: 'linear'
-    })
-    
-    let prevPoint = startPoint
-    
-    for (let i = 0; i < numPasses; i++) {
-      const passOffset = -(scanDimension / 2) + (i * effectiveWidth) + effectiveWidth / 2;
-      
-      const isReversed = i % 2 !== 0;
-      let currentX1, currentX2, currentY;
-
-      if (isCircular) {
-          currentY = passOffset;
-          currentX1 = -circularRadius;
-          currentX2 = circularRadius;
-      } else {
-          currentY = boundaries.yMin + (i * effectiveWidth);
-          currentX1 = boundaries.xMin;
-          currentX2 = boundaries.xMax;
+      // Circular: compute scan segments perpendicular to pattern angle with direction based on millingDirection
+      const angleRad = (pattern.angle * Math.PI) / 180
+      const dX = Math.cos(angleRad)
+      const dY = Math.sin(angleRad)
+      const scanDimension = stock.diameter || 0
+      const effectiveScanDimension = cutting.clearStockExit 
+        ? scanDimension + 2 * (cutting.toolRadius * 2 + 1)
+        : scanDimension
+      const numPasses = calculateNumberOfPasses(effectiveScanDimension, effectiveWidth)
+      const baseForward = pattern.millingDirection === 'climb'
+      const segments: Array<{ a: { x: number; y: number }; b: { x: number; y: number } }> = []
+      for (let i = 0; i < numPasses; i++) {
+        const passOffset = (-(effectiveScanDimension / 2) + (i * effectiveWidth) + effectiveWidth / 2)
+        // Create line perpendicular to pattern angle at this offset
+        const p0x = -dY * passOffset
+        const p0y = dX * passOffset
+        const x1 = p0x - dX * circularRadius
+        const y1 = p0y - dY * circularRadius
+        const x2 = p0x + dX * circularRadius
+        const y2 = p0y + dY * circularRadius
+        const seg = clipLineToCircle(x1, y1, x2, y2, centerX, centerY, circularRadius)
+        if (!seg) continue
+        const forward = baseForward ? (i % 2 === 0) : (i % 2 !== 0)
+        const a = forward ? { x: seg.x1, y: seg.y1 } : { x: seg.x2, y: seg.y2 }
+        const b = forward ? { x: seg.x2, y: seg.y2 } : { x: seg.x1, y: seg.y1 }
+        segments.push({ a, b })
       }
-
-      if (isReversed) {
-          [currentX1, currentX2] = [currentX2, currentX1];
-      }
-
-      // Rotate the target point for the main cutting move
-      const targetPoint = rotatePoint(currentX2, currentY, centerX, centerY, pattern.angle);
-
-      // Clip the line segment from the previous point to the target point
-      if (isCircular) {
-          const clipped = clipLineToCircle(prevPoint.x, prevPoint.y, targetPoint.x, targetPoint.y, centerX, centerY, circularRadius);
-          if (clipped) {
-              // Add the main cutting move
-              levelPasses.push({ x: clipped.x2, y: clipped.y2, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' });
-              prevPoint = { x: clipped.x2, y: clipped.y2 };
+      if (segments.length > 0) {
+        const s0 = segments[0].a
+        levelPasses.push({ x: s0.x, y: s0.y, z: cutting.zOffset + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+        levelPasses.push({ x: s0.x, y: s0.y, z: zLevel.depth, feedRate: feeds.z, type: 'linear' })
+        let current = s0
+        for (let segIdx = 0; segIdx < segments.length; segIdx++) {
+          const seg = segments[segIdx]
+          // Connect to start of this segment using arc along circle boundary
+          if (current.x !== seg.a.x || current.y !== seg.a.y) {
+            // Both points should lie on circle; create shortest arc between them
+            const a1 = Math.atan2(current.y - centerY, current.x - centerX)
+            const a2 = Math.atan2(seg.a.y - centerY, seg.a.x - centerX)
+            let delta = a2 - a1
+            // Normalize to [-PI, PI] to get the shortest angular distance
+            while (delta > Math.PI) delta -= 2 * Math.PI
+            while (delta < -Math.PI) delta += 2 * Math.PI
+            // For G-code arcs: G2 is clockwise (CW), G3 is counter-clockwise (CCW)
+            // When delta is negative, we go clockwise; when positive, counter-clockwise
+            // But if |delta| > PI, we want the other direction (the shorter arc)
+            const clockwise = delta < 0
+            // Center offsets relative to start point (I,J in G-code semantics)
+            const iOff = centerX - current.x
+            const jOff = centerY - current.y
+            levelPasses.push({
+              x: seg.a.x,
+              y: seg.a.y,
+              z: zLevel.depth,
+              feedRate: feeds.xy,
+              type: 'arc',
+              i: iOff,
+              j: jOff,
+              clockwise
+            })
           }
-      } else {
-          levelPasses.push({ x: targetPoint.x, y: targetPoint.y, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' });
-          prevPoint = targetPoint;
-      }
-      
-      // Step over to the next pass
-      if (i < numPasses - 1) {
-        const nextPassOffset = -(scanDimension / 2) + ((i + 1) * effectiveWidth) + effectiveWidth / 2;
-        let nextY, nextX;
-
-        if (isCircular) {
-            nextY = nextPassOffset;
-            nextX = isReversed ? circularRadius : -circularRadius;
-        } else {
-            nextY = boundaries.yMin + ((i + 1) * effectiveWidth);
-            nextX = currentX2;
+          // Cut to end of this segment
+          levelPasses.push({ x: seg.b.x, y: seg.b.y, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' })
+          current = seg.b
         }
-
-        const stepOverTargetRot = rotatePoint(nextX, nextY, centerX, centerY, pattern.angle);
-
-        if (isCircular) {
-          // For circular stock, join passes along the circle edge using an arc
-          // Clip to circle to ensure endpoints lie on boundary
-          const clippedEnd = clipToCircle(stepOverTargetRot.x, stepOverTargetRot.y, centerX, centerY, circularRadius)
-          // Both prevPoint and clippedEnd should lie on circle; create shortest arc between them
-          const a1 = Math.atan2(prevPoint.y - centerY, prevPoint.x - centerX)
-          const a2 = Math.atan2(clippedEnd.y - centerY, clippedEnd.x - centerX)
-          let delta = a2 - a1
-          // Normalize to [-PI, PI]
-          while (delta > Math.PI) delta -= 2 * Math.PI
-          while (delta < -Math.PI) delta += 2 * Math.PI
-          const clockwise = delta < 0 // negative delta => clockwise (G2)
-          // Center offsets relative to start point (I,J in G-code semantics)
-          const iOff = centerX - prevPoint.x
-            const jOff = centerY - prevPoint.y
-          levelPasses.push({
-            x: clippedEnd.x,
-            y: clippedEnd.y,
-            z: zLevel.depth,
-            feedRate: feeds.xy,
-            type: 'arc',
-            i: iOff,
-            j: jOff,
-            clockwise
-          })
-          prevPoint = { x: clippedEnd.x, y: clippedEnd.y }
-        } else {
-          // Rectangular stock: simple linear step-over
-          levelPasses.push({ x: stepOverTargetRot.x, y: stepOverTargetRot.y, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' })
-          prevPoint = stepOverTargetRot
+      }
+    } else {
+      // Rectangular: angle-true zigzag using projection lines
+      const angleRad = (pattern.angle * Math.PI) / 180
+      const dX = Math.cos(angleRad)
+      const dY = Math.sin(angleRad)
+      const nX = -dY
+      const nY = dX
+      const corners = [
+        { x: boundaries.xMin, y: boundaries.yMin },
+        { x: boundaries.xMax, y: boundaries.yMin },
+        { x: boundaries.xMax, y: boundaries.yMax },
+        { x: boundaries.xMin, y: boundaries.yMax }
+      ]
+      let tMin = Infinity, tMax = -Infinity
+      for (const c of corners) {
+        const t = nX * c.x + nY * c.y
+        if (t < tMin) tMin = t
+        if (t > tMax) tMax = t
+      }
+      const span = tMax - tMin
+      const numPasses = Math.max(1, Math.ceil(span / effectiveWidth))
+      const diag = Math.hypot(boundaries.xMax - boundaries.xMin, boundaries.yMax - boundaries.yMin)
+      // Determine initial direction
+      const baseForward = pattern.millingDirection === 'climb'
+      // Build segments list first
+      const segments: Array<{ a: { x: number; y: number }; b: { x: number; y: number } }> = []
+      for (let i = 0; i < numPasses; i++) {
+        const t = tMin + (i + 0.5) * effectiveWidth
+        const cX = (boundaries.xMin + boundaries.xMax) / 2
+        const cY = (boundaries.yMin + boundaries.yMax) / 2
+        const cProj = nX * cX + nY * cY
+        const delta = cProj - t
+        const p0x = cX - delta * nX
+        const p0y = cY - delta * nY
+        const p1x = p0x - dX * diag
+        const p1y = p0y - dY * diag
+        const p2x = p0x + dX * diag
+        const p2y = p0y + dY * diag
+        const clipped = clipLineToRect(p1x, p1y, p2x, p2y, boundaries.xMin, boundaries.yMin, boundaries.xMax, boundaries.yMax)
+        if (!clipped) continue
+        // Order endpoints along +/-d depending on pass parity and baseForward
+        const s1 = dX * clipped.x1 + dY * clipped.y1
+        const s2 = dX * clipped.x2 + dY * clipped.y2
+        const forward = baseForward ? (i % 2 === 0) : (i % 2 !== 0)
+        const a = forward ? (s1 <= s2 ? { x: clipped.x1, y: clipped.y1 } : { x: clipped.x2, y: clipped.y2 })
+                          : (s1 >  s2 ? { x: clipped.x1, y: clipped.y1 } : { x: clipped.x2, y: clipped.y2 })
+        const b = (a.x === clipped.x1 && a.y === clipped.y1) ? { x: clipped.x2, y: clipped.y2 } : { x: clipped.x1, y: clipped.y1 }
+        segments.push({ a, b })
+      }
+      if (segments.length > 0) {
+        // Rapid and plunge to first segment start
+        const s0 = segments[0].a
+        levelPasses.push({ x: s0.x, y: s0.y, z: cutting.zOffset + cutting.safeZHeight, feedRate: 0, type: 'rapid' })
+        levelPasses.push({ x: s0.x, y: s0.y, z: zLevel.depth, feedRate: feeds.z, type: 'linear' })
+        // Traverse all segments, connecting endpoints
+        let current = s0
+        for (const seg of segments) {
+          // Move to start if not already there
+          if (current.x !== seg.a.x || current.y !== seg.a.y) {
+            levelPasses.push({ x: seg.a.x, y: seg.a.y, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' })
+          }
+          // Cut to end
+          levelPasses.push({ x: seg.b.x, y: seg.b.y, z: zLevel.depth, feedRate: feeds.xy, type: 'linear' })
+          current = seg.b
         }
       }
     }

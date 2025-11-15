@@ -57,43 +57,12 @@
               ref="gcodeViewer"
               :gcode="generatedGcode"
               :auto-update="true"
-              :highlighted-line="highlightedGcodeLine"
-              :highlighted-gcode-text="highlightedGcodeText"
+              :highlighted-lines="highlightedGcodeLines"
               @line-selected="onLineSelectedFrom3D"
+              @lines-selected="onLinesSelectedFromOverlay"
             />
             </v-card-text>
           </v-card>
-          
-          <!-- G-code Preview - Full width under viewer -->
-          <v-expansion-panels class="mt-4">
-            <v-expansion-panel>
-              <v-expansion-panel-header>
-                <div>
-                  <v-icon left>mdi-code-tags</v-icon>
-                  Show G-code ({{ gcodeLineCount }} lines)
-                </div>
-              </v-expansion-panel-header>
-              <v-expansion-panel-content>
-                <div class="gcode-lines-container" ref="gcodeContainer">
-                  <div
-                    v-for="(line, index) in gcodeLines"
-                    :key="index"
-                    :class="[
-                      'gcode-line',
-                      { 'even-line': index % 2 === 0 },
-                      { 'odd-line': index % 2 === 1 },
-                      { 'highlighted-line': index === highlightedGcodeLine },
-                      { 'clickable-line': isMovementCommand(line) }
-                    ]"
-                    @click="onGcodeLineClick(index, line)"
-                  >
-                    <span class="line-number">{{ index + 1 }}</span>
-                    <span class="line-content">{{ line }}</span>
-                  </div>
-                </div>
-              </v-expansion-panel-content>
-            </v-expansion-panel>
-          </v-expansion-panels>
         </v-col>
         
         <!-- Right Column: Tool Configuration (20-30% width) -->
@@ -162,7 +131,7 @@
 
                   <!-- Rectangular Stock -->
                   <v-row v-if="stockShape === 'rectangular'">
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="4">
                       <v-text-field
                         v-model.number="stockX"
                         label="X Dimension *"
@@ -173,7 +142,7 @@
                         :disabled="uiFrozen"
                       />
                     </v-col>
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="4">
                       <v-text-field
                         v-model.number="stockY"
                         label="Y Dimension *"
@@ -181,6 +150,17 @@
                         step="1"
                         suffix="mm"
                         :rules="[v => v > 0 || 'Must be positive', v => v <= 1000 || 'Must be <= 1000mm']"
+                        :disabled="uiFrozen"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <v-text-field
+                        v-model.number="stockZ"
+                        label="Z Height *"
+                        type="number"
+                        step="1"
+                        suffix="mm"
+                        :rules="[v => v > 0 || 'Must be positive', v => v <= 500 || 'Must be <= 500mm']"
                         :disabled="uiFrozen"
                       />
                     </v-col>
@@ -208,6 +188,17 @@
                       />
                     </v-col>
                     <v-col cols="12" md="6">
+                      <v-text-field
+                        v-model.number="stockZ"
+                        label="Z Height *"
+                        type="number"
+                        step="1"
+                        suffix="mm"
+                        :rules="[v => v > 0 || 'Must be positive', v => v <= 500 || 'Must be <= 500mm']"
+                        :disabled="uiFrozen"
+                      />
+                    </v-col>
+                    <v-col cols="12">
                       <v-alert dense outlined type="info" class="ma-0">
                         <div class="text-caption">
                           Origin: Center (fixed for circular stock)
@@ -543,6 +534,7 @@
 </template>
 
 <script lang="ts">
+// @ts-nocheck - Vue 2 component with Vuex store integration
 import BaseComponent from '../base/BaseComponent.vue'
 import GCodeViewer3D from './GCodeViewer3D.vue'
 import {
@@ -571,6 +563,7 @@ export default BaseComponent.extend({
       stockShape: 'rectangular' as 'rectangular' | 'circular',
       stockX: 100,
       stockY: 75,
+      stockZ: 20,
       stockDiameter: 100,
       originPosition: 'front-left',
       originPositions: [
@@ -633,8 +626,8 @@ export default BaseComponent.extend({
       ],
       
       // Viewer Options
-      highlightedGcodeLine: null as number | null,
-      highlightedGcodeText: '' as string,
+      highlightedGcodeLines: [] as number[],  // Array for multi-selection
+      lastClickedLine: null as number | null,  // Track last clicked line for shift-select
       
       // Worker and Progress
       toolpathWorker: null as Worker | null,
@@ -676,6 +669,37 @@ export default BaseComponent.extend({
     
     gcodeLineCount(): number {
       return this.generatedGcode.split('\n').length
+    },
+    
+    // Computed property that combines all toolpath settings
+    // When this changes, we need to regenerate the preview
+    toolpathSettings(): string {
+      return JSON.stringify({
+        stockShape: this.stockShape,
+        stockX: this.stockX,
+        stockY: this.stockY,
+        stockZ: this.stockZ,
+        stockDiameter: this.stockDiameter,
+        originPosition: this.originPosition,
+        facingPattern: this.facingPattern,
+        patternAngle: this.patternAngle,
+        millingDirection: this.millingDirection,
+        spiralSegmentsPerRevolution: this.spiralSegmentsPerRevolution,
+        spiralDirection: this.spiralDirection,
+        stepover: this.stepover,
+        stepdown: this.stepdown,
+        totalDepth: this.totalDepth,
+        zOffset: this.zOffset,
+        safeZHeight: this.safeZHeight,
+        clearStockExit: this.clearStockExit,
+        finishingPass: this.finishingPass,
+        finishingPassHeight: this.finishingPassHeight,
+        finishingPassOffset: this.finishingPassOffset,
+        feedRateXY: this.feedRateXY,
+        feedRateZ: this.feedRateZ,
+        spindleSpeed: this.spindleSpeed,
+        toolRadius: this.toolRadius
+      })
     }
   },
   
@@ -689,71 +713,9 @@ export default BaseComponent.extend({
       this.generatePreview()
     },
     
-    // Watch all settings that affect toolpath generation
-    stockShape() {
-      this.generatePreview()
-    },
-    stockX() {
-      this.generatePreview()
-    },
-    stockY() {
-      this.generatePreview()
-    },
-    stockDiameter() {
-      this.generatePreview()
-    },
-    originPosition() {
-      this.generatePreview()
-    },
-    facingPattern() {
-      this.generatePreview()
-    },
-    patternAngle() {
-      this.generatePreview()
-    },
-    millingDirection() {
-      this.generatePreview()
-    },
-    spiralSegmentsPerRevolution() {
-      this.generatePreview()
-    },
-    spiralDirection() {
-      this.generatePreview()
-    },
-    stepover() {
-      this.generatePreview()
-    },
-    stepdown() {
-      this.generatePreview()
-    },
-    totalDepth() {
-      this.generatePreview()
-    },
-    zOffset() {
-      this.generatePreview()
-    },
-    safeZHeight() {
-      this.generatePreview()
-    },
-    clearStockExit() {
-      this.generatePreview()
-    },
-    finishingPass() {
-      this.generatePreview()
-    },
-    finishingPassHeight() {
-      this.generatePreview()
-    },
-    finishingPassOffset() {
-      this.generatePreview()
-    },
-    feedRateXY() {
-      this.generatePreview()
-    },
-    feedRateZ() {
-      this.generatePreview()
-    },
-    spindleSpeed() {
+    // Watch the computed toolpathSettings property
+    // Any change to toolpath parameters triggers regeneration
+    toolpathSettings() {
       this.generatePreview()
     }
   },
@@ -890,6 +852,7 @@ export default BaseComponent.extend({
           shape: this.stockShape,
           x: this.stockShape === 'rectangular' ? this.stockX : undefined,
           y: this.stockShape === 'rectangular' ? this.stockY : undefined,
+          z: this.stockZ,
           diameter: this.stockShape === 'circular' ? this.stockDiameter : undefined,
           originPosition: this.originPosition
         },
@@ -1046,31 +1009,31 @@ export default BaseComponent.extend({
       return /^(G0|G1|G2|G3)\s/.test(trimmed)
     },
     
-    onGcodeLineClick(lineNumber: number, lineText: string) {
-      // Only handle clicks on movement commands
-      if (!this.isMovementCommand(lineText)) return
-      
-      this.highlightedGcodeLine = lineNumber
-      this.highlightedGcodeText = lineText.trim()
-      
-      // Auto-scroll to the 3D viewer
-      this.$nextTick(() => {
-        const viewerElement = this.$refs.gcodeViewer as any
-        if (viewerElement && viewerElement.$el) {
-          viewerElement.$el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        }
-      })
-    },
-    
-    onLineSelectedFrom3D(lineNumber: number) {
+    onLineSelectedFrom3D(lineNumber: number, isShiftKey: boolean = false) {
       // Update highlighted line from 3D viewer click
       if (lineNumber >= 0 && lineNumber < this.gcodeLines.length) {
-        const lineText = this.gcodeLines[lineNumber]
-        this.highlightedGcodeLine = lineNumber
-        this.highlightedGcodeText = lineText.trim()
-        
-        // Do NOT scroll - just update the highlight
-        // User can manually scroll to see the G-code if needed
+        if (isShiftKey && this.lastClickedLine !== null) {
+          // Range select - select all lines between last clicked and current
+          const start = Math.min(this.lastClickedLine, lineNumber)
+          const end = Math.max(this.lastClickedLine, lineNumber)
+          this.highlightedGcodeLines = []
+          for (let i = start; i <= end; i++) {
+            this.highlightedGcodeLines.push(i)
+          }
+          // Don't update lastClickedLine on shift-click to preserve anchor
+        } else {
+          // Single select
+          this.highlightedGcodeLines = [lineNumber]
+          this.lastClickedLine = lineNumber
+        }
+      }
+    },
+    
+    onLinesSelectedFromOverlay(lineNumbers: number[]) {
+      // Update selection from overlay clicks
+      this.highlightedGcodeLines = lineNumbers
+      if (lineNumbers.length > 0) {
+        this.lastClickedLine = lineNumbers[lineNumbers.length - 1]
       }
     },
   }

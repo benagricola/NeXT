@@ -1,8 +1,48 @@
 <template>
   <div class="gcode-viewer-3d">
     <canvas ref="canvas" @mousedown="onCanvasMouseDown" @click="onCanvasClick"></canvas>
-    <div v-if="highlightedGcodeText" class="gcode-annotation">
-      <span class="annotation-line-number">#{{ highlightedLine + 1 }}:</span> {{ highlightedGcodeText }}
+    <div v-if="gcode" class="gcode-overlay" :class="{ collapsed: overlayCollapsed }">
+      <div class="overlay-header">
+        <button class="collapse-toggle" @click="toggleOverlay" :title="overlayCollapsed ? 'Expand G-code' : 'Collapse G-code'">
+          <span v-if="overlayCollapsed">◀</span>
+          <span v-else>▶</span>
+        </button>
+        <span class="overlay-title">
+          {{ gcodeLineCount }} lines{{ highlightedLines.length > 0 ? ` (${highlightedLines.length} selected)` : '' }}
+        </span>
+        <button
+          v-if="highlightedLines.length > 0"
+          class="header-button"
+          @click="clearSelection"
+          title="Clear selection"
+        >
+          <v-icon small>mdi-close</v-icon>
+        </button>
+        <button
+          v-if="highlightedLines.length > 0"
+          class="header-button copy-button"
+          @click="copySelectedLines"
+          :title="copySuccess ? 'Copied!' : 'Copy selected lines to clipboard'"
+        >
+          <v-icon small>{{ copySuccess ? 'mdi-check' : 'mdi-content-copy' }}</v-icon>
+        </button>
+      </div>
+      <div v-if="!overlayCollapsed" class="gcode-lines-container" ref="overlayContainer">
+        <div
+          v-for="(line, index) in allGcodeLines"
+          :key="index"
+          :class="[
+            'gcode-line',
+            { 'even-line': index % 2 === 0 },
+            { 'odd-line': index % 2 === 1 },
+            { 'highlighted-line': highlightedLines.includes(index) }
+          ]"
+          @click="onOverlayLineClick(index, $event)"
+        >
+          <span class="line-number">{{ index + 1 }}</span>
+          <span class="line-content">{{ line }}</span>
+        </div>
+      </div>
     </div>
     <div v-if="loading" class="loading-overlay">
       <v-progress-circular indeterminate color="primary"></v-progress-circular>
@@ -15,6 +55,7 @@
 </template>
 
 <script lang="ts">
+// @ts-nocheck - Vue 2 component with complex Three.js integration
 import Vue from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
@@ -22,6 +63,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 interface StockMetadata {
   type: 'cuboid' | 'cylinder'
   dimensions: number[]
+  originOffset?: { x: number; y: number }
 }
 
 export default Vue.extend({
@@ -36,13 +78,9 @@ export default Vue.extend({
       type: Boolean,
       default: true
     },
-    highlightedLine: {
-      type: Number,
-      default: null
-    },
-    highlightedGcodeText: {
-      type: String,
-      default: ''
+    highlightedLines: {
+      type: Array as () => number[],
+      default: () => []
     }
   },
   
@@ -55,78 +93,146 @@ export default Vue.extend({
       renderer: null as THREE.WebGLRenderer | null,
       controls: null as OrbitControls | null,
       animationFrameId: null as number | null,
-      lineSegments: new Map<number, { line: THREE.Line, originalColor: number, originalLineWidth: number, from: THREE.Vector3, to: THREE.Vector3 }>(),
+      lineSegments: new Map<number, { 
+        line: THREE.Line, 
+        originalColor: number, 
+        originalLineWidth: number, 
+        from: THREE.Vector3, 
+        to: THREE.Vector3,
+        isArc?: boolean,
+        arcCenter?: THREE.Vector3,
+        arcClockwise?: boolean
+      }>(),
       currentHighlightedLine: null as THREE.Line | null,
       highlightedArrows: [] as THREE.Mesh[],
       raycaster: new THREE.Raycaster(),
-      mouse: new THREE.Vector2()
+      mouse: new THREE.Vector2(),
+      lastClickedLine3D: null as number | null,
+      overlayCollapsed: true,
+      lastClickedLineOverlay: null as number | null,
+      isScrolling: false,
+      selectionFromOverlay: false,
+      copySuccess: false
     }
   },
   
-  watch: {
-    gcode(newGcode: string) {
-      if (this.autoUpdate && newGcode) {
-        this.renderGCode()
-      }
+  computed: {
+    allGcodeLines(): string[] {
+      return this.gcode.split('\n')
     },
     
-    highlightedLine(newLineNumber: number | null, oldLineNumber: number | null) {
-      // Remove previous arrows if they exist
-      this.highlightedArrows.forEach(arrow => this.scene?.remove(arrow))
-      this.highlightedArrows = []
-      
-      // Restore previous highlighted line to original color
-      if (this.currentHighlightedLine) {
-        const oldSegment = this.lineSegments.get(oldLineNumber!)
-        if (oldSegment) {
-          const material = oldSegment.line.material as THREE.LineBasicMaterial
-          material.color.setHex(oldSegment.originalColor)
-          material.linewidth = oldSegment.originalLineWidth
-          material.needsUpdate = true
-        }
-        this.currentHighlightedLine = null
-      }
-      
-      // Highlight new line and create arrow
-      if (newLineNumber !== null) {
-        const segment = this.lineSegments.get(newLineNumber)
-        if (segment) {
-          const material = segment.line.material as THREE.LineBasicMaterial
-          material.color.setHex(0xFFFF00) // Yellow highlight
-          material.linewidth = 4
-          material.needsUpdate = true
-          this.currentHighlightedLine = segment.line
-          
-          // Create direction arrow for highlighted line
-          this.createHighlightArrow(segment.from, segment.to)
-        }
-      }
-    }
-  },
-  
-  mounted() {
-    this.raycaster.params.Line!.threshold = 0.5  // Increase click tolerance for lines
-    this.initThreeJS()
-    if (this.gcode) {
-      this.renderGCode()
-    }
-    window.addEventListener('resize', this.onWindowResize)
-  },
-  
-  beforeDestroy() {
-    window.removeEventListener('resize', this.onWindowResize)
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId)
-    }
-    if (this.controls) {
-      this.controls.dispose()
-    }
-    if (this.renderer) {
-      this.renderer.dispose()
+    gcodeLineCount(): number {
+      return this.allGcodeLines.length
     }
   },
   
   methods: {
+    getGcodeLine(lineNumber: number): string {
+      return this.allGcodeLines[lineNumber] || ''
+    },
+    
+    toggleOverlay() {
+      this.overlayCollapsed = !this.overlayCollapsed
+      // If expanding and there are selected lines, scroll to first one
+      if (!this.overlayCollapsed && this.highlightedLines.length > 0) {
+        setTimeout(() => this.scrollToFirstSelectedLine(), 0)
+      }
+    },
+    
+    onOverlayLineClick(lineNumber: number, event: MouseEvent) {
+      event.stopPropagation()
+      // Mark that this selection originated from the overlay so we can suppress auto-scroll
+      this.selectionFromOverlay = true
+      
+      if (event.shiftKey && this.lastClickedLineOverlay !== null) {
+        // Range select
+        const start = Math.min(this.lastClickedLineOverlay, lineNumber)
+        const end = Math.max(this.lastClickedLineOverlay, lineNumber)
+        const newSelection: number[] = []
+        for (let i = start; i <= end; i++) {
+          newSelection.push(i)
+        }
+        this.$emit('lines-selected', newSelection)
+      } else if (event.ctrlKey || event.metaKey) {
+        // Multi-select
+        const currentSelection = [...this.highlightedLines]
+        const index = currentSelection.indexOf(lineNumber)
+        if (index > -1) {
+          currentSelection.splice(index, 1)
+        } else {
+          currentSelection.push(lineNumber)
+        }
+        this.$emit('lines-selected', currentSelection)
+        this.lastClickedLineOverlay = lineNumber
+      } else {
+        // Single select
+        this.$emit('lines-selected', [lineNumber])
+        this.lastClickedLineOverlay = lineNumber
+      }
+    },
+    
+    scrollToFirstSelectedLine() {
+      // Prevent re-entry
+      if (this.highlightedLines.length === 0 || this.overlayCollapsed || this.isScrolling) {
+        return
+      }
+      
+      this.isScrolling = true
+      
+      try {
+        const container = this.$refs.overlayContainer as HTMLElement
+        if (!container) {
+          this.isScrolling = false
+          return
+        }
+        
+        const firstSelectedLine = Math.min(...this.highlightedLines)
+        const lineElements = container.querySelectorAll('.gcode-line')
+        if (lineElements.length === 0 || firstSelectedLine >= lineElements.length) {
+          this.isScrolling = false
+          return
+        }
+        
+        const targetLine = lineElements[firstSelectedLine] as HTMLElement
+        if (targetLine) {
+          // Scroll container directly instead of using scrollIntoView
+          const containerTop = container.scrollTop
+          const targetOffset = targetLine.offsetTop
+          container.scrollTop = targetOffset
+        }
+      } catch (error) {
+        console.error('Error scrolling to line:', error)
+      } finally {
+        // Reset flag immediately
+        this.isScrolling = false
+      }
+    },
+
+    copySelectedLines() {
+      if (this.highlightedLines.length === 0) return
+      
+      // Sort the line numbers and get the corresponding lines
+      const sortedIndices = [...this.highlightedLines].sort((a, b) => a - b)
+      const selectedText = sortedIndices
+        .map(index => this.allGcodeLines[index])
+        .join('\n')
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(selectedText).then(() => {
+        // Show success feedback
+        this.copySuccess = true
+        setTimeout(() => {
+          this.copySuccess = false
+        }, 1500)
+      }).catch(err => {
+        console.error('Failed to copy to clipboard:', err)
+      })
+    },
+
+    clearSelection() {
+      this.$emit('lines-selected', [])
+    },
+  
     initThreeJS() {
       const canvas = this.$refs.canvas as HTMLCanvasElement
       if (!canvas) return
@@ -248,8 +354,11 @@ export default Vue.extend({
         // Find the line number for this line
         for (const [lineNumber, segment] of this.lineSegments.entries()) {
           if (segment.line === clickedLine) {
-            // Emit event to parent to update highlighted line
-            this.$emit('line-selected', lineNumber)
+            // Emit event with shift key state for range selection
+            this.$emit('line-selected', lineNumber, event.shiftKey)
+            
+            // Always update last clicked line for range selections
+            this.lastClickedLine3D = lineNumber
             break
           }
         }
@@ -288,6 +397,99 @@ export default Vue.extend({
           this.createSingleArrow(fromVec, toVec, direction, arrowLength, position)
         }
       }
+    },
+
+    createArcHighlightArrow(fromVec: THREE.Vector3, toVec: THREE.Vector3, centerVec: THREE.Vector3, clockwise: boolean) {
+      if (!this.scene) return
+      
+      // Convert 3D vectors to 2D for arc calculation (XY plane)
+      const from2D = new THREE.Vector2(fromVec.x, -fromVec.z)
+      const to2D = new THREE.Vector2(toVec.x, -toVec.z)
+      const center2D = new THREE.Vector2(centerVec.x, -centerVec.z)
+      
+      // Calculate arc parameters
+      const startVec = new THREE.Vector2().subVectors(from2D, center2D)
+      const endVec = new THREE.Vector2().subVectors(to2D, center2D)
+      const radius = startVec.length()
+      
+      let startAngle = Math.atan2(startVec.y, startVec.x)
+      let endAngle = Math.atan2(endVec.y, endVec.x)
+      
+      // Calculate angular difference (normalized)
+      let delta = endAngle - startAngle
+      while (delta > Math.PI) delta -= 2 * Math.PI
+      while (delta < -Math.PI) delta += 2 * Math.PI
+      
+      // Adjust for direction
+      if (!clockwise && delta < 0) {
+        endAngle += Math.PI * 2
+        delta = endAngle - startAngle
+      } else if (clockwise && delta > 0) {
+        endAngle -= Math.PI * 2
+        delta = endAngle - startAngle
+      }
+      
+      // Calculate arc length
+      const arcLength = Math.abs(delta * radius)
+      
+      // Arrow size
+      const arrowLength = Math.max(1, Math.min(arcLength * 0.08, 3))
+      if (arcLength < arrowLength * 1.1) return
+      
+      // Minimum spacing
+      const minSpacing = 15
+      const numArrows = Math.floor(arcLength / minSpacing)
+      
+      if (numArrows === 0) {
+        // Single arrow at midpoint
+        this.createSingleArcArrow(from2D, to2D, center2D, startAngle, endAngle, radius, arrowLength, 0.5, fromVec.y, clockwise)
+      } else {
+        const actualSpacing = arcLength / (numArrows + 1)
+        for (let i = 1; i <= numArrows; i++) {
+          const position = (i * actualSpacing) / arcLength
+          this.createSingleArcArrow(from2D, to2D, center2D, startAngle, endAngle, radius, arrowLength, position, fromVec.y, clockwise)
+        }
+      }
+    },
+
+    createSingleArcArrow(from2D: THREE.Vector2, to2D: THREE.Vector2, center2D: THREE.Vector2, startAngle: number, endAngle: number, radius: number, arrowLength: number, position: number, zHeight: number, clockwise: boolean) {
+      if (!this.scene) return
+      
+      // Calculate angle at this position along the arc
+      const angle = startAngle + (endAngle - startAngle) * position
+      
+      // Calculate position on arc
+      const x = center2D.x + radius * Math.cos(angle)
+      const y = center2D.y + radius * Math.sin(angle)
+      const arrowOrigin = new THREE.Vector3(x, zHeight, -y)
+      
+      // Calculate tangent direction (perpendicular to radius)
+      // For CCW arc, tangent is +90°; for CW, -90°
+      const tangentAngle = angle + (clockwise ? -Math.PI / 2 : Math.PI / 2)
+      const direction = new THREE.Vector3(
+        Math.cos(tangentAngle),
+        0,
+        -Math.sin(tangentAngle)
+      ).normalize()
+      
+      const arrowRadius = arrowLength * 0.2
+      const coneGeometry = new THREE.ConeGeometry(arrowRadius, arrowLength, 8)
+      const arrowColor = 0xFF1493
+      const coneMaterial = new THREE.MeshPhongMaterial({ 
+        color: arrowColor,
+        emissive: arrowColor,
+        emissiveIntensity: 0.8
+      })
+      const cone = new THREE.Mesh(coneGeometry, coneMaterial)
+      
+      cone.position.copy(arrowOrigin).add(direction.clone().multiplyScalar(arrowLength / 2))
+      
+      const upVector = new THREE.Vector3(0, 1, 0)
+      const quaternion = new THREE.Quaternion().setFromUnitVectors(upVector, direction)
+      cone.setRotationFromQuaternion(quaternion)
+      
+      this.scene.add(cone)
+      this.highlightedArrows.push(cone)
     },
     
     createSingleArrow(fromVec: THREE.Vector3, toVec: THREE.Vector3, direction: THREE.Vector3, arrowLength: number, position: number) {
@@ -349,8 +551,8 @@ export default Vue.extend({
         // Parse G-code
         const { stock, toolpaths } = this.parseGCode(this.gcode)
         
-        // Render stock
-        if (stock) {
+        // Render stock only if both stock dimensions and origin are provided in metadata
+        if (stock && stock.originOffset) {
           this.renderStock(stock)
         }
         
@@ -403,6 +605,12 @@ export default Vue.extend({
               stock = { type: 'cuboid', dimensions: values }
             } else if (key === 'stock_cylinder' && values.length === 2) {
               stock = { type: 'cylinder', dimensions: values }
+            } else if (key === 'stock_origin' && values.length === 2) {
+              if (!stock) {
+                // If stock hasn't been defined yet, assume rectangular by default with zero dims
+                stock = { type: 'cuboid', dimensions: [0, 0, 0] }
+              }
+              stock.originOffset = { x: values[0], y: values[1] }
             }
           }
           continue
@@ -483,8 +691,14 @@ export default Vue.extend({
         const [x, y, z] = stock.dimensions
         geometry = new THREE.BoxGeometry(x, z, y) // X width, Z height, Y depth
         const mesh = new THREE.Mesh(geometry, material)
-        // Position stock so it extends DOWN from Z=0, centered on X and Y
-        mesh.position.set(x / 2, -z / 2, -y / 2)
+        // Require origin offset; if missing, do not render stock
+        if (!stock.originOffset) {
+          return
+        }
+        // Position stock so it extends DOWN from Z=0 using origin offset (front-left reference)
+        const cx = stock.originOffset.x + x / 2
+        const cz = -(stock.originOffset.y + y / 2)
+        mesh.position.set(cx, -z / 2, cz)
         this.scene.add(mesh)
         
         // Wireframe
@@ -593,21 +807,33 @@ export default Vue.extend({
       let startAngle = Math.atan2(startVec.y, startVec.x)
       let endAngle = Math.atan2(endVec.y, endVec.x)
       
-      // Handle angle wrapping for arcs that cross 0°
-      // For counterclockwise (G3), if endAngle < startAngle, add 2π to endAngle
-      // For clockwise (G2), if endAngle > startAngle, subtract 2π from endAngle
-      if (!clockwise && endAngle < startAngle) {
+      // Calculate the signed angular difference (normalized to [-π, π])
+      let delta = endAngle - startAngle
+      while (delta > Math.PI) delta -= 2 * Math.PI
+      while (delta < -Math.PI) delta += 2 * Math.PI
+      
+      // Determine if we should go clockwise or counter-clockwise based on the shortest path
+      // delta < 0 means shortest path is clockwise, delta > 0 means counter-clockwise
+      let actualClockwise = delta < 0
+      
+      // However, if the G-code explicitly specified a direction, respect it
+      // This handles cases where the long arc is intentional
+      // For now, we'll use the G-code's direction but ensure the angle sweep is correct
+      actualClockwise = clockwise
+      
+      // Adjust angles to ensure the sweep matches the intended direction
+      if (!actualClockwise && endAngle < startAngle) {
         endAngle += Math.PI * 2
-      } else if (clockwise && endAngle > startAngle) {
+      } else if (actualClockwise && endAngle > startAngle) {
         endAngle -= Math.PI * 2
       }
       
-      // Create arc curve
+      // Create arc curve (Three.js uses the same clockwise semantics)
       const curve = new THREE.EllipseCurve(
         center.x, center.y,          // center
         radius, radius,               // x radius, y radius
         startAngle, endAngle,         // start angle, end angle
-        !clockwise,                   // clockwise (Three.js is opposite)
+        actualClockwise,              // sweep direction
         0                             // rotation
       )
       
@@ -621,17 +847,20 @@ export default Vue.extend({
       this.scene.add(line)
       
       // Store line mapping for highlighting
-      // NOTE: We store straight-line from/to for arcs since arrows can't follow curves
-      // The arrow system will skip rendering for very short effective distances
+      // For arcs, store the arc metadata so highlighting can follow the curve
       if (lineNumber !== undefined) {
         const fromVec = new THREE.Vector3(from.x, from.z, -from.y)
         const toVec = new THREE.Vector3(to.x, to.z, -to.y)
+        const centerVec = new THREE.Vector3(center.x, from.z, -center.y)
         this.lineSegments.set(lineNumber, {
           line,
           originalColor: color,
           originalLineWidth: 2,
-          from: fromVec,
-          to: toVec
+          from: fromVec.clone(),
+          to: toVec.clone(),
+          isArc: true,
+          arcCenter: centerVec,
+          arcClockwise: actualClockwise
         })
       }
     },
@@ -670,6 +899,91 @@ export default Vue.extend({
       this.controls.target.copy(center)
       this.controls.update()
     }
+  },
+  
+  watch: {
+    gcode(newGcode: string) {
+      if (this.autoUpdate && newGcode) {
+        this.renderGCode()
+      }
+    },
+    
+    highlightedLines(newLineNumbers: number[], oldLineNumbers: number[]) {
+      // Remove previous arrows
+      this.highlightedArrows.forEach(arrow => this.scene?.remove(arrow))
+      this.highlightedArrows = []
+
+      // Build fast lookup sets
+      const newSet = new Set(newLineNumbers)
+      const oldSet = new Set(oldLineNumbers)
+
+      // Restore only those that are no longer selected
+      oldLineNumbers.forEach(lineNumber => {
+        if (newSet.has(lineNumber)) return
+        const oldSegment = this.lineSegments.get(lineNumber)
+        if (!oldSegment) return
+        const mat: any = oldSegment.line.material
+        if (mat && mat.color) mat.color.setHex(oldSegment.originalColor)
+        if ('linewidth' in mat) mat.linewidth = oldSegment.originalLineWidth
+        if ('needsUpdate' in mat) mat.needsUpdate = true
+      })
+
+      // Highlight all selected lines (use the current prop to avoid partial updates)
+      // Filter to only include lines that have actual rendered segments (movement commands)
+      let toHighlight = Array.from(newSet)
+        .filter(lineNum => this.lineSegments.has(lineNum))
+        .sort((a, b) => a - b)
+      
+      toHighlight.forEach(lineNumber => {
+        const segment = this.lineSegments.get(lineNumber)
+        if (!segment) return
+        const mat: any = segment.line.material
+        if (mat && mat.color) mat.color.setHex(0xFFFF00)
+        if ('linewidth' in mat) mat.linewidth = 4
+        if ('needsUpdate' in mat) mat.needsUpdate = true
+
+        // Create direction arrows
+        if (segment.isArc && segment.arcCenter) {
+          this.createArcHighlightArrow(segment.from, segment.to, segment.arcCenter, !!segment.arcClockwise)
+        } else {
+          this.createHighlightArrow(segment.from, segment.to)
+        }
+      })
+      
+      // Open overlay when lines are first selected
+      if (newLineNumbers.length > 0 && oldLineNumbers.length === 0) {
+        this.overlayCollapsed = false
+      }
+      
+      // Scroll to first selected line (deferred to avoid blocking)
+      if (toHighlight.length > 0 && !this.overlayCollapsed && !this.selectionFromOverlay) {
+        setTimeout(() => this.scrollToFirstSelectedLine(), 0)
+      }
+      // Reset overlay-origin flag so next external update (3D view) can scroll
+      this.selectionFromOverlay = false
+    }
+  },
+  
+  mounted() {
+    this.raycaster.params.Line!.threshold = 0.5  // Increase click tolerance for lines
+    this.initThreeJS()
+    if (this.gcode) {
+      this.renderGCode()
+    }
+    window.addEventListener('resize', this.onWindowResize)
+  },
+  
+  beforeDestroy() {
+    window.removeEventListener('resize', this.onWindowResize)
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId)
+    }
+    if (this.controls) {
+      this.controls.dispose()
+    }
+    if (this.renderer) {
+      this.renderer.dispose()
+    }
   }
 })
 </script>
@@ -683,6 +997,7 @@ export default Vue.extend({
   border-radius: 4px;
   overflow: hidden;
   background: #263238;
+  isolation: isolate;
 }
 
 canvas {
@@ -696,25 +1011,131 @@ canvas:active {
   cursor: grabbing;
 }
 
-.gcode-annotation {
+.gcode-overlay {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #FFD700;
-  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.9);
   border-radius: 4px;
   font-family: 'Courier New', monospace;
-  font-size: 14px;
-  font-weight: bold;
-  pointer-events: none;
-  z-index: 10;
+  font-size: 11px; /* Reduced ~20% for denser view */
+  pointer-events: auto;
+  z-index: 5;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  transition: width 0.3s ease;
+  width: 500px;
+  user-select: none; /* Prevent browser text selection highlight */
 }
 
-.annotation-line-number {
+.gcode-overlay.collapsed {
+  width: auto;
+}
+
+.gcode-overlay.collapsed .gcode-lines-container {
+  display: none;
+}
+
+.overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px 4px 0 0;
+}
+
+.gcode-overlay.collapsed .overlay-header {
+  border-bottom: none;
+  border-radius: 4px;
+}
+
+.overlay-title {
   color: #90CAF9;
-  margin-right: 8px;
+  font-weight: bold;
+  font-size: 12px; /* Slightly smaller to match reduced base font */
+  user-select: none;
+  flex: 1; /* Push buttons to the edges */
+}
+
+.collapse-toggle,
+.header-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #90CAF9;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-toggle:hover,
+.header-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.copy-button.header-button {
+  color: #4CAF50;
+}
+
+.gcode-lines-container {
+  overflow-y: auto;
+  overflow-x: auto;
+  flex: 1;
+  min-height: 0;
+  user-select: none; /* Disable selection in container */
+}
+
+.gcode-line {
+  display: flex;
+  padding: 0 6px; /* Remove vertical padding, keep slight horizontal spacing */
+  white-space: pre;
+  line-height: 1.2; /* Tighter line height */
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  user-select: none; /* Disable selection per line */
+}
+
+.gcode-line.even-line {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.gcode-line.odd-line {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.gcode-line:hover {
+  background-color: rgba(33, 150, 243, 0.2) !important;
+}
+
+.gcode-line.highlighted-line {
+  background-color: rgba(255, 235, 59, 0.3) !important;
+  font-weight: bold;
+}
+
+.line-number {
+  display: inline-block;
+  min-width: 45px;
+  text-align: right;
+  margin-right: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.line-content {
+  flex: 1;
+  color: #FFD700;
+  user-select: none; /* Disable selection of content */
 }
 
 .loading-overlay,
