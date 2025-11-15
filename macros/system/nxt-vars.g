@@ -34,3 +34,13 @@ global nxtSpindleID = null  ; Default Spindle ID
 global nxtSpindleAccelSec = null  ; Spindle Acceleration Time (seconds)
 global nxtSpindleDecelSec = null  ; Spindle Deceleration Time (seconds)
 
+; --- Custom Dialog System ---
+global nxtDialogActive = false   ; Flag indicating if a custom dialog is currently displayed
+global nxtDialogMessage = null   ; Current dialog message content
+global nxtDialogTitle = null     ; Current dialog title
+global nxtDialogChoices = null   ; Array of dialog button choices
+global nxtDialogHasChoices = false ; Flag indicating if dialog has choice buttons
+global nxtDialogFlag = 0         ; Dialog behavior flag (0=info, 1=blocking, 2=critical)
+global nxtDialogResponse = null  ; User's response to the dialog
+global nxtDialogSeq = null       ; Dialog sequence number for response correlation
+
