@@ -2,20 +2,14 @@
   "language": "English",
   "name": "NeXT",
   "title": "NeXT - Next-Gen Extended Tooling",
-  "status": {
-    "tool": "Tool",
-    "wcs": "WCS",
-    "spindle": "Spindle",
-    "coolant": "Coolant",
-    "position": "Position"
-  },
   "actions": {
     "continue": "Continue",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "close": "Close",
     "save": "Save",
-    "reload": "Reload"
+    "reload": "Reload",
+    "refreshProbe": "Refresh Probe Status"
   },
   "panels": {
     "status": {
@@ -42,17 +36,8 @@
       "workplacePartial": "{0} - Some axes not set",
       "workplaceInvalid": "{0} - Not configured"
     },
-    "spindleControl": {
-      "caption": "Spindle Control",
-      "placeholder": "Spindle control panel will be implemented in a future phase"
-    },
-    "panels": {
-      "status": "Status",
-      "configuration": "Configuration",
-      "stockPreparation": "Stock Preparation",
-      "probing": "Probing"
-    },
     "configuration": {
+      "caption": "Configuration",
       "title": "NeXT Configuration",
       "features": "Features",
       "spindle": "Spindle Configuration",
@@ -63,6 +48,16 @@
       "saveError": "Failed to save configuration",
       "loadError": "Failed to load configuration"
     },
+    "stockPreparation": {
+      "caption": "Stock Preparation"
+    },
+    "probing": {
+      "caption": "Probing"
+    },
+    "spindleControl": {
+      "caption": "Spindle Control",
+      "placeholder": "Spindle control panel will be implemented in a future phase"
+    },
     "wizards": {
       "probeDeflection": {
         "title": "Probe Deflection Measurement Wizard",
@@ -72,15 +67,20 @@
         "measureY": "Measure Y",
         "results": "Results"
       }
-    },
-    "messages": {
-      "uiReady": "NeXT UI is ready",
-      "loading": "Loading...",
-      "error": "Error",
-      "restartRequired": "Machine Restart Required",
-      "restartMessage": "NeXT variables have not been loaded. The machine needs to be restarted to load the NeXT system.",
-      "restartButton": "Restart Machine (M999)",
-      "restartWarning": "This will restart the entire machine. Ensure the machine is in a safe state before proceeding."
     }
+  },
+  "messages": {
+    "uiReady": "NeXT UI is ready",
+    "chooseSubsection": "Use the NeXT menu section to navigate to Status, Configuration, Stock Preparation, and Probing.",
+    "menuMoved": "NeXT features are now accessible via the NeXT menu. Use Status, Configuration, Stock Preparation, or Probing from the left-hand menu.",
+    "disconnectedShort": "Disconnected",
+    "loading": "Loading...",
+    "error": "Error",
+    "restartRequired": "Machine Restart Required",
+    "restartMessage": "NeXT variables have not been loaded. The machine needs to be restarted to load the NeXT system.",
+    "restartButton": "Restart Machine (M999)",
+    "restartWarning": "This will restart the entire machine. Ensure the machine is in a safe state before proceeding.",
+    "probingComingSoon": "Probing UI is under development. This panel provides minimal controls until the full probing UI is ported from the legacy implementation.",
+    "basicProbeControls": "Basic probe actions to interact with the machine from the UI."
   }
 }
