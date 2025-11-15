@@ -5,7 +5,45 @@
  * Includes safety features and proper header/footer structure.
  */
 
-import { ToolpathPoint, ToolpathGenerationParams, calculateZLevels } from './toolpath'
+import { ToolpathPoint, ToolpathGenerationParams, calculateZLevels, calculateOriginOffset } from './toolpath'
+
+/**
+ * Generate stock metadata M-codes
+ * These M-codes store stock dimensions in the object model for the G-code viewer
+ * Format: M7500 K"key" V{values} - stores key-value pair in global.nxtMetadata
+ * Values are passed as vectors for RRF compatibility
+ */
+function generateStockMetadata(params: ToolpathGenerationParams): string {
+  const { stock, cutting } = params
+  const lines: string[] = []
+  
+  lines.push('; Stock metadata for G-code viewer')
+  
+  if (stock.shape === 'rectangular') {
+    // Cuboid stock: X, Y, Z dimensions as 3-element vector
+    const x = formatNumber(stock.x || 0)
+    const y = formatNumber(stock.y || 0)
+    const z = formatNumber(stock.z || 20)
+    lines.push(`M7500 K"stock_cuboid" V{${x},${y},${z}}`)
+    // Provide origin offset so the viewer can position the stock correctly relative to WCS
+    const off = calculateOriginOffset(stock.x || 0, stock.y || 0, stock.originPosition)
+    const ox = formatNumber(off.x)
+    const oy = formatNumber(off.y)
+    lines.push(`M7500 K"stock_origin" V{${ox},${oy}}`)
+  } else {
+    // Cylindrical stock: Diameter, Z height as 2-element vector
+    const d = formatNumber(stock.diameter || 0)
+    const z = formatNumber(stock.z || 20)
+    lines.push(`M7500 K"stock_cylinder" V{${d},${z}}`)
+    // Provide origin offset (center) for consistency (circular stock is centered at origin)
+    const ox = formatNumber(0)
+    const oy = formatNumber(0)
+    lines.push(`M7500 K"stock_origin" V{${ox},${oy}}`)
+  }
+  
+  lines.push('')
+  return lines.join('\n')
+}
 
 /**
  * Format a number for G-code output
@@ -197,6 +235,9 @@ export function generateGCode(
   
   // Header
   sections.push(generateHeader(params, currentTool))
+  
+  // Stock metadata M-codes
+  sections.push(generateStockMetadata(params))
   
   // Setup
   sections.push(generateSetup(currentTool, feeds.spindleSpeed, workplace))
