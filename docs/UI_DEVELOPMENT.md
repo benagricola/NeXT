@@ -3,6 +3,9 @@
 ## Overview
 This guide explains how to develop the NeXT UI plugin within the DuetWebControl workspace. The NeXT UI is a Vue 2.7 plugin that integrates with DuetWebControl v3.6.1 to provide CNC-specific functionality for RepRapFirmware.
 
+> [!WARNING]
+> **NEVER** edit files within the `DuetWebControl` directory as the NeXT plugin is symlinked into it already. All source code changes should be within the `NeXT/ui` directory structure.
+
 ## Instructions for AI Agents
 If you are an AI Agent or running in a CI/CD environment, there is a high chance you already have access to a running instance of DuetWebControl. You will need to make sure NeXT is available and built in to the running DWC server, by running `node add-next.js`.
 
@@ -52,7 +55,7 @@ This MUST be run in a background terminal so it can stay running.
 
 ```bash
 cd DuetWebControl
-npm run dev 
+npm run dev
 ```
 
 **Important Notes:**
@@ -250,7 +253,7 @@ pkill -f "npm run dev"
 
 ```bash
 # Start dev server (from DWC directory)
-cd DuetWebControl && npm run dev 
+cd DuetWebControl && npm run dev
 
 # Check dev server status
 pgrep -af "vue-cli-service serve"
@@ -281,3 +284,12 @@ To start developing the NeXT UI:
 7. Edit files in `NeXT/ui/src/` and see changes hot-reload
 
 The symlinked structure allows you to work directly on the NeXT repository files while testing in the DWC environment.
+
+## Code Quality
+
+Before committing changes, it is recommended to run the TypeScript compiler to check for errors:
+
+```bash
+cd ui
+npx tsc --noEmit
+```
