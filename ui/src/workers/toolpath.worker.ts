@@ -59,7 +59,7 @@ self.addEventListener('message', async (event: MessageEvent<ToolpathWorkerReques
     // Generate toolpath
     // Note: The generateToolpath function doesn't currently support progress callbacks,
     // but we can estimate progress based on the operation parameters
-    const toolpath = generateToolpath(params)
+    const toolpath = await generateToolpath(params)
 
     // Report toolpath generation complete
     postMessage({
