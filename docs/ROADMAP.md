@@ -117,6 +117,18 @@ This phase bridges Phase 1 and Phase 2 by implementing UI-controlled result mana
     *   Implement basic WCS management interface.
     *   **Note:** Machine status panel completed. Spindle/coolant control and WCS management to be implemented in Phase 3.
 
+5.  **Stock Preparation UI (Issue #34):** ⚠️ Mostly Complete
+    *   Implement UI panel for generating facing toolpaths for stock preparation.
+    *   Create toolpath generation algorithms for multiple pattern types (rectilinear, zigzag, spiral).
+    *   **Note:** Spiral pattern on rectangular stock is now fully supported.
+    *   Add SVG-based visualization for real-time toolpath preview.
+    *   Implement G-code generation from toolpath data.
+    *   Support both rectangular and circular stock geometries.
+    *   Provide configurable parameters: tool radius, stock dimensions, pattern type/angle, stepover/stepdown, feed rates, spindle speed.
+    *   Include save-as-file and run-immediately functionality.
+    *   Add comprehensive input validation and safety features.
+    *   Full documentation and implementation approach in `docs/STOCK_PREPARATION.md`.
+
 ---
 
 ## Phase 3: Advanced Probing & Results Management
@@ -167,16 +179,7 @@ This phase focuses on completing the tool change system and advanced features.
     *   Store calibration data and history in nxt-user-vars.g.
     *   Full documentation provided in `docs/CALIBRATION.md`.
 
-5.  **Stock Preparation UI (Issue #34):**
-    *   Implement UI panel for generating facing toolpaths for stock preparation.
-    *   Create toolpath generation algorithms for multiple pattern types (rectilinear, zigzag, spiral).
-    *   Add SVG-based visualization for real-time toolpath preview.
-    *   Implement G-code generation from toolpath data.
-    *   Support both rectangular and circular stock geometries.
-    *   Provide configurable parameters: tool radius, stock dimensions, pattern type/angle, stepover/stepdown, feed rates, spindle speed.
-    *   Include save-as-file and run-immediately functionality.
-    *   Add comprehensive input validation and safety features.
-    *   Full documentation and implementation approach in `docs/STOCK_PREPARATION.md`.
+
 
 ---
 
