@@ -1,6 +1,6 @@
 /**
  * Toolpath Generation Utilities
- * 
+ *
  * Implements algorithms for generating facing toolpaths for stock preparation.
  * Supports rectangular and circular stock with rectilinear, zigzag, and spiral patterns.
  */
@@ -13,6 +13,8 @@ export interface ToolpathPoint {
   z: number
   feedRate: number
   type: 'rapid' | 'linear' | 'arc'
+  // Optional text comment to include in generated G-code. Will be emitted as `; comment` line
+  comment?: string
   // Arc parameters (only for type: 'arc')
   i?: number  // X offset to arc center
   j?: number  // Y offset to arc center
@@ -104,7 +106,7 @@ export function calculateBoundaries(
 ): { xMin: number; xMax: number; yMin: number; yMax: number } {
   // Calculate origin offset from stock geometry
   const originOffset = calculateOriginOffset(stockX, stockY, originPosition)
-  
+
   if (clearStockExit) {
     // Exit stock by full diameter + 1mm clearance
     const clearance = toolRadius * 2 + 1
@@ -136,10 +138,10 @@ export function calculateOriginOffset(
 ): { x: number; y: number } {
   // Parse origin position to determine X and Y position
   const [yPos, xPos] = originPosition.split('-')
-  
+
   let xOffset = 0
   let yOffset = 0
-  
+
   // Calculate X offset based on horizontal position
   switch (xPos) {
     case 'left':
@@ -152,7 +154,7 @@ export function calculateOriginOffset(
       xOffset = -stockX
       break
   }
-  
+
   // Calculate Y offset based on vertical position
   switch (yPos) {
     case 'front':
@@ -165,7 +167,7 @@ export function calculateOriginOffset(
       yOffset = -stockY
       break
   }
-  
+
   return { x: xOffset, y: yOffset }
 }
 
@@ -183,14 +185,14 @@ export function rotatePoint(
   if (angleDegrees === 0) {
     return { x, y }
   }
-  
+
   const angleRadians = (angleDegrees * Math.PI) / 180
   const cos = Math.cos(angleRadians)
   const sin = Math.sin(angleRadians)
-  
+
   const translatedX = x - centerX
   const translatedY = y - centerY
-  
+
   return {
     x: translatedX * cos - translatedY * sin + centerX,
     y: translatedX * sin + translatedY * cos + centerY
@@ -210,11 +212,11 @@ export function clipToCircle(
   const dx = x - centerX
   const dy = y - centerY
   const distance = Math.sqrt(dx * dx + dy * dy)
-  
+
   if (distance <= radius) {
     return { x, y }
   }
-  
+
   const angle = Math.atan2(dy, dx)
   return {
     x: centerX + radius * Math.cos(angle),
@@ -240,66 +242,66 @@ export function clipLineToCircle(
   const dx1 = x1 - centerX
   const dy1 = y1 - centerY
   const dist1 = Math.sqrt(dx1 * dx1 + dy1 * dy1)
-  
+
   const dx2 = x2 - centerX
   const dy2 = y2 - centerY
   const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2)
-  
+
   const inside1 = dist1 <= radius
   const inside2 = dist2 <= radius
-  
+
   // Both inside - no clipping needed
   if (inside1 && inside2) {
     return { x1, y1, x2, y2 }
   }
-  
+
   // Both outside - check if line intersects circle
   // Line equation: P = P1 + t * (P2 - P1), where 0 <= t <= 1
   const dx = x2 - x1
   const dy = y2 - y1
-  
+
   // Quadratic formula for circle-line intersection
   const a = dx * dx + dy * dy
   const b = 2 * (dx * dx1 + dy * dy1)
   const c = dx1 * dx1 + dy1 * dy1 - radius * radius
-  
+
   const discriminant = b * b - 4 * a * c
-  
+
   // No intersection
   if (discriminant < 0) {
     return null
   }
-  
+
   // Calculate intersection points
   const sqrtDisc = Math.sqrt(discriminant)
   const t1 = (-b - sqrtDisc) / (2 * a)
   const t2 = (-b + sqrtDisc) / (2 * a)
-  
+
   // Clip to line segment bounds [0, 1]
   const tMin = Math.max(0, Math.min(t1, t2))
   const tMax = Math.min(1, Math.max(t1, t2))
-  
+
   // No intersection within segment
   if (tMin > tMax || tMax < 0 || tMin > 1) {
     return null
   }
-  
+
   // Calculate clipped points
   let clippedX1 = x1
   let clippedY1 = y1
   let clippedX2 = x2
   let clippedY2 = y2
-  
+
   if (!inside1) {
     clippedX1 = x1 + dx * tMin
     clippedY1 = y1 + dy * tMin
   }
-  
+
   if (!inside2) {
     clippedX2 = x1 + dx * tMax
     clippedY2 = y1 + dy * tMax
   }
-  
+
   return { x1: clippedX1, y1: clippedY1, x2: clippedX2, y2: clippedY2 }
 }
 
@@ -397,12 +399,12 @@ export function generateRectilinearPattern(
   params: ToolpathGenerationParams
 ): ToolpathPoint[][] {
   const { stock, cutting, pattern, feeds } = params
-  
+
   // Handle circular stock differently
   const isCircular = stock.shape === 'circular'
   const stockX = isCircular ? stock.diameter || 0 : stock.x || 0
   const stockY = isCircular ? stock.diameter || 0 : stock.y || 0
-  
+
   // Apply clearStockExit to circular stock
   let circularRadius = 0
   if (isCircular) {
@@ -411,22 +413,22 @@ export function generateRectilinearPattern(
       circularRadius += cutting.toolRadius * 2 + 1  // Full diameter + 1mm clearance
     }
   }
-  
+
   const effectiveWidth = calculateEffectiveCuttingWidth(cutting.toolRadius, cutting.stepover)
-  
+
   // Local boundaries for spiral clipping
   const boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
-  
+
   // For circular stock, center is at origin (0,0).
   const centerX = 0
   const centerY = 0
-  
+
   const zLevels = calculateZLevels(cutting)
   const allPasses: ToolpathPoint[][] = []
-  
+
   for (const zLevel of zLevels) {
     const levelPasses: ToolpathPoint[] = []
-    
+
     // Pre-compute passes
     const validPasses: Array<{ finalStart: { x: number; y: number }; finalEnd: { x: number; y: number }; passIndex: number }> = []
     // Boundaries (tool center compensated) - for rectangular stock this is used directly.
@@ -526,12 +528,12 @@ export function generateRectilinearPattern(
         }
       }
     }
-    
+
     // Now generate moves for valid passes
     for (let validIdx = 0; validIdx < validPasses.length; validIdx++) {
       const { finalStart, finalEnd, passIndex } = validPasses[validIdx]
       const isLastPass = validIdx === validPasses.length - 1
-      
+
       // Rapid to start
       levelPasses.push({
         x: finalStart.x,
@@ -564,7 +566,7 @@ export function generateRectilinearPattern(
         feedRate: 0,
         type: 'rapid'
       })
-      
+
       // Rapid back to start of next pass (only if not the last pass)
       if (!isLastPass) {
         const nextPass = validPasses[validIdx + 1]
@@ -577,10 +579,10 @@ export function generateRectilinearPattern(
         })
       }
     }
-    
+
     allPasses.push(levelPasses)
   }
-  
+
   return allPasses
 }
 
@@ -618,12 +620,12 @@ export function generateZigzagPattern(
   params: ToolpathGenerationParams
 ): ToolpathPoint[][] {
   const { stock, cutting, pattern, feeds } = params
-  
+
   // Handle circular stock differently
   const isCircular = stock.shape === 'circular'
   const stockX = isCircular ? stock.diameter || 0 : stock.x || 0
   const stockY = isCircular ? stock.diameter || 0 : stock.y || 0
-  
+
   // Apply clearStockExit to circular stock
   let circularRadius = 0
   if (isCircular) {
@@ -632,17 +634,17 @@ export function generateZigzagPattern(
       circularRadius += cutting.toolRadius * 2 + 1  // Full diameter + 1mm clearance
     }
   }
-  
+
   const effectiveWidth = calculateEffectiveCuttingWidth(cutting.toolRadius, cutting.stepover)
   const boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
-  
+
   // For circular stock, center is at origin (0,0).
   const centerX = 0
   const centerY = 0
-  
+
   const zLevels = calculateZLevels(cutting)
   const allPasses: ToolpathPoint[][] = []
-  
+
   for (const zLevel of zLevels) {
     const levelPasses: ToolpathPoint[] = []
 
@@ -652,7 +654,7 @@ export function generateZigzagPattern(
       const dX = Math.cos(angleRad)
       const dY = Math.sin(angleRad)
       const scanDimension = stock.diameter || 0
-      const effectiveScanDimension = cutting.clearStockExit 
+      const effectiveScanDimension = cutting.clearStockExit
         ? scanDimension + 2 * (cutting.toolRadius * 2 + 1)
         : scanDimension
       const numPasses = calculateNumberOfPasses(effectiveScanDimension, effectiveWidth)
@@ -758,7 +760,7 @@ export function generateZigzagPattern(
         const s2 = dX * clipped.x2 + dY * clipped.y2
         const forward = baseForward ? (i % 2 === 0) : (i % 2 !== 0)
         const a = forward ? (s1 <= s2 ? { x: clipped.x1, y: clipped.y1 } : { x: clipped.x2, y: clipped.y2 })
-                          : (s1 >  s2 ? { x: clipped.x1, y: clipped.y1 } : { x: clipped.x2, y: clipped.y2 })
+          : (s1 > s2 ? { x: clipped.x1, y: clipped.y1 } : { x: clipped.x2, y: clipped.y2 })
         const b = (a.x === clipped.x1 && a.y === clipped.y1) ? { x: clipped.x2, y: clipped.y2 } : { x: clipped.x1, y: clipped.y1 }
         segments.push({ a, b })
       }
@@ -780,7 +782,7 @@ export function generateZigzagPattern(
         }
       }
     }
-    
+
     // Final retract for this Z level
     if (levelPasses.length > 0) {
       const lastPoint = levelPasses[levelPasses.length - 1]
@@ -792,10 +794,10 @@ export function generateZigzagPattern(
         type: 'rapid'
       })
     }
-    
+
     allPasses.push(levelPasses)
   }
-  
+
   return allPasses
 }
 
@@ -806,19 +808,19 @@ export function generateSpiralPattern(
   params: ToolpathGenerationParams
 ): ToolpathPoint[][] {
   const { stock, cutting, pattern, feeds } = params
-  
+
   // Handle both circular and rectangular stock
   const isCircular = stock.shape === 'circular'
   const stockX = isCircular ? stock.diameter || 0 : stock.x || 0
   const stockY = isCircular ? stock.diameter || 0 : stock.y || 0
-  
+
   const effectiveWidth = calculateEffectiveCuttingWidth(cutting.toolRadius, cutting.stepover)
-  
+
   // For circular stock, center is at origin (0,0)
   // For rectangular stock, calculate based on origin position
   const centerX = isCircular ? 0 : (calculateOriginOffset(stockX, stockY, stock.originPosition).x + stockX / 2)
   const centerY = isCircular ? 0 : (calculateOriginOffset(stockX, stockY, stock.originPosition).y + stockY / 2)
-  
+
   const zLevels = calculateZLevels(cutting)
   const allPasses: ToolpathPoint[][] = []
   const exitTolerance = 1 // mm outside boundary to consider as exit
@@ -826,27 +828,27 @@ export function generateSpiralPattern(
   let boundaries = calculateBoundaries(stockX, stockY, cutting.toolRadius, cutting.clearStockExit, stock.originPosition)
   const allowedRadius = (stock.diameter || 0) / 2 - cutting.toolRadius
   const allowedRadiusTol = allowedRadius + exitTolerance
-  
+
   for (const zLevel of zLevels) {
     const levelPasses: ToolpathPoint[] = []
-    
+
     // Use higher resolution for finishing passes (1.5x segments, max 60 segments/rev)
     const segmentsMultiplier = zLevel.isFinishing ? 1.5 : 1
-    
+
     // Determine spiral direction: climb = CCW (positive angle), conventional = CW (negative angle)
     const spiralDirectionMultiplier = pattern.millingDirection === 'climb' ? 1 : -1
-    
+
     // Determine if we're going outside-in or inside-out
     const isOutsideIn = pattern.spiralDirection !== 'inside-out'
-    
+
     // Calculate initial radius based on stock shape
     let outerRadius: number
     let innerRadius: number = cutting.toolRadius
-    
+
     if (isCircular) {
       // For circular stock, outer edge is stock radius minus tool radius
       outerRadius = (stock.diameter || 0) / 2 - cutting.toolRadius
-      
+
       // Add clearance if clear stock exit is enabled
       if (cutting.clearStockExit) {
         outerRadius += cutting.toolRadius * 2 + 1  // Full diameter + 1mm clearance
@@ -868,18 +870,18 @@ export function generateSpiralPattern(
         yMax: centerY + allowedRadius
       }
     }
-    
+
     // Set starting radius based on spiral direction
     const initialRadius = isOutsideIn ? outerRadius : innerRadius
     const finalRadius = isOutsideIn ? innerRadius : outerRadius
-    
+
     // Start at the appropriate edge of the spiral at the pattern angle
     const startAngle = pattern.angle * Math.PI / 180
     const startX = centerX + initialRadius * Math.cos(startAngle)
     const startY = centerY + initialRadius * Math.sin(startAngle)
-    
+
     // We'll determine the starting point after we build the spiral points
-    
+
     // Generate spiral as a series of line segments
     // Total segments per revolution controlled by spiralSegmentsPerRevolution parameter
     const baseSegments = pattern.spiralSegmentsPerRevolution || 30  // Default to 30 if not specified
@@ -887,12 +889,12 @@ export function generateSpiralPattern(
     const anglePerSegment = spiralDirectionMultiplier * (2 * Math.PI) / segmentsPerRevolution
     const radiusDecrementPerRevolution = effectiveWidth
     const radiusChangePerSegment = (isOutsideIn ? -1 : 1) * radiusDecrementPerRevolution / segmentsPerRevolution
-    
+
     // Number of complete revolutions based on stepover
     const totalRadialDistance = Math.abs(outerRadius - innerRadius)
     const numRevolutions = totalRadialDistance / effectiveWidth
     const totalSegments = Math.floor(numRevolutions * segmentsPerRevolution)
-    
+
     let currentRadius = initialRadius
     let currentAngle = startAngle
     // Build list of spiral points first
@@ -901,20 +903,20 @@ export function generateSpiralPattern(
     for (let seg = 0; seg < totalSegments; seg++) {
       // Calculate next radius
       const nextRadius = currentRadius + radiusChangePerSegment
-      
+
       // Stop if we've reached the final radius (with small tolerance)
       if (isOutsideIn && nextRadius < finalRadius) break
       if (!isOutsideIn && nextRadius > finalRadius) break
-      
+
       // Calculate end angle for this segment
       const endAngle = currentAngle + anglePerSegment
-      
+
       // Calculate endpoint for this line segment
       const endX = centerX + nextRadius * Math.cos(endAngle)
       const endY = centerY + nextRadius * Math.sin(endAngle)
-      
+
       spiralPoints.push({ x: endX, y: endY })
-      
+
       // Update for next iteration
       currentRadius = nextRadius
       currentAngle = endAngle
@@ -937,7 +939,7 @@ export function generateSpiralPattern(
     // Helper: compute intersection on segment between inside->outside with expanded rectangle/circle
     // Note: local segment -> boundary intersection helpers removed; using module-level computeSegmentIntersectionRect / Circle
 
-    
+
 
     // Now walk the points, inserting only cutting lines for 'inside' points and G0 moves for outside re-entry
     const L = spiralPoints.length
@@ -1042,10 +1044,10 @@ export function generateSpiralPattern(
         type: 'rapid'
       })
     }
-    
+
     allPasses.push(levelPasses)
   }
-  
+
   return allPasses
 }
 
@@ -1056,27 +1058,27 @@ export function calculateZLevels(
   cutting: CuttingParameters
 ): Array<{ depth: number; isFinishing: boolean }> {
   const levels: Array<{ depth: number; isFinishing: boolean }> = []
-  
+
   let roughingDepth = cutting.totalDepth
-  
+
   if (cutting.finishingPass) {
     roughingDepth = cutting.totalDepth - cutting.finishingPassHeight
   }
-  
+
   // Calculate roughing passes
   const numRoughingPasses = Math.ceil(roughingDepth / cutting.stepdown)
-  
+
   for (let i = 0; i < numRoughingPasses; i++) {
     const depth = cutting.zOffset - Math.min((i + 1) * cutting.stepdown, roughingDepth)
     levels.push({ depth, isFinishing: false })
   }
-  
+
   // Add finishing pass if enabled
   if (cutting.finishingPass) {
     const finishDepth = cutting.zOffset - cutting.totalDepth
     levels.push({ depth: finishDepth, isFinishing: true })
   }
-  
+
   return levels
 }
 
@@ -1113,32 +1115,32 @@ export function calculateToolpathStatistics(
 } {
   let totalDistance = 0
   let estimatedTimeSeconds = 0
-  
+
   for (const level of toolpath) {
     for (let i = 1; i < level.length; i++) {
       const prev = level[i - 1]
       const curr = level[i]
-      
+
       const dx = curr.x - prev.x
       const dy = curr.y - prev.y
       const dz = curr.z - prev.z
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-      
+
       totalDistance += distance
-      
+
       if (curr.feedRate > 0) {
         estimatedTimeSeconds += (distance / curr.feedRate) * 60
       }
     }
   }
-  
+
   const zLevels = calculateZLevels(cutting)
   const roughingPasses = zLevels.filter(l => !l.isFinishing).length
   const finishingPass = zLevels.some(l => l.isFinishing)
-  
+
   // Calculate material removed (simplified - assumes rectangular stock)
   const materialRemoved = 0  // TODO: Calculate based on stock geometry
-  
+
   return {
     totalDistance: Math.round(totalDistance * 10) / 10,
     estimatedTime: Math.round(estimatedTimeSeconds),
