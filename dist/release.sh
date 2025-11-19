@@ -41,7 +41,8 @@ if [[ -f "${WD}/ui/plugin.json" ]]; then
 
     # Build the DWC Plugin
     (   cd "${DWC_REPO_PATH}"
-        npm install
+        npm ci
+        npm install three@0.181.0
         npm run build-plugin "${TMP_DIR}" || exit 1
         # Copy the built plugin to the main dist folder
         cp dist/NeXT-${COMMIT_ID}.zip "${WD}/dist/" || exit 1
@@ -49,16 +50,16 @@ if [[ -f "${WD}/ui/plugin.json" ]]; then
 
     # Extract the "dwc" folder from the plugin into the SD directory
     unzip -o "${WD}/dist/NeXT-${COMMIT_ID}.zip" "dwc/*" -d "${TMP_DIR}/sd"
-    
+
     # Generate dwc-plugins.json automatically
     echo "Generating dwc-plugins.json..."
-    
+
     # Extract DWC file paths from the plugin ZIP
     DWC_FILES=$(unzip -l "${WD}/dist/NeXT-${COMMIT_ID}.zip" | grep -E '^\s+[0-9]+.*dwc/' | awk '{print $4}' | sed 's|dwc/||' | sort | jq -R . | jq -s .)
-    
+
     # Extract SD file paths (macro files that go in sys/)
     SD_FILES=$(find "${TMP_DIR}/sd/sys" -type f -name "*.g" | sed "s|${TMP_DIR}/sd/||" | sort | jq -R . | jq -s .)
-    
+
     # Create the dwc-plugins.json file using jq to properly handle JSON
     jq -n \
       --arg id "NeXT" \
