@@ -64,7 +64,7 @@ var startZ = { global.nxtAbsPos[2] }
 var approachDistance = { var.bossDiameter / 2 + var.clearance }
 var probeTarget = { var.bossDiameter / 2 + var.overtravel } ; Probe beyond expected edge
 
-echo "G6501: Probing boss with diameter ~" ^ var.bossDiameter ^ "mm"
+echo { "G6501: Probing boss with diameter ~" ^ var.bossDiameter ^ "mm" }
 
 ; Probe from +X direction (approach from right side)
 echo "G6501: Probing from +X direction"
@@ -77,7 +77,7 @@ var probeZ = { var.startZ - var.probeDepth }
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward boss center
-G6512 X{xPlusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.xPlusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var xPlusSurface = { global.nxtLastProbeResult }
 
 ; Return to start height before moving to next position
@@ -156,6 +156,6 @@ G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY}
 G27 Z1
 
 echo "G6501: Boss probe completed"
-echo "G6501: Boss center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY
-echo "G6501: Measured diameter: X=" ^ var.actualDiameterX ^ " Y=" ^ var.actualDiameterY ^ " (avg=" ^ var.avgDiameter ^ ")"
-echo "G6501: Result logged to table index " ^ param.P
+echo { "G6501: Boss center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY }
+echo { "G6501: Measured diameter: X=" ^ var.actualDiameterX ^ " Y=" ^ var.actualDiameterY ^ " (avg=" ^ var.avgDiameter ^ ")" }
+echo { "G6501: Result logged to table index " ^ param.P }

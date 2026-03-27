@@ -16,7 +16,7 @@ while { iterations < #move.axes }
         abort { "tpre.g: Axis " ^ move.axes[iterations].letter ^ " must be homed before tool change" }
 
 ; Set tool change state to indicate tpre.g started
-global nxtToolChangeState = 3
+set global.nxtToolChangeState = { 3 }
 
 ; Stop and park spindle for safety
 G27 Z1
@@ -34,4 +34,4 @@ if { var.newTool == global.nxtProbeToolID }
 else
     M291 P{"Please install Tool " ^ var.newTool ^ " and confirm when ready."} R"Install Tool" S3
 
-echo "tpre.g: Ready to load Tool " ^ var.newTool
+echo { "tpre.g: Ready to load Tool " ^ var.newTool }

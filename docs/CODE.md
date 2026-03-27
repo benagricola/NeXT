@@ -213,7 +213,7 @@ var currentTool = { global.nxtCurrentTool }
 ; CORRECT - Use original sources directly
 set var.firstPos = { var.currentPos + var.probeSpacing }
 set global.nxtProbeResults[param.P][0] = { var.centerX }
-echo "Current tool: " ^ global.nxtCurrentTool
+echo { "Current tool: " ^ global.nxtCurrentTool }
 while { iterations < #move.axes }
 
 ; ACCEPTABLE - Preserving value at specific execution point
@@ -250,6 +250,153 @@ Example:
 ```gcode
 ; UI specifies result index 0
 G6500 P0 D25.4 L10.2  ; Bore probe writes to index 0
-G6510 P0 Z-15.0       ; Z probe adds Z data to same index 0  
+G6510 P0 Z-15.0       ; Z probe adds Z data to same index 0
 G6506 P0 N0 D1 S20.0  ; Rotation adds angle to same index 0
 ```
+
+---
+
+## 14. Common Pitfalls
+
+This section documents bugs that have occurred in the NeXT codebase and the rules to prevent them. Every item here reflects a real mistake that was found during code audit.
+
+### 14.1 Global Variable Lifecycle
+
+A global variable must be **declared once** with `global` and **updated** with `set global.`:
+
+```gcode
+; In nxt-vars.g (declaration - runs once at boot):
+global nxtMyVar = { null }
+
+; In any other macro (assignment):
+set global.nxtMyVar = { 42 }
+```
+
+#### ❌ Common mistake: Re-declaring a global that already exists
+```gcode
+; This will ERROR with "variable already exists" if nxtMyVar was declared in nxt-vars.g
+global nxtMyVar = 42
+```
+
+#### ❌ Common mistake: Using `set` on a global that was never declared
+```gcode
+; This will ERROR with "unknown variable" if nxtMyVar was never created with `global`
+set global.nxtMyVar = { 42 }
+```
+
+**Rule:** Every global variable used anywhere in the codebase MUST have a `global` declaration in `nxt-vars.g`. Any macro that changes its value MUST use `set global.<name> = { value }`.
+
+### 14.2 CNC Mode and Parentheses
+
+NeXT runs in CNC mode (`M453`). In CNC mode, **parentheses `()` outside of `{}` are treated as comments**, not subexpressions. This affects meta commands (`if`, `while`, `echo`, `var`, `set`, `abort`) when they contain function calls or grouped subexpressions.
+
+#### ❌ WRONG - parentheses treated as comment in CNC mode:
+```gcode
+while (iterations < #spindles) && !var.doWait
+; RRF sees: while   && !var.doWait  → syntax error
+
+if exists(param.S) && param.S > 0
+; RRF sees: if exists  → incomplete expression
+```
+
+#### ✅ CORRECT - wrap in `{}` so parentheses work as subexpressions:
+```gcode
+while { iterations < #spindles && !var.doWait }
+if { exists(param.S) && param.S > 0 }
+```
+
+**Rule:** Always wrap meta command expressions in `{}`. This is also required for consistency (Section 3), but in CNC mode it is functionally required whenever `()` appear.
+
+### 14.3 The `^` Operator is String Concatenation, Not Exponentiation
+
+RRF's `^` operator concatenates strings. It does NOT raise to a power. Use `square()` for squaring, or `pow()` for arbitrary exponents, or simply multiply `var.x * var.x`.
+
+#### ❌ WRONG:
+```gcode
+var magnitude = { sqrt(var.deltaX^2 + var.deltaY^2) }
+; This concatenates var.deltaX with the string "2", then tries to add strings
+```
+
+#### ✅ CORRECT:
+```gcode
+var magnitude = { sqrt(square(var.deltaX) + square(var.deltaY)) }
+; Or: { sqrt(var.deltaX * var.deltaX + var.deltaY * var.deltaY) }
+```
+
+### 14.4 Probing Macros Must Pass Probe ID to G6512
+
+`G6512` (single-axis probing) requires the `I` parameter specifying which probe sensor to use. It will abort without it. Every call to `G6512` from a probing macro must include `I{global.nxtTouchProbeID}` (or `I{global.nxtToolSetterID}` for tool measurement).
+
+#### ❌ WRONG:
+```gcode
+G6512 X{var.target} Y{var.centerY} Z{var.probeZ} F{var.feedRate} R{var.retries}
+```
+
+#### ✅ CORRECT:
+```gcode
+G6512 X{var.target} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+```
+
+### 14.5 Variable Scope — No Duplicate `var` Declarations
+
+In RRF, `var` creates a new variable and errors if the name already exists in the current scope. You cannot re-declare a variable to change its value — use `set` instead.
+
+#### ❌ WRONG - redeclares in the same if-block:
+```gcode
+if { var.axis == 0 }
+    var firstY = { var.centerY - var.halfSpacing }
+    ; ... probing happens ...
+    var firstY = { global.nxtLastProbeResult }   ; ERROR: "variable already exists"
+```
+
+#### ✅ CORRECT - use `set` to update:
+```gcode
+if { var.axis == 0 }
+    var firstY = { var.centerY - var.halfSpacing }
+    ; ... probing happens ...
+    set var.firstY = { global.nxtLastProbeResult }
+```
+
+### 14.6 Deflection and Tip Radius Compensation Must Account for Direction
+
+When compensating probe results for deflection or tip radius, the sign depends on the probe direction. Probing in the positive direction overshoots positive (subtract to compensate); probing in the negative direction overshoots negative (add to compensate).
+
+#### ❌ WRONG - always subtracts:
+```gcode
+var compensated = { var.triggeredPos * 1000 - var.probeDeflectionUm }
+```
+
+#### ✅ CORRECT - scales by direction:
+```gcode
+var direction = { var.target > var.start ? 1 : -1 }
+var compensated = { var.triggeredPos * 1000 - (var.probeDeflectionUm * var.direction) }
+```
+
+### 14.7 Comparing Vectors vs Scalars
+
+When you copy a vector (array) into a variable, comparing that variable against a scalar will fail. Always index into the vector to get a single axis value.
+
+#### ❌ WRONG - compares array to float:
+```gcode
+var startPos = { global.nxtAbsPos }
+var direction = { var.target > var.startPos ? 1 : -1 }
+```
+
+#### ✅ CORRECT - index into the array:
+```gcode
+var startPos = { global.nxtAbsPos }
+var direction = { var.target > var.startPos[var.axisIndex] ? 1 : -1 }
+```
+
+### 14.8 Named Constants and Common Functions
+
+RRF provides these named constants — use them, do not redefine them:
+- `true`, `false`, `null`, `pi`, `iterations`, `result`, `line`, `input`
+
+Useful math functions (check RRF version for availability):
+- `abs()`, `min()`, `max()`, `sqrt()`, `square()` (3.6+), `pow()` (3.5+), `round()` (3.6+)
+- `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `atan2()`
+- `degrees()`, `radians()` — prefer these over manual `* 180 / pi` conversion
+- `ceil()`, `floor()`, `mod()`
+- `vector(count, value)` — create arrays
+- `exists(name)` — returns true if name is defined **and not null**

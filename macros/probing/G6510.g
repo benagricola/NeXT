@@ -33,8 +33,8 @@ if { param.P >= #global.nxtProbeResults }
 
 ; Validate exactly one axis parameter is provided
 var axisParams = { param.X, param.Y, param.Z }
-var probeAxis = -1
-var targetCoord = 0
+var probeAxis = { -1 }
+var targetCoord = { 0 }
 
 ; Set probeAxis and ensure exactly one axis parameter is provided
 while { iterations < #var.axisParams }
@@ -51,7 +51,7 @@ if { var.probeAxis == -1 }
 if { state.currentTool != global.nxtProbeToolID }
     abort { "G6510: Touch probe (T" ^ global.nxtProbeToolID ^ ") must be selected" }
 
-echo "G6510: Starting single surface probe on " ^ move.axes[var.probeAxis].letter ^ " axis"
+echo { "G6510: Starting single surface probe on " ^ move.axes[var.probeAxis].letter ^ " axis" }
 
 ; Get current position to build target coordinates
 M5000
@@ -73,4 +73,4 @@ set global.nxtProbeResults[param.P][var.probeAxis] = { global.nxtLastProbeResult
 G27 Z1
 
 echo "G6510: Single surface probe completed"
-echo "G6510: Result logged to table index " ^ param.P ^ ", " ^ move.axes[var.probeAxis].letter ^ "=" ^ global.nxtLastProbeResult
+echo { "G6510: Result logged to table index " ^ param.P ^ ", " ^ move.axes[var.probeAxis].letter ^ "=" ^ global.nxtLastProbeResult }

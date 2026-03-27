@@ -16,7 +16,7 @@ while { iterations < #move.axes }
         abort { "tfree.g: Axis " ^ move.axes[iterations].letter ^ " must be homed before tool change" }
 
 ; Set tool change state to indicate tfree.g started
-global nxtToolChangeState = 1
+set global.nxtToolChangeState = { 1 }
 
 ; Stop and park spindle for safety
 G27 Z1
@@ -33,7 +33,7 @@ else
     ; Handle standard cutting tool - perform probe-on-removal
     if { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
         ; Measure tool length before removal for relative offset calculation
-        echo "tfree.g: Measuring tool " ^ state.currentTool ^ " before removal"
+        echo { "tfree.g: Measuring tool " ^ state.currentTool ^ " before removal" }
         
         ; Move to toolsetter and measure
         G37
@@ -41,12 +41,12 @@ else
         ; Cache the measurement result for relative offset calculations
         set global.nxtToolCache[state.currentTool] = { global.nxtLastProbeResult }
         
-        echo "tfree.g: Tool " ^ state.currentTool ^ " measured at Z=" ^ global.nxtLastProbeResult
+        echo { "tfree.g: Tool " ^ state.currentTool ^ " measured at Z=" ^ global.nxtLastProbeResult }
     else
         ; No toolsetter - just prompt for manual removal
         M291 P{"Please remove Tool " ^ state.currentTool ^ " and confirm when complete."} R"Remove Tool" S3
 
 ; Set tool change state to indicate tfree.g completed
-global nxtToolChangeState = 2
+set global.nxtToolChangeState = { 2 }
 
-echo "tfree.g: Tool " ^ state.currentTool ^ " removal process completed"
+echo { "tfree.g: Tool " ^ state.currentTool ^ " removal process completed" }

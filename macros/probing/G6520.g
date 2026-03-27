@@ -73,7 +73,7 @@ var zSurface = { global.nxtLastProbeResult }
 M5000
 var currentZ = { global.nxtAbsPos[2] }
 
-echo "G6520: Z surface found at " ^ var.zSurface
+echo { "G6520: Z surface found at " ^ var.zSurface }
 
 ; Phase 2: Probe X surface (vise jaw)
 echo "G6520: Probing X surface"
@@ -123,5 +123,5 @@ G6550 X{var.cornerX} Y{var.cornerY} Z{var.cornerZ}
 G27 Z1
 
 echo "G6520: Vise corner probe completed"
-echo "G6520: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY ^ " Z=" ^ var.cornerZ
-echo "G6520: Result logged to table index " ^ param.P
+echo { "G6520: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY ^ " Z=" ^ var.cornerZ }
+echo { "G6520: Result logged to table index " ^ param.P }

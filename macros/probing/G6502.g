@@ -67,7 +67,7 @@ var yProbeDistance = { var.pocketHeight / 2 + var.overtravel }
 var probeZ = { var.startZ - var.probeDepth }
 G6550 Z{var.probeZ}
 
-echo "G6502: Probing rectangular pocket " ^ var.pocketWidth ^ "x" ^ var.pocketHeight ^ "mm"
+echo { "G6502: Probing rectangular pocket " ^ var.pocketWidth ^ "x" ^ var.pocketHeight ^ "mm" }
 
 ; Probe +X edge (right side of pocket)
 echo "G6502: Probing +X edge"
@@ -126,6 +126,6 @@ G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY}
 G6550 Z{var.startZ}
 
 echo "G6502: Rectangle pocket probe completed"
-echo "G6502: Pocket center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY
-echo "G6502: Measured dimensions: " ^ var.actualWidth ^ "x" ^ var.actualHeight ^ "mm"
-echo "G6502: Result logged to table index " ^ param.P
+echo { "G6502: Pocket center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY }
+echo { "G6502: Measured dimensions: " ^ var.actualWidth ^ "x" ^ var.actualHeight ^ "mm" }
+echo { "G6502: Result logged to table index " ^ param.P }

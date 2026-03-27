@@ -1,7 +1,7 @@
 ; daemon.g - Run daemon tasks
 
 while { exists(global.nxtDaemonEnabled) && global.nxtDaemonEnabled }
-    G4 P{global.nxtDaemonInterval} ; Minimum interval between daemon runs
+    G4 P{exists(global.nxtDaemonInterval) ? global.nxtDaemonInterval : 1000} ; Minimum interval between daemon runs
 
     if { fileexists("0:/sys/arborctl/arborctl-daemon.g") }
         M98 P"arborctl/arborctl-daemon.g" ; Control spindle using ArborCTL

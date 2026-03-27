@@ -13,7 +13,7 @@
 ; --- Parameter Validation ---
 
 var axisParams = { param.X, param.Y, param.Z, param.A }
-var probeAxisIndex = -1
+var probeAxisIndex = { -1 }
 
 ; Set probeAxisIndex and ensure exactly one axis parameter is provided
 while { iterations < #var.axisParams }
@@ -54,9 +54,9 @@ if { var.roughSpeed == var.fineSpeed && !exists(param.F) }
     set var.fineSpeed = { var.roughSpeed / 5 }
 
 ; --- Probing Loop ---
-var sum = 0.0
-var count = 0
-var speed = var.roughSpeed
+var sum = { 0.0 }
+var count = { 0 }
+var speed = { var.roughSpeed }
 
 var probeDeflectionUm = { global.nxtProbeDeflection * 1000 }
 var probeTipRadiusUm = { global.nxtProbeTipRadius * 1000 }
@@ -65,7 +65,7 @@ while { iterations < var.retries }
     ; Refresh current machine position before each probe move
     M5000
 
-    var startPos = global.nxtAbsPos
+    var startPos = { global.nxtAbsPos }
 
     ; Execute probe move
     G53 G38.2 K{param.I} F{var.speed} X{var.targetVector[0]} Y{var.targetVector[1]} Z{var.targetVector[2]} A{var.targetVector[3]}
@@ -76,9 +76,9 @@ while { iterations < var.retries }
     ; Get the triggered position
     M5000
 
-    var triggeredPos = global.nxtAbsPos[var.probeAxisIndex]
-    var direction = { var.targetVector[var.probeAxisIndex] > var.startPos ? 1 : -1 }
-    var compensated = { var.triggeredPos * 1000 - var.probeDeflectionUm }
+    var triggeredPos = { global.nxtAbsPos[var.probeAxisIndex] }
+    var direction = { var.targetVector[var.probeAxisIndex] > var.startPos[var.probeAxisIndex] ? 1 : -1 }
+    var compensated = { var.triggeredPos * 1000 - (var.probeDeflectionUm * var.direction) }
 
     if { var.probeAxisIndex != 2 }
         set var.compensated = { var.compensated + (var.probeTipRadiusUm * var.direction) }
@@ -94,8 +94,8 @@ while { iterations < var.retries }
     ; Build backoff vector
     var backoffVector = { global.nxtAbsPos }
     while { #var.backoffVector < 4 }
-        set var.backoffVector[#var.backoffVector] = 0
-    set var.backoffVector[var.probeAxisIndex] = var.backoffTarget
+        set var.backoffVector[#var.backoffVector] = { 0 }
+    set var.backoffVector[var.probeAxisIndex] = { var.backoffTarget }
 
     ; Backoff move
     G53 G0 X{var.backoffVector[0]} Y{var.backoffVector[1]} Z{var.backoffVector[2]} A{var.backoffVector[3]}
@@ -106,4 +106,4 @@ while { iterations < var.retries }
 ; --- Finalize ---
 set global.nxtLastProbeResult = { round(var.sum / var.count) / 1000 }
 
-echo "G6512: Compensated probe result for axis " ^ move.axes[var.probeAxisIndex].letter ^ ": " ^ global.nxtLastProbeResult
+echo { "G6512: Compensated probe result for axis " ^ move.axes[var.probeAxisIndex].letter ^ ": " ^ global.nxtLastProbeResult }

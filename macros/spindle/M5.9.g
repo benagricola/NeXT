@@ -15,9 +15,9 @@ M400
 ; Spindles only need to be stopped if they're actually running.
 var spindleID = { global.nxtSpindleID }
 
-var doWait = false
+var doWait = { false }
 
-while (iterations < #spindles) && !var.doWait
+while { iterations < #spindles && !var.doWait }
     ; Ignore unconfigured spindles
     if { spindles[iterations].state == "unconfigured" }
         continue
@@ -31,7 +31,7 @@ while (iterations < #spindles) && !var.doWait
 ; Must calculate dwell time before spindle speed is changed.
 
 ; Default is to not dwell
-var dwellTime = 0
+var dwellTime = { 0 }
 
 ; D parameter always overrides the dwell time
 if { exists(param.D) }

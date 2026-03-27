@@ -20,7 +20,7 @@ while { iterations < #move.axes }
         abort { "tpost.g: Axis " ^ move.axes[iterations].letter ^ " must be homed after tool change" }
 
 ; Set tool change state to indicate tpost.g started
-global nxtToolChangeState = 4
+set global.nxtToolChangeState = { 4 }
 
 ; Stop and park spindle for safety
 G27 Z1
@@ -36,7 +36,7 @@ if { state.currentTool == global.nxtProbeToolID && global.nxtFeatureTouchProbe }
     
     ; Probe the reference surface with the touch probe
     ; This establishes the probe's position relative to the static datum
-    echo "tpost.g: Measuring touch probe against reference surface"
+    echo { "tpost.g: Measuring touch probe against reference surface" }
     
     ; User must manually position probe near reference surface
     M291 P"Please jog the touch probe close to the reference surface, then press OK to continue with automatic measurement." R"Position Touch Probe" S3
@@ -56,11 +56,11 @@ if { state.currentTool == global.nxtProbeToolID && global.nxtFeatureTouchProbe }
     ; Set tool offset to 0 for the touch probe (it defines the reference)
     G10 L1 P{state.currentTool} Z0
     
-    echo "tpost.g: Touch probe measured, virtual toolsetter position: " ^ var.probeVirtualToolsetterPos
+    echo { "tpost.g: Touch probe measured, virtual toolsetter position: " ^ var.probeVirtualToolsetterPos }
     
 elif { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
     ; Standard tool with toolsetter available
-    echo "tpost.g: Measuring new tool " ^ state.currentTool
+    echo { "tpost.g: Measuring new tool " ^ state.currentTool }
     
     ; Measure the new tool
     G37
@@ -73,9 +73,9 @@ elif { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
     ; This implements the relative offsetting workflow from TOOLSETTING.md
     
     ; Find the previous tool that was cached (most recent non-null entry)
-    var oldToolMeasurement = null
-    var oldToolOffset = 0
-    var oldToolIndex = -1
+    var oldToolMeasurement = { null }
+    var oldToolOffset = { 0 }
+    var oldToolIndex = { -1 }
     
     ; Look through tool cache to find the most recently measured tool
     while { iterations < #global.nxtToolCache }
@@ -93,19 +93,19 @@ elif { global.nxtFeatureToolSetter && global.nxtToolSetterPos != null }
         ; Apply the calculated offset
         G10 L1 P{state.currentTool} Z{var.newOffset}
         
-        echo "tpost.g: Relative offset calculated - Tool " ^ var.oldToolIndex ^ " to Tool " ^ state.currentTool
-        echo "tpost.g: Length difference: " ^ var.lengthDiff ^ "mm, New offset: " ^ var.newOffset ^ "mm"
+        echo { "tpost.g: Relative offset calculated - Tool " ^ var.oldToolIndex ^ " to Tool " ^ state.currentTool }
+        echo { "tpost.g: Length difference: " ^ var.lengthDiff ^ "mm, New offset: " ^ var.newOffset ^ "mm" }
     else
         ; No previous tool data - this is the first measured tool
         ; Set its offset to 0 to establish a reference
         G10 L1 P{state.currentTool} Z0
-        echo "tpost.g: First measured tool - offset set to 0 (establishes reference)"
+        echo { "tpost.g: First measured tool - offset set to 0 (establishes reference)" }
 else
     ; No toolsetter available - manual offset required
     M291 P"Toolsetter not available. Please set tool offset manually." R"Manual Offset Required" S2
-    echo "tpost.g: Manual tool offset required - no automatic measurement available"
+    echo { "tpost.g: Manual tool offset required - no automatic measurement available" }
 
 ; Clear tool change state to indicate completion
-global nxtToolChangeState = null
+set global.nxtToolChangeState = { null }
 
-echo "tpost.g: Tool " ^ state.currentTool ^ " change process completed"
+echo { "tpost.g: Tool " ^ state.currentTool ^ " change process completed" }

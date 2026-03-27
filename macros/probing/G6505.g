@@ -63,7 +63,7 @@ var overtravel = { exists(param.O) ? param.O : 2.0 }
 
 var axisName = { var.probeAxis == 0 ? "X" : "Y" }
 
-echo "G6505: Starting pocket probe cycle along " ^ var.axisName ^ " axis"
+echo { "G6505: Starting pocket probe cycle along " ^ var.axisName ^ " axis" }
 
 ; Get current position (should be approximately at pocket center)
 M5000
@@ -78,7 +78,7 @@ var probeDistance = { var.pocketWidth / 2 + var.overtravel }
 var probeZ = { var.startZ - var.probeDepth }
 G6550 Z{var.probeZ}
 
-echo "G6505: Probing pocket with width ~" ^ var.pocketWidth ^ "mm along " ^ var.axisName ^ " axis"
+echo { "G6505: Probing pocket with width ~" ^ var.pocketWidth ^ "mm along " ^ var.axisName ^ " axis" }
 
 if { var.probeAxis == 0 }
     ; Probe X axis pocket
@@ -151,6 +151,6 @@ G6550 X{var.resultX} Y{var.resultY}
 G6550 Z{var.startZ}
 
 echo "G6505: Pocket probe completed"
-echo "G6505: Pocket center along " ^ var.axisName ^ " axis: " ^ var.calculatedCenter
-echo "G6505: Measured width: " ^ var.actualWidth ^ "mm"
-echo "G6505: Result logged to table index " ^ param.P
+echo { "G6505: Pocket center along " ^ var.axisName ^ " axis: " ^ var.calculatedCenter }
+echo { "G6505: Measured width: " ^ var.actualWidth ^ "mm" }
+echo { "G6505: Result logged to table index " ^ param.P }

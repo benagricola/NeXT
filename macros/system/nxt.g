@@ -4,14 +4,14 @@
 
 ; Set NeXT Version
 if { !exists(global.nxtVersion) }
-    global nxtVersion = "%%NXT_VERSION%%"
+    global nxtVersion = { "%%NXT_VERSION%%" }
 else
-    set global.nxtVersion = "%%NXT_VERSION%%"
+    set global.nxtVersion = { "%%NXT_VERSION%%" }
 
 ; Load default variables if not already loaded
 if { !exists(global.nxtVarsLoaded) }
     M98 P"nxt-vars.g"
-    global nxtVarsLoaded=true
+    global nxtVarsLoaded = { true }
 
 ; Load user-defined variables if they exist
 ; This MUST set already-defined globals and
@@ -29,6 +29,6 @@ M98 P"nxt-boot.g"
 
 ; Final check if NeXT loaded successfully
 if { global.nxtLoaded }
-    echo "NeXT v" ^ global.nxtVersion ^ " loaded successfully."
+    echo { "NeXT v" ^ global.nxtVersion ^ " loaded successfully." }
 else
-    echo "FATAL: NeXT failed to load. Error: " ^ global.nxtError
+    echo { "FATAL: NeXT failed to load. Error: " ^ global.nxtError }

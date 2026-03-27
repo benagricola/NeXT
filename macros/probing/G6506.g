@@ -60,7 +60,7 @@ var overtravel = { exists(param.O) ? param.O : 2.0 }
 var surfaceName = { var.surfaceAxis == 0 ? "X" : "Y" }
 var directionName = { var.direction == 0 ? "negative" : "positive" }
 
-echo "G6506: Starting rotation probe cycle for " ^ var.surfaceName ^ " surface in " ^ var.directionName ^ " direction"
+echo { "G6506: Starting rotation probe cycle for " ^ var.surfaceName ^ " surface in " ^ var.directionName ^ " direction" }
 
 ; Get current position (should be approximately at midpoint of surface)
 M5000
@@ -72,7 +72,7 @@ var startZ = { global.nxtAbsPos[2] }
 var halfSpacing = { var.spacing / 2 }
 var probeZ = { var.startZ - var.probeDepth }
 
-echo "G6506: Probing " ^ var.surfaceName ^ " surface with " ^ var.spacing ^ "mm spacing"
+echo { "G6506: Probing " ^ var.surfaceName ^ " surface with " ^ var.spacing ^ "mm spacing" }
 
 if { var.surfaceAxis == 0 }
     ; Probing X surface (probe moves in Y direction, surface runs along X)
@@ -88,10 +88,10 @@ if { var.surfaceAxis == 0 }
     G6550 Z{var.probeZ}
     
     ; Execute probe move toward surface
-    G6512 X{var.centerX} Y{var.probeTargetY} Z{var.probeZ} F{var.feedRate} R{var.retries}
+    G6512 X{var.centerX} Y{var.probeTargetY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
     var firstPoint = { global.nxtLastProbeResult }
     var firstX = { var.centerX }
-    var firstY = { var.firstPoint }
+    set var.firstY = { var.firstPoint }
     
     ; Return to start height
     G6550 Z{var.startZ}
@@ -106,10 +106,10 @@ if { var.surfaceAxis == 0 }
     G6550 Z{var.probeZ}
     
     ; Execute probe move toward surface
-    G6512 X{var.centerX} Y{var.probeTargetY2} Z{var.probeZ} F{var.feedRate} R{var.retries}
+    G6512 X{var.centerX} Y{var.probeTargetY2} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
     var secondPoint = { global.nxtLastProbeResult }
     var secondX = { var.centerX }
-    var secondY = { var.secondPoint }
+    set var.secondY = { var.secondPoint }
     
     ; Calculate rotation angle (in degrees)
     var deltaY = { var.secondY - var.firstY }
@@ -131,9 +131,9 @@ else
     G6550 Z{var.probeZ}
     
     ; Execute probe move toward surface
-    G6512 X{var.probeTargetX} Y{var.centerY} Z{var.probeZ} F{var.feedRate} R{var.retries}
+    G6512 X{var.probeTargetX} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
     var firstPoint = { global.nxtLastProbeResult }
-    var firstX = { var.firstPoint }
+    set var.firstX = { var.firstPoint }
     var firstY = { var.centerY }
     
     ; Return to start height
@@ -149,9 +149,9 @@ else
     G6550 Z{var.probeZ}
     
     ; Execute probe move toward surface
-    G6512 X{var.probeTargetX2} Y{var.centerY} Z{var.probeZ} F{var.feedRate} R{var.retries}
+    G6512 X{var.probeTargetX2} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
     var secondPoint = { global.nxtLastProbeResult }
-    var secondX = { var.secondPoint }
+    set var.secondX = { var.secondPoint }
     var secondY = { var.centerY }
     
     ; Calculate rotation angle (in degrees)
@@ -177,7 +177,7 @@ set global.nxtProbeResults[param.P][#move.axes] = { var.rotationDeg }
 ; Return to safe height
 G27 Z1
 
-echo "G6506: Rotation probe completed"
-echo "G6506: Surface midpoint at X=" ^ var.midpointX ^ " Y=" ^ var.midpointY
-echo "G6506: Surface rotation: " ^ var.rotationDeg ^ " degrees"
-echo "G6506: Result logged to table index " ^ param.P
+echo { "G6506: Rotation probe completed" }
+echo { "G6506: Surface midpoint at X=" ^ var.centerX ^ " Y=" ^ var.centerY }
+echo { "G6506: Surface rotation: " ^ var.rotationDeg ^ " degrees" }
+echo { "G6506: Result logged to table index " ^ param.P }

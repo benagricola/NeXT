@@ -71,7 +71,7 @@ var probeZ = { var.startZ - var.probeDepth }
 G6550 Z{var.probeZ}
 
 ; Execute X surface probe
-G6512 X{var.xTarget} Y{var.xProbeY} Z{var.probeZ} F{var.feedRate} R{var.retries}
+G6512 X{var.xTarget} Y{var.xProbeY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var xSurface = { global.nxtLastProbeResult }
 
 ; Return to start height
@@ -92,14 +92,7 @@ G6550 X{var.yProbeX} Y{var.startY}
 G6550 Z{var.probeZ}
 
 ; Execute Y surface probe
-G6512 X{var.yProbeX} Y{var.yTarget} Z{var.probeZ} F{var.feedRate} R{var.retries}
-var ySurface = { global.nxtLastProbeResult }
-
-; Return to start height
-G6550 Z{var.startZ}
-
-; Execute Y surface probe
-G6512 X{var.yProbeX} Y{param.Y} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
+G6512 X{var.yProbeX} Y{var.yTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var ySurface = { global.nxtLastProbeResult }
 
 ; Return to start height
@@ -122,5 +115,5 @@ set global.nxtProbeResults[param.P][1] = { var.cornerY }
 G27 Z1
 
 echo "G6508: Outside corner probe completed"
-echo "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
-echo "G6508: Result logged to table index " ^ param.P
+echo { "G6508: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY }
+echo { "G6508: Result logged to table index " ^ param.P }

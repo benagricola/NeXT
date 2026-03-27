@@ -15,7 +15,7 @@ if { global.nxtToolSetterPos == null }
     abort { "G37: Toolsetter position not configured" }
 
 ; Use configured toolsetter probe ID from global.nxtToolSetterID
-var probeID = {global.nxtToolSetterID}
+var probeID = { global.nxtToolSetterID }
 
 ; Move to toolsetter XY position
 G53 G0 X{global.nxtToolSetterPos[0]} Y{global.nxtToolSetterPos[1]}
@@ -29,4 +29,4 @@ G6512 Z{global.nxtToolSetterPos[2]} I{var.probeID}
 ; The result is in nxtLastProbeResult
 ; This would be the tool length or used to set offset
 
-echo "G37: Tool probed at Z=" ^ global.nxtLastProbeResult
+echo { "G37: Tool probed at Z=" ^ global.nxtLastProbeResult }

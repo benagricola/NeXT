@@ -64,7 +64,7 @@ if { sensors.probes[var.probeID].value[0] != 0 }
     var deltaA = { exists(param.A) ? (var.targetCoords[3] - global.nxtAbsPos[3]) : 0 }
     
     ; Calculate magnitude of movement vector
-    var magnitude = { sqrt(var.deltaX^2 + var.deltaY^2 + var.deltaZ^2) }
+    var magnitude = { sqrt(square(var.deltaX) + square(var.deltaY) + square(var.deltaZ)) }
     
     if { var.magnitude > 0 }
         ; Normalize and scale by backoff distance

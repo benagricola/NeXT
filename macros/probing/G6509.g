@@ -117,5 +117,5 @@ set global.nxtProbeResults[param.P][1] = { var.cornerY }
 G27 Z1
 
 echo "G6509: Inside corner probe completed"
-echo "G6509: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY
-echo "G6509: Result logged to table index " ^ param.P
+echo { "G6509: Corner found at X=" ^ var.cornerX ^ " Y=" ^ var.cornerY }
+echo { "G6509: Result logged to table index " ^ param.P }

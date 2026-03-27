@@ -65,7 +65,7 @@ var yApproachDistance = { var.blockHeight / 2 + var.clearance }
 var xProbeTarget = { var.blockWidth / 2 + var.overtravel }
 var yProbeTarget = { var.blockHeight / 2 + var.overtravel }
 
-echo "G6503: Probing rectangular block " ^ var.blockWidth ^ "x" ^ var.blockHeight ^ "mm"
+echo { "G6503: Probing rectangular block " ^ var.blockWidth ^ "x" ^ var.blockHeight ^ "mm" }
 
 ; Probe from +X direction (approach from right side)
 echo "G6503: Probing from +X direction"
@@ -78,7 +78,7 @@ var probeZ = { var.startZ - var.probeDepth }
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.xPlusTarget} Y{var.centerY} Z{var.probeZ} F{var.feedRate} R{var.retries}
+G6512 X{var.xPlusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var xPlusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height before moving to next position
@@ -94,7 +94,7 @@ G6550 X{var.xMinusStart} Y{var.centerY}
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.xMinusTarget} Y{var.centerY} Z{var.probeZ} F{var.feedRate} R{var.retries}
+G6512 X{var.xMinusTarget} Y{var.centerY} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var xMinusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height before moving to next position
@@ -114,7 +114,7 @@ G6550 X{var.calculatedCenterX} Y{var.yPlusStart}
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.calculatedCenterX} Y{var.yPlusTarget} Z{var.probeZ} F{var.feedRate} R{var.retries}
+G6512 X{var.calculatedCenterX} Y{var.yPlusTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var yPlusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height before moving to next position
@@ -130,7 +130,7 @@ G6550 X{var.calculatedCenterX} Y{var.yMinusStart}
 G6550 Z{var.probeZ}
 
 ; Execute probe move toward block center
-G6512 X{var.calculatedCenterX} Y{var.yMinusTarget} Z{var.probeZ} F{var.feedRate} R{var.retries}
+G6512 X{var.calculatedCenterX} Y{var.yMinusTarget} Z{var.probeZ} I{global.nxtTouchProbeID} F{var.feedRate} R{var.retries}
 var yMinusEdge = { global.nxtLastProbeResult }
 
 ; Return to start height
@@ -159,6 +159,6 @@ G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY}
 G27 Z1
 
 echo "G6503: Rectangle block probe completed"
-echo "G6503: Block center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY
-echo "G6503: Measured dimensions: " ^ var.actualWidth ^ "x" ^ var.actualHeight ^ "mm"
-echo "G6503: Result logged to table index " ^ param.P
+echo { "G6503: Block center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY }
+echo { "G6503: Measured dimensions: " ^ var.actualWidth ^ "x" ^ var.actualHeight ^ "mm" }
+echo { "G6503: Result logged to table index " ^ param.P }

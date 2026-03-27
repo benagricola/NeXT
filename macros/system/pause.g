@@ -4,7 +4,7 @@
 ; output pins.
 while { iterations < #state.gpOut }
     if { state.gpOut[iterations] != null }
-        set global.nxtPinStates[iterations] = state.gpOut[iterations].pwm
+        set global.nxtPinStates[iterations] = { state.gpOut[iterations].pwm }
 
 ; Raise the spindle to the top of the Z axis and
 ; then stop it, but do not move the table.

@@ -63,7 +63,7 @@ var overtravel = { exists(param.O) ? param.O : 2.0 }
 
 var axisName = { var.probeAxis == 0 ? "X" : "Y" }
 
-echo "G6504: Starting web probe cycle along " ^ var.axisName ^ " axis"
+echo { "G6504: Starting web probe cycle along " ^ var.axisName ^ " axis" }
 
 ; Get current position (should be approximately at web center)
 M5000
@@ -75,7 +75,7 @@ var startZ = { global.nxtAbsPos[2] }
 var approachDistance = { var.webWidth / 2 + var.clearance }
 var probeTarget = { var.webWidth / 2 + var.overtravel }
 
-echo "G6504: Probing web with width ~" ^ var.webWidth ^ "mm along " ^ var.axisName ^ " axis"
+echo { "G6504: Probing web with width ~" ^ var.webWidth ^ "mm along " ^ var.axisName ^ " axis" }
 
 if { var.probeAxis == 0 }
     ; Probe X axis web
@@ -178,6 +178,6 @@ G6550 X{var.resultX} Y{var.resultY}
 G27 Z1
 
 echo "G6504: Web probe completed"
-echo "G6504: Web center along " ^ var.axisName ^ " axis: " ^ var.calculatedCenter
-echo "G6504: Measured width: " ^ var.actualWidth ^ "mm"
-echo "G6504: Result logged to table index " ^ param.P
+echo { "G6504: Web center along " ^ var.axisName ^ " axis: " ^ var.calculatedCenter }
+echo { "G6504: Measured width: " ^ var.actualWidth ^ "mm" }
+echo { "G6504: Result logged to table index " ^ param.P }

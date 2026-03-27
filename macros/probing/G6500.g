@@ -68,7 +68,7 @@ G6550 Z{var.probeZ}
 ; Calculate probe distances (half diameter plus overtravel)
 var probeDistance = { var.boreDiameter / 2 + var.overtravel }
 
-echo "G6500: Probing bore with diameter ~" ^ var.boreDiameter ^ "mm"
+echo { "G6500: Probing bore with diameter ~" ^ var.boreDiameter ^ "mm" }
 
 ; Probe +X direction (right side of bore)
 echo "G6500: Probing +X surface"
@@ -132,6 +132,6 @@ G6550 X{var.calculatedCenterX} Y{var.calculatedCenterY}
 G6550 Z{var.startZ}
 
 echo "G6500: Bore probe completed"
-echo "G6500: Bore center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY
-echo "G6500: Measured diameter: X=" ^ var.actualDiameterX ^ " Y=" ^ var.actualDiameterY ^ " (avg=" ^ var.avgDiameter ^ ")"
-echo "G6500: Result logged to table index " ^ param.P
+echo { "G6500: Bore center at X=" ^ var.calculatedCenterX ^ " Y=" ^ var.calculatedCenterY }
+echo { "G6500: Measured diameter: X=" ^ var.actualDiameterX ^ " Y=" ^ var.actualDiameterY ^ " (avg=" ^ var.avgDiameter ^ ")" }
+echo { "G6500: Result logged to table index " ^ param.P }
