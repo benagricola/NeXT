@@ -38,3 +38,13 @@ global nxtExpertMode = { false } ; Suppress informational messages during spindl
 ; --- Position Tracking ---
 global nxtAbsPos = { null }      ; Tool-compensated absolute position vector, populated by M5000
 
+; --- Custom Dialog System ---
+global nxtDialogActive = false   ; Flag indicating if a custom dialog is currently displayed
+global nxtDialogMessage = null   ; Current dialog message content
+global nxtDialogTitle = null     ; Current dialog title
+global nxtDialogChoices = null   ; Array of dialog button choices
+global nxtDialogHasChoices = false ; Flag indicating if dialog has choice buttons
+global nxtDialogFlag = 0         ; Dialog behavior flag (0=info, 1=blocking, 2=critical)
+global nxtDialogResponse = null  ; User's response to the dialog
+global nxtDialogSeq = null       ; Dialog sequence number for response correlation
+
